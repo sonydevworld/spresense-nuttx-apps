@@ -153,6 +153,17 @@ struct wget_s
 };
 
 /****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+static int wget_socketconnect(int use_ssl, FAR const char *host,
+                              uint16_t port);
+static ssize_t wget_socketsend(int fd, FAR const void *buf, size_t len,
+                               int flags);
+static ssize_t wget_socketrecv(int fd, FAR void *buf, size_t len, int flags);
+static int wget_socketclose(int fd);
+
+/****************************************************************************
  * Private Data
  ****************************************************************************/
 
@@ -182,6 +193,17 @@ static const char g_httpform[]        = "Content-Type: application/x-www-form-ur
 static const char g_httpcontsize[]    = "Content-Length: ";
 //static const char g_httpconn[]      = "Connection: Keep-Alive";
 //static const char g_httpcache[]     = "Cache-Control: no-cache";
+
+static const char g_httpscheme[]      = "http";
+static const char g_httpsscheme[]     = "https";
+
+static struct wget_transport_s g_transport =
+{
+  .connect = wget_socketconnect,
+  .send = wget_socketsend,
+  .recv = wget_socketrecv,
+  .close = wget_socketclose
+};
 
 /****************************************************************************
  * Private Functions
@@ -411,6 +433,134 @@ static int wget_gethostip(FAR char *hostname, in_addr_t *ipv4addr)
 }
 
 /****************************************************************************
+ * Name: wget_socketconnect
+ ****************************************************************************/
+
+static int wget_socketconnect(int use_ssl, FAR const char *host, uint16_t port)
+{
+  int sockfd = -1;
+  struct timeval tv;
+  struct sockaddr_in server;
+  int ret = 0;
+
+  if (use_ssl)
+    {
+      /* webclient not support SSL */
+
+      return -EPROTO;
+    }
+
+  /* Create a socket */
+
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0)
+    {
+      ret = -errno;
+
+      /* socket failed.  It will set the errno appropriately */
+
+      nerr("ERROR: socket failed: %d\n", errno);
+      return ret;
+    }
+
+  /* Set send and receive timeout values */
+
+  tv.tv_sec  = CONFIG_WEBCLIENT_TIMEOUT;
+  tv.tv_usec = 0;
+
+  (void)setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (FAR const void *)&tv,
+                   sizeof(struct timeval));
+  (void)setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (FAR const void *)&tv,
+                   sizeof(struct timeval));
+
+  /* Get the server address from the host name */
+
+  server.sin_family = AF_INET;
+  server.sin_port   = htons(port);
+  ret = wget_gethostip((FAR char*)host, &server.sin_addr.s_addr);
+  if (ret < 0)
+    {
+      /* Could not resolve host (or malformed IP address) */
+
+      nwarn("WARNING: Failed to resolve hostname\n");
+      close(sockfd);
+      return -EHOSTUNREACH;
+    }
+
+  /* Connect to server.  First we have to set some fields in the
+   * 'server' address structure.  The system will assign me an arbitrary
+   * local port that is not in use.
+   */
+
+  ret = connect(sockfd, (struct sockaddr *)&server,
+                sizeof(struct sockaddr_in));
+  if (ret < 0)
+    {
+      ret = -errno;
+      nerr("ERROR: connect failed: %d\n", errno);
+      close(sockfd);
+      return ret;
+    }
+
+  return sockfd;
+}
+
+/****************************************************************************
+ * Name: wget_socketsend
+ ****************************************************************************/
+
+static ssize_t wget_socketsend(int fd, FAR const void *buf, size_t len,
+                               int flags)
+{
+  int ret;
+
+  ret = send(fd, buf, len, flags);
+  if (ret < 0)
+    {
+      ret = -errno;
+      nerr("ERROR: send failed: %d\n", errno);
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: wget_socketrecv
+ ****************************************************************************/
+
+static ssize_t wget_socketrecv(int fd, FAR void *buf, size_t len, int flags)
+{
+  int ret;
+
+  ret = recv(fd, buf, len, flags);
+  if (ret < 0)
+    {
+      ret = -errno;
+      nerr("ERROR: recv failed: %d\n", errno);
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: wget_socketclose
+ ****************************************************************************/
+
+static int wget_socketclose(int fd)
+{
+  int ret;
+
+  ret = close(fd);
+  if (ret < 0)
+    {
+      ret = -errno;
+      nerr("ERROR: close failed: %d\n", errno);
+    }
+
+  return ret;
+}
+
+/****************************************************************************
  * Name: wget_base
  *
  * Description:
@@ -443,14 +593,15 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
                      wget_callback_t callback, FAR void *arg,
                      FAR const char *posts, uint8_t mode)
 {
-  struct sockaddr_in server;
   struct wget_s ws;
-  struct timeval tv;
   bool redirected;
   char *dest,post_size[8];
   int sockfd;
   int len,post_len;
   int ret;
+  struct url_s parsed_url;
+  char scheme[6] = {};  /* length of "https" + '\0' */
+  int use_ssl = 0;
 
   /* Initialize the state structure */
 
@@ -459,15 +610,42 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
   ws.buflen = buflen;
   ws.port   = 80;
 
-  /* Parse the hostname (with optional port number) and filename from the URL */
+  memset(&parsed_url, 0, sizeof(parsed_url));
+  parsed_url.scheme    = scheme;
+  parsed_url.schemelen = sizeof(scheme);
+  parsed_url.host      = ws.hostname;
+  parsed_url.hostlen   = CONFIG_WEBCLIENT_MAXHOSTNAME;
+  parsed_url.path      = ws.filename;
+  parsed_url.pathlen   = CONFIG_WEBCLIENT_MAXFILENAME;
 
-  ret = netlib_parsehttpurl(url, &ws.port,
-                            ws.hostname, CONFIG_WEBCLIENT_MAXHOSTNAME,
-                            ws.filename, CONFIG_WEBCLIENT_MAXFILENAME);
+  /* Parse the hostname (with optional port number)
+   * and filename from the URL */
+
+  ret = netlib_parseurl(url, &parsed_url);
   if (ret != 0)
     {
       nwarn("WARNING: Malformed HTTP URL: %s\n", url);
       set_errno(-ret);
+      return ERROR;
+    }
+
+  if (strncmp(scheme, g_httpsscheme, strlen(g_httpsscheme)) == 0)
+    {
+      /* Compare scheme with "https". */
+
+      ws.port = (parsed_url.port == 0) ? 443 : parsed_url.port;
+      use_ssl = 1;
+    }
+  else if (strncmp(scheme, g_httpscheme, strlen(g_httpscheme)) == 0)
+    {
+      /* Compare scheme with "http". */
+
+      ws.port = (parsed_url.port == 0) ? 80 : parsed_url.port;
+    }
+  else
+    {
+      nwarn("WARNING: Unknown scheme: %s\n", scheme);
+      set_errno(-EINVAL);
       return ERROR;
     }
 
@@ -487,51 +665,14 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
       ws.datend     = 0;
       ws.ndx        = 0;
 
-      /* Create a socket */
+      /* Connect to server. */
 
-      sockfd = socket(AF_INET, SOCK_STREAM, 0);
+      sockfd = g_transport.connect(use_ssl, ws.hostname, ws.port);
       if (sockfd < 0)
         {
-          /* socket failed.  It will set the errno appropriately */
-
-          nerr("ERROR: socket failed: %d\n", errno);
-          return ERROR;
-        }
-
-      /* Set send and receive timeout values */
-
-      tv.tv_sec  = CONFIG_WEBCLIENT_TIMEOUT;
-      tv.tv_usec = 0;
-
-      (void)setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (FAR const void *)&tv,
-                       sizeof(struct timeval));
-      (void)setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (FAR const void *)&tv,
-                       sizeof(struct timeval));
-
-      /* Get the server address from the host name */
-
-      server.sin_family = AF_INET;
-      server.sin_port   = htons(ws.port);
-      ret = wget_gethostip(ws.hostname, &server.sin_addr.s_addr);
-      if (ret < 0)
-        {
-          /* Could not resolve host (or malformed IP address) */
-
-          nwarn("WARNING: Failed to resolve hostname\n");
-          ret = -EHOSTUNREACH;
+          nerr("ERROR: connect failed: %d\n", sockfd);
+          ret = sockfd;
           goto errout_with_errno;
-        }
-
-      /* Connect to server.  First we have to set some fields in the
-       * 'server' address structure.  The system will assign me an arbitrary
-       * local port that is not in use.
-       */
-
-      ret = connect(sockfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
-      if (ret < 0)
-        {
-          nerr("ERROR: connect failed: %d\n", errno);
-          goto errout;
         }
 
       /* Send the GET request */
@@ -584,11 +725,12 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
 
       do
         {
-          ret = send(sockfd, buffer + ((dest - buffer) - len), len, 0);
+          ret = g_transport.send(sockfd, buffer + ((dest - buffer) - len),
+                                 len, 0);
           if (ret < 0)
             {
               nerr("ERROR: send failed: %d\n", errno);
-              goto errout;
+              goto errout_with_errno;
             }
           len -= ret;
         }
@@ -603,7 +745,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
       redirected = false;
       for (;;)
         {
-          ws.datend = recv(sockfd, ws.buffer, ws.buflen, 0);
+          ws.datend = g_transport.recv(sockfd, ws.buffer, ws.buflen, 0);
           if (ws.datend < 0)
             {
               nerr("ERROR: recv failed: %d\n", errno);
@@ -653,7 +795,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
               else
                 {
                   redirected = true;
-                  close(sockfd);
+                  g_transport.close(sockfd);
                   break;
                 }
             }
@@ -665,8 +807,10 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
 
 errout_with_errno:
   set_errno(-ret);
-errout:
-  close(sockfd);
+  if (sockfd >= 0)
+    {
+      g_transport.close(sockfd);
+    }
   return ERROR;
 }
 
@@ -792,4 +936,28 @@ int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
               int buflen, wget_callback_t callback, FAR void *arg)
 {
   return wget_base(url, buffer, buflen, callback, arg, posts, WGET_MODE_POST);
+}
+
+/****************************************************************************
+ * Name: wget_register_transport
+ *
+ * Description:
+ *   Register the specified interface in the webclient transport interface
+ *   and change it from the default. If the registered interface supports
+ *   SSL/TLS, wget can use HTTPS.
+ *
+ * Input Parameters
+ *   transport -  webclient transport interface implemented by the user.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void wget_register_transport(FAR struct wget_transport_s *transport)
+{
+  g_transport.connect = transport->connect;
+  g_transport.send    = transport->send;
+  g_transport.recv    = transport->recv;
+  g_transport.close   = transport->close;
 }

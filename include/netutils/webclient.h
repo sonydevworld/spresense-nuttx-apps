@@ -98,6 +98,14 @@
 typedef void (*wget_callback_t)(FAR char **buffer, int offset,
                                 int datend, FAR int *buflen, FAR void *arg);
 
+struct wget_transport_s
+{
+  int (*connect)(int use_ssl, FAR const char *host, uint16_t port);
+  ssize_t (*send)(int fd, FAR const void *buf, size_t len, int flags);
+  ssize_t (*recv)(int fd, FAR void *buf, size_t len, int flags);
+  int (*close)(int fd);
+};
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
@@ -154,6 +162,24 @@ int wget(FAR const char *url, FAR char *buffer, int buflen,
 
 int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
               int buflen, wget_callback_t callback, FAR void *arg);
+
+/****************************************************************************
+ * Name: wget_register_transport
+ *
+ * Description:
+ *   Register the specified interface in the webclient transport interface
+ *   and change it from the default. If the registered interface supports
+ *   SSL/TLS, wget can use HTTPS.
+ *
+ * Input Parameters
+ *   transport -  webclient transport interface implemented by the user.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void wget_register_transport(FAR struct wget_transport_s *transport);
 
 #undef EXTERN
 #ifdef __cplusplus
