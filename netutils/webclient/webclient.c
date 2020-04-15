@@ -758,7 +758,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
           else if (ws.datend == 0)
             {
               ninfo("Connection lost\n");
-              close(sockfd);
+              g_transport.close(sockfd);
               break;
             }
 
