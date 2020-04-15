@@ -629,6 +629,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
       return ERROR;
     }
 
+#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
   if (strncmp(scheme, g_httpsscheme, strlen(g_httpsscheme)) == 0)
     {
       /* Compare scheme with "https". */
@@ -636,7 +637,9 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
       ws.port = (parsed_url.port == 0) ? 443 : parsed_url.port;
       use_ssl = 1;
     }
-  else if (strncmp(scheme, g_httpscheme, strlen(g_httpscheme)) == 0)
+  else
+#endif
+  if (strncmp(scheme, g_httpscheme, strlen(g_httpscheme)) == 0)
     {
       /* Compare scheme with "http". */
 
@@ -936,6 +939,21 @@ int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
               int buflen, wget_callback_t callback, FAR void *arg)
 {
   return wget_base(url, buffer, buflen, callback, arg, posts, WGET_MODE_POST);
+}
+
+/****************************************************************************
+ * Name: wget_initialize
+ ****************************************************************************/
+
+void wget_initialize(void)
+{
+#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
+
+  /* wget_ssl_register() is not implemented by webclient. So must be provided
+   * by each SSL/TLS implementation. */
+
+  wget_ssl_register();
+#endif
 }
 
 /****************************************************************************

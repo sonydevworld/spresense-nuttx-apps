@@ -23,4 +23,8 @@ config WEBCLIENT_TIMEOUT
 	int "Request and receive timeouts"
 	default 10
 
+config NETUTILS_WEBCLIENT_HAVE_SSL
+	bool "SSL/TLS support"
+	default n
+
 endif

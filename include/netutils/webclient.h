@@ -164,6 +164,12 @@ int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
               int buflen, wget_callback_t callback, FAR void *arg);
 
 /****************************************************************************
+ * Name: wget_initialize
+ ****************************************************************************/
+
+void wget_initialize(void);
+
+/****************************************************************************
  * Name: wget_register_transport
  *
  * Description:
@@ -180,6 +186,22 @@ int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
  ****************************************************************************/
 
 void wget_register_transport(FAR struct wget_transport_s *transport);
+
+/****************************************************************************
+ * Name: webclient_ssl_register
+ *
+ * Description:
+ *   If CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL is selected, SSL/TLS interface
+ *   registration will be performed in wget_initialize() by a function called
+ *   wget_ssl_register().
+ *   This function is not implemented by webclient. So must be provided
+ *   by each SSL/TLS implementation.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
+void wget_ssl_register(void);
+#endif
 
 #undef EXTERN
 #ifdef __cplusplus

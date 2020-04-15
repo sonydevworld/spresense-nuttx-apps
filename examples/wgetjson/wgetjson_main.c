@@ -363,6 +363,8 @@ int main(int argc, FAR char *argv[])
 
   printf("URL: %s\n", url);
 
+  wget_initialize();
+
   if (is_post)
     {
       url = CONFIG_EXAMPLES_WGETPOST_URL;

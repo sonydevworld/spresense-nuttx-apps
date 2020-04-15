@@ -146,6 +146,8 @@ int main(int argc, FAR char *argv[])
 
   netlib_ifup("eth0");
 
+  wget_initialize();
+
   /* Then start the server */
 
   wget(CONFIG_EXAMPLES_WGET_URL, g_iobuffer, 512, callback, NULL);
