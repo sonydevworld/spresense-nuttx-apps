@@ -195,7 +195,9 @@ static const char g_httpcontsize[]    = "Content-Length: ";
 //static const char g_httpcache[]     = "Cache-Control: no-cache";
 
 static const char g_httpscheme[]      = "http";
+#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
 static const char g_httpsscheme[]     = "https";
+#endif
 
 static struct wget_transport_s g_transport =
 {
