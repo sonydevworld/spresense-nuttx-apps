@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps/n etutils/ftpd.c
  *
- *   Copyright (C) 2012, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2015, 2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Includes original code as well as logic adapted from hwport_ftpd, written
@@ -75,6 +75,7 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Account functions */
 
 static FAR struct ftpd_account_s *ftpd_account_new(FAR const char *user,
@@ -113,7 +114,8 @@ static ssize_t ftpd_response(int sd, int timeout, FAR const char *fmt, ...);
 
 static int  ftpd_dataopen(FAR struct ftpd_session_s *session);
 static int  ftpd_dataclose(FAR struct ftpd_session_s *session);
-static FAR struct ftpd_server_s *ftpd_openserver(int port, sa_family_t family);
+static FAR struct ftpd_server_s *ftpd_openserver(int port,
+                                                 sa_family_t family);
 
 /* Path helpers */
 
@@ -129,7 +131,7 @@ static int  ftpd_getpath(FAR struct ftpd_session_s *session,
               FAR const char *path, FAR char **abspath,
               FAR char **workpath);
 
-/* Commmand helpers */
+/* Command helpers */
 
 static int  ftpd_changedir(FAR struct ftpd_session_s *session,
               FAR const char *rempath);
@@ -251,7 +253,8 @@ static const char g_respfmt2[]  = "%03u%c%s%s\r\n"; /* Integer, character, two s
 
 static const char *g_monthtab[] =
 {
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+  "Oct", "Nov", "Dec"
 };
 
 static const char *g_ftpdhelp[] =
@@ -265,16 +268,13 @@ static const char *g_ftpdhelp[] =
   "APPE    REST    ABOR    USER    PASS    ACCT*   REIN*   LIST",
   "NLST    STAT*   SITE*   MLSD*   MLST*",
   "Direct comments to " CONFIG_FTPD_VENDORID,
-   NULL
+  NULL
 };
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Account Functions
- ****************************************************************************/
 /****************************************************************************
  * Name: ftpd_account_new
  ****************************************************************************/
@@ -506,12 +506,14 @@ ftpd_account_search_user(FAR struct ftpd_session_s *session,
               newaccount = ftpd_account_new(NULL, accountflags);
               if (newaccount)
                 {
-                  if (ftpd_account_setpassword(newaccount, account->password) < 0)
+                  if (ftpd_account_setpassword(newaccount,
+                                               account->password) < 0)
                     {
                       ftpd_account_free(newaccount);
                       newaccount = NULL;
                     }
-                  else if (ftpd_account_sethome(newaccount, account->home) < 0)
+                  else if (ftpd_account_sethome(newaccount,
+                                                account->home) < 0)
                     {
                       ftpd_account_free(newaccount);
                       newaccount = NULL;
@@ -534,17 +536,20 @@ ftpd_account_search_user(FAR struct ftpd_session_s *session,
               newaccount = ftpd_account_new(account->user, accountflags);
               if (newaccount)
                 {
-                  if (ftpd_account_setpassword(newaccount, account->password) != 0)
+                  if (ftpd_account_setpassword(newaccount,
+                                               account->password) != 0)
                     {
                       ftpd_account_free(newaccount);
                       newaccount = NULL;
                     }
-                  else if (ftpd_account_sethome(newaccount, account->home) != 0)
+                  else if (ftpd_account_sethome(newaccount,
+                                                account->home) != 0)
                     {
                       ftpd_account_free(newaccount);
                       newaccount = NULL;
                     }
                 }
+
               break;
             }
         }
@@ -623,20 +628,17 @@ ftpd_account_login(FAR struct ftpd_session_s *session,
       session->work = strdup(!home ? "/" : home);
     }
   else
-      {
-        /* normal user */
+    {
+      /* normal user */
 
-        session->home = strdup(!home ? "/" : home);
-        session->work = strdup("/");
-      }
+      session->home = strdup(!home ? "/" : home);
+      session->work = strdup("/");
+    }
 
   ftpd_account_free(account);
   return account;
 }
 
-/****************************************************************************
- * Parsing Functions
- ****************************************************************************/
 /****************************************************************************
  * Name: ftpd_strtok
  ****************************************************************************/
@@ -682,17 +684,18 @@ static FAR char *ftpd_strtok(bool skipspace, FAR const char *delimiters,
       sptr++;
     }
 
-    /* Save the place where we will resuming searching */
+  /* Save the place where we will resuming searching */
 
-    *str = sptr;
-    return ret;
+  *str = sptr;
+  return ret;
 }
 
 /****************************************************************************
  * Name: ftpd_strtok_alloc
  ****************************************************************************/
 
-static FAR char *ftpd_strtok_alloc(bool skipspace, FAR const char *delimiters,
+static FAR char *ftpd_strtok_alloc(bool skipspace,
+                                   FAR const char *delimiters,
                                    FAR const char **str)
 {
   FAR const char *sptr;
@@ -745,30 +748,28 @@ static FAR char *ftpd_strtok_alloc(bool skipspace, FAR const char *delimiters,
         }
     }
 
-    /* Allocate memory large enough to hold the entire sub-string (including
-     * the NUL terminator.
-     */
+  /* Allocate memory large enough to hold the entire sub-string (including
+   * the NUL terminator.
+   */
 
-    tokenlen = (size_t)(right - left);
-    ret = (FAR char *)malloc(tokenlen + 1);
-    if (ret)
-      {
-        if (tokenlen > 0)
-          {
-            memcpy(ret, left, tokenlen);
-          }
-        ret[tokenlen] = '\0';
-      }
+  tokenlen = (size_t)(right - left);
+  ret = (FAR char *)malloc(tokenlen + 1);
+  if (ret)
+    {
+      if (tokenlen > 0)
+        {
+          memcpy(ret, left, tokenlen);
+        }
 
-    /* Save the place where we will resuming searching */
+      ret[tokenlen] = '\0';
+    }
 
-    *str = sptr;
-    return ret;
+  /* Save the place where we will resuming searching */
+
+  *str = sptr;
+  return ret;
 }
 
-/****************************************************************************
- * Socket Helpers
- ****************************************************************************/
 /****************************************************************************
  * Name: ftpd_rxpoll
  ****************************************************************************/
@@ -796,7 +797,6 @@ static int ftpd_rxpoll(int sd, int timeout)
 
   if (ret == 0)
     {
-      //ninfo("poll() timed out\n");
       return -ETIMEDOUT;
     }
   else if (ret < 0)
@@ -870,7 +870,9 @@ static int ftpd_accept(int sd, FAR void *addr, FAR socklen_t *addrlen,
       ret = ftpd_rxpoll(sd, timeout);
       if (ret < 0)
         {
-          /* Only report interesting, infrequent errors (not the common timeout) */
+          /* Only report interesting,
+           * infrequent errors (not the common timeout)
+           */
 
 #ifdef CONFIG_DEBUG_NET
           if (ret != -ETIMEDOUT)
@@ -878,6 +880,7 @@ static int ftpd_accept(int sd, FAR void *addr, FAR socklen_t *addrlen,
               nerr("ERROR: ftpd_rxpoll() failed: %d\n", ret);
             }
 #endif
+
           return ret;
         }
     }
@@ -916,9 +919,9 @@ static ssize_t ftpd_recv(int sd, FAR void *data, size_t size, int timeout)
         }
     }
 
-  /* Receive the data... waiting if necessary.  The client side will break the
-   * connection after the file has been sent.  Zero (end-of-file) should be
-   * received in this case.
+  /* Receive the data... waiting if necessary.
+   * The client side will break the connection after the file has been sent.
+   * Zero (end-of-file) should be received in this case.
    */
 
   ret = recv(sd, data, size, 0);
@@ -937,7 +940,8 @@ static ssize_t ftpd_recv(int sd, FAR void *data, size_t size, int timeout)
  * Name: ftpd_send
  ****************************************************************************/
 
-static ssize_t ftpd_send(int sd, FAR const void *data, size_t size, int timeout)
+static ssize_t ftpd_send(int sd, FAR const void *data, size_t size,
+                         int timeout)
 {
   ssize_t ret;
 
@@ -1021,21 +1025,22 @@ static int ftpd_dataopen(FAR struct ftpd_session_s *session)
         {
           int errval = errno;
           nerr("ERROR: socket() failed: %d\n", errval);
-          (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                              g_respfmt1, 451, ' ', "Socket error !");
+          ftpd_response(session->cmd.sd, session->txtimeout,
+                        g_respfmt1, 451, ' ', "Socket error !");
           return -errval;
         }
 
       session->data.addrlen = (socklen_t)sizeof(session->data.addr);
-      ret = connect(session->data.sd, (FAR const struct sockaddr *)(&session->data.addr),
+      ret = connect(session->data.sd,
+                    (FAR const struct sockaddr *)(&session->data.addr),
                     session->data.addrlen);
       if (ret < 0)
         {
           int errval = errno;
           nerr("ERROR: connect() failed: %d\n", errval);
-          (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                              g_respfmt1, 451, ' ', "Connect error !");
-          (void)ftpd_dataclose(session);
+          ftpd_response(session->cmd.sd, session->txtimeout,
+                        g_respfmt1, 451, ' ', "Connect error !");
+          ftpd_dataclose(session);
           return -errval;
         }
 
@@ -1043,10 +1048,11 @@ static int ftpd_dataopen(FAR struct ftpd_session_s *session)
         {
           struct linger ling;
 
-          (void)memset(&ling, 0, sizeof(ling));
-          ling.l_onoff = 1;
+          memset(&ling, 0, sizeof(ling));
+          ling.l_onoff  = 1;
           ling.l_linger = 4;
-          (void)setsockopt(session->data.sd, SOL_SOCKET, SO_LINGER, &ling, sizeof(ling));
+          setsockopt(session->data.sd, SOL_SOCKET, SO_LINGER, &ling,
+                     sizeof(ling));
         }
 #endif
 
@@ -1056,14 +1062,15 @@ static int ftpd_dataopen(FAR struct ftpd_session_s *session)
   /* PASV session */
 
   session->data.addrlen = sizeof(session->data.addr);
-  sd = ftpd_accept(session->data.sd, (struct sockaddr *)(&session->data.addr),
-                  &session->data.addrlen, -1);
+  sd = ftpd_accept(session->data.sd,
+                   (struct sockaddr *)(&session->data.addr),
+                   &session->data.addrlen, -1);
   if (sd < 0)
     {
       nerr("ERROR: ftpd_accept() failed: %d\n", sd);
-      (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                          g_respfmt1, 451, ' ', "Accept error !");
-      (void)ftpd_dataclose(session);
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 451, ' ', "Accept error !");
+      ftpd_dataclose(session);
       return sd;
     }
 
@@ -1071,14 +1078,15 @@ static int ftpd_dataopen(FAR struct ftpd_session_s *session)
   session->data.sd = sd;
 
 #ifdef CONFIG_NET_SOLINGER
-  {
-    struct linger ling;
+    {
+      struct linger ling;
 
-    (void)memset(&ling, 0, sizeof(ling));
-    ling.l_onoff = 1;
-    ling.l_linger = 4;
-    (void)setsockopt(session->data.sd, SOL_SOCKET, SO_LINGER, &ling, sizeof(ling));
-  }
+      memset(&ling, 0, sizeof(ling));
+      ling.l_onoff = 1;
+      ling.l_linger = 4;
+      setsockopt(session->data.sd, SOL_SOCKET, SO_LINGER,
+                 &ling, sizeof(ling));
+    }
 #endif
 
   return OK;
@@ -1103,7 +1111,8 @@ static int ftpd_dataclose(FAR struct ftpd_session_s *session)
  * Name: ftpd_openserver
  ****************************************************************************/
 
-static FAR struct ftpd_server_s *ftpd_openserver(int port, sa_family_t family)
+static FAR struct ftpd_server_s *ftpd_openserver(int port,
+                                                 sa_family_t family)
 {
   FAR struct ftpd_server_s *server;
   socklen_t addrlen;
@@ -1171,12 +1180,11 @@ static FAR struct ftpd_server_s *ftpd_openserver(int port, sa_family_t family)
       return NULL;
     }
 
-#ifdef CONFIG_NET_HAVE_REUSEADDR
-  {
-    int reuse = 1;
-   (void)setsockopt(server->sd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-  }
-#endif
+    {
+      int reuse = 1;
+      setsockopt(server->sd, SOL_SOCKET, SO_REUSEADDR,
+                 &reuse, sizeof(reuse));
+    }
 
   /* Bind the socket to the address */
 
@@ -1199,9 +1207,6 @@ static FAR struct ftpd_server_s *ftpd_openserver(int port, sa_family_t family)
   return (FTPD_SESSION)server;
 }
 
-/****************************************************************************
- * Path Helpers
- ****************************************************************************/
 /****************************************************************************
  * Name: ftpd_pathignore
  ****************************************************************************/
@@ -1238,8 +1243,10 @@ static int ftpd_pathignore(FAR struct ftpd_pathnode_s *currpath)
                 {
                   node->ignore = true;
                 }
+
               break;
             }
+
           node = node->blink;
         }
 
@@ -1272,6 +1279,7 @@ static void ftpd_nodefree(FAR struct ftpd_pathnode_s *node)
         {
           free(prev->name);
         }
+
       free(prev);
     }
 }
@@ -1305,7 +1313,8 @@ static FAR struct ftpd_pathnode_s *ftpd_path2node(FAR const char *path)
           path++;
         }
 
-      newnode = (FAR struct ftpd_pathnode_s *)malloc(sizeof(struct ftpd_pathnode_s));
+      newnode = (FAR struct ftpd_pathnode_s *)
+        malloc(sizeof(struct ftpd_pathnode_s));
       if (!newnode)
         {
           free(name);
@@ -1329,7 +1338,7 @@ static FAR struct ftpd_pathnode_s *ftpd_path2node(FAR const char *path)
 
       tail = newnode;
 
-      (void)ftpd_pathignore(newnode);
+      ftpd_pathignore(newnode);
     }
 
   return head;
@@ -1507,7 +1516,7 @@ ftpd_nodeappend(FAR struct ftpd_pathnode_s *head,
   temp = head;
   while (temp)
     {
-      (void)ftpd_pathignore(temp);
+      ftpd_pathignore(temp);
       temp = temp->flink;
     }
 
@@ -1598,9 +1607,6 @@ static int ftpd_getpath(FAR struct ftpd_session_s *session,
 }
 
 /****************************************************************************
- * Command Helpers
- ****************************************************************************/
-/****************************************************************************
  * Name: ftpd_changedir
  ****************************************************************************/
 
@@ -1612,31 +1618,37 @@ static int ftpd_changedir(FAR struct ftpd_session_s *session,
   struct stat st;
   int ret;
 
-  ret = ftpd_getpath(session, rempath, (char **)(&abspath), (char **)(&workpath));
+  ret = ftpd_getpath(session, rempath, (FAR char **)(&abspath),
+                     (FAR char **)(&workpath));
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not change directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not change directory !");
+      return ret;
     }
 
   ret = stat(abspath, &st);
   if (ret < 0)
     {
+      ret = -errno;
+
       free(workpath);
       free(abspath);
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt2, 550, ' ', rempath,
-                           ": No such file or directory");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt2, 550, ' ', rempath,
+                    ": No such file or directory");
+      return ret;
     }
 
   if (S_ISDIR(st.st_mode) == 0)
     {
       free(workpath);
       free(abspath);
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt2, 550, ' ', rempath,
-                           ": No such file or directory");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt2, 550, ' ', rempath,
+                    ": No such file or directory");
+      return -ENOTDIR;
     }
 
   free(abspath);
@@ -1644,6 +1656,7 @@ static int ftpd_changedir(FAR struct ftpd_session_s *session,
     {
       free(session->work);
     }
+
   session->work = workpath;
 
   return ftpd_response(session->cmd.sd, session->txtimeout,
@@ -1674,20 +1687,22 @@ static off_t ftpd_offsatoi(FAR const char *filename, off_t offset)
 
   if (offset == (off_t)(-1))
     {
-     for (;;)
+      for (; ; )
         {
           ch = getc(outstream);
           if (ch == EOF)
             {
               break;
             }
+
           ret++;
           if (ch == '\n')
             {
               ret++;
             }
         }
-        /* ret is ascii mode size */
+
+      /* ret is ascii mode size */
     }
   else
     {
@@ -1712,7 +1727,7 @@ static off_t ftpd_offsatoi(FAR const char *filename, off_t offset)
       /* ret is binary mode offset */
     }
 
-  (void)fclose(outstream);
+  fclose(outstream);
   return ret;
 }
 
@@ -1742,6 +1757,7 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
                     g_respfmt1, 550, ' ', "Stream error !");
       goto errout;
     }
+
   path = abspath;
 
   ret = ftpd_dataopen(session);
@@ -1806,8 +1822,8 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
   if (session->fd < 0)
     {
       ret = -errno;
-      (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                          g_respfmt1, 550, ' ', "Can not open file !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "Can not open file !");
       goto errout_with_data;
     }
 
@@ -1857,13 +1873,13 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
 
       if (seekoffs < 0)
         {
-          (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                              g_respfmt1, 550, ' ', "Can not seek file !");
+          ftpd_response(session->cmd.sd, session->txtimeout,
+                        g_respfmt1, 550, ' ', "Can not seek file !");
           ret = -errval;
           goto errout_with_session;
         }
 
-        pos += (off_t)seekoffs;
+      pos += (off_t)seekoffs;
     }
 
   /* Send success message */
@@ -1876,7 +1892,7 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
       goto errout_with_session;
     }
 
-  for (;;)
+  for (; ; )
     {
       /* Read from the source (file or TCP connection) */
 
@@ -1893,7 +1909,9 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
 
       if (cmdtype == 0)
         {
-          /* Read from the file.  Read returns the error condition via errno. */
+          /* Read from the file.
+           * Read returns the error condition via errno.
+           */
 
           rdbytes = read(session->fd, session->data.buffer, wantsize);
           if (rdbytes < 0)
@@ -1903,8 +1921,8 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
         }
       else
         {
-          /* Read from the TCP connection, ftpd_recve returns the negated error
-           * condition.
+          /* Read from the TCP connection, ftpd_recve returns the negated
+           * error condition.
            */
 
           rdbytes = ftpd_recv(session->data.sd, session->data.buffer,
@@ -1915,15 +1933,16 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
             }
         }
 
-      /* A negative vaule of rdbytes indicates a read error.  errval has the
+      /* A negative value of rdbytes indicates a read error.  errval has the
        * (positive) error code associated with the failure.
        */
 
       if (rdbytes < 0)
         {
-          nerr("ERROR: Read failed: rdbytes=%d errval=%d\n", rdbytes, errval);
-          (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                              g_respfmt1, 550, ' ', "Data read error !");
+          nerr("ERROR: Read failed: rdbytes=%d errval=%d\n",
+               rdbytes, errval);
+          ftpd_response(session->cmd.sd, session->txtimeout,
+                        g_respfmt1, 550, ' ', "Data read error !");
           ret = -errval;
           break;
         }
@@ -1936,8 +1955,8 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
         {
           /* End-of-file */
 
-          (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                              g_respfmt1, 226, ' ', "Transfer complete");
+          ftpd_response(session->cmd.sd, session->txtimeout,
+                        g_respfmt1, 226, ' ', "Transfer complete");
 
           /* Return success */
 
@@ -1959,6 +1978,7 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
                 {
                   buffer[buflen++] = '\r';
                 }
+
               buffer[buflen++] = session->data.buffer[offset++];
             }
         }
@@ -1972,7 +1992,8 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
         {
           /* Write to the TCP connection */
 
-          wrbytes = ftpd_send(session->data.sd, buffer, buflen, session->txtimeout);
+          wrbytes = ftpd_send(session->data.sd, buffer, buflen,
+                              session->txtimeout);
           if (wrbytes < 0)
             {
               errval = -wrbytes;
@@ -2016,9 +2037,10 @@ static int ftpd_stream(FAR struct ftpd_session_s *session, int cmdtype)
 
       if (wrbytes != ((ssize_t)buflen))
         {
-          nerr("ERROR: Write failed: wrbytes=%d errval=%d\n", wrbytes, errval);
-          (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                              g_respfmt1, 550, ' ', "Data send error !");
+          nerr("ERROR: Write failed: wrbytes=%d errval=%d\n",
+               wrbytes, errval);
+          ftpd_response(session->cmd.sd, session->txtimeout,
+                        g_respfmt1, 550, ' ', "Data send error !");
            ret = -errval;
            break;
         }
@@ -2034,11 +2056,11 @@ errout_with_session:;
 
     if (isnew && ret < 0)
       {
-        (void)unlink(path);
+        unlink(path);
       }
 
 errout_with_data:;
-    (void)ftpd_dataclose(session);
+    ftpd_dataclose(session);
 
 errout_with_path:
     free(abspath);
@@ -2107,7 +2129,8 @@ static uint8_t ftpd_listoption(FAR char **param)
  * Name: fptd_listscan
  ****************************************************************************/
 
-static int ftpd_listbuffer(FAR struct ftpd_session_s *session, FAR char *path,
+static int ftpd_listbuffer(FAR struct ftpd_session_s *session,
+                           FAR char *path,
                            FAR struct stat *st, FAR char *buffer,
                            size_t buflen, unsigned int opton)
 {
@@ -2241,24 +2264,29 @@ static int ftpd_listbuffer(FAR struct ftpd_session_s *session, FAR char *path,
 #ifdef __NUTTX__
       /* Fake nlink, user id, and group id */
 
-      offset += snprintf(&buffer[offset], buflen - offset, "%4u %8u %8u", 1, 1001, 512);
+      offset += snprintf(&buffer[offset], buflen - offset, "%4u %8u %8u",
+                         1, 1001, 512);
 #else
       /* nlink */
 
-      offset += snprintf(&buffer[offset], buflen - offset, "%4u", st->st_nlink);
+      offset += snprintf(&buffer[offset], buflen - offset, "%4u",
+                         st->st_nlink);
 
       /* user id */
 
-      offset += snprintf(&buffer[offset], buflen - offset, " %8u", st->st_uid);
+      offset += snprintf(&buffer[offset], buflen - offset,
+                         " %8u", st->st_uid);
 
       /* group id */
 
-      offset += snprintf(&buffer[offset], buflen - offset, " %8u", st->st_gid);
+      offset += snprintf(&buffer[offset], buflen - offset, " %8u",
+                         st->st_gid);
 #endif
 
       /* size */
 
-      offset += snprintf(&buffer[offset], buflen - offset, " %8u", st->st_size);
+      offset += snprintf(&buffer[offset], buflen - offset,
+                         " %8u", st->st_size);
 
       /* time */
 
@@ -2298,7 +2326,8 @@ static int ftpd_listbuffer(FAR struct ftpd_session_s *session, FAR char *path,
                   temp[namelen] = '\0';
                 }
 
-              offset += snprintf(&buffer[offset], buflen - offset, " -> %s", temp);
+              offset += snprintf(&buffer[offset], buflen - offset,
+                                 " -> %s", temp);
               free(temp);
             }
         }
@@ -2358,7 +2387,7 @@ static int fptd_listscan(FAR struct ftpd_session_s *session, FAR char *path,
       return -errval;
     }
 
-  for (;;)
+  for (; ; )
     {
       entry = readdir(dir);
       if (!entry)
@@ -2402,7 +2431,7 @@ static int fptd_listscan(FAR struct ftpd_session_s *session, FAR char *path,
         }
     }
 
-  (void)closedir(dir);
+  closedir(dir);
   return ret;
 }
 
@@ -2425,9 +2454,6 @@ static int ftpd_list(FAR struct ftpd_session_s *session, unsigned int opton)
   return ret;
 }
 
-/****************************************************************************
- * Command Handlers
- ****************************************************************************/
 /****************************************************************************
  * Name: ftpd_command_user
  ****************************************************************************/
@@ -2463,6 +2489,7 @@ static int ftpd_command_user(FAR struct ftpd_session_s *session)
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 451, ' ', "Memory exhausted !");
     }
+
   session->flags |= FTPD_SESSIONFLAG_USER;
 
   /* If there is no account information, then no login is required. */
@@ -2482,6 +2509,7 @@ static int ftpd_command_user(FAR struct ftpd_session_s *session)
         {
           session->curr = NULL;
         }
+
       return ret;
     }
 
@@ -2498,6 +2526,7 @@ static int ftpd_command_user(FAR struct ftpd_session_s *session)
         {
           session->curr = NULL;
         }
+
       return ret;
     }
 
@@ -2531,6 +2560,7 @@ static int ftpd_command_pass(FAR struct ftpd_session_s *session)
         {
           session->curr = NULL;
         }
+
       return ret;
     }
 
@@ -2598,13 +2628,15 @@ static int ftpd_command_type(FAR struct ftpd_session_s *session)
             {
               session->type = FTPD_SESSIONTYPE_L8;
               return ftpd_response(session->cmd.sd, session->txtimeout,
-                                   g_respfmt1, 200, ' ', "Type set to L 8");
+                                   g_respfmt1, 200, ' ',
+                                   "Type set to L 8");
             }
           else
             {
               session->type = FTPD_SESSIONTYPE_NONE;
               return ftpd_response(session->cmd.sd, session->txtimeout,
-                                   g_respfmt1, 504, ' ', "Byte size must be 8 !");
+                                   g_respfmt1, 504, ' ',
+                                   "Byte size must be 8 !");
             }
         }
     }
@@ -2631,7 +2663,7 @@ static int ftpd_command_mode(FAR struct ftpd_session_s *session)
 
 static int ftpd_command_abor(FAR struct ftpd_session_s *session)
 {
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
   return ftpd_response(session->cmd.sd, session->txtimeout,
                        g_respfmt1, 426, ' ',
                        "Transfer aborted. Data connection closed.");
@@ -2643,8 +2675,8 @@ static int ftpd_command_abor(FAR struct ftpd_session_s *session)
 
 static int ftpd_command_quit(FAR struct ftpd_session_s *session)
 {
-  (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                      g_respfmt1, 221, ' ', "Good-bye");
+  ftpd_response(session->cmd.sd, session->txtimeout,
+                g_respfmt1, 221, ' ', "Good-bye");
 
   /* Return a negative value to force the server to disconnect */
 
@@ -2721,7 +2753,7 @@ static int ftpd_command_port(FAR struct ftpd_session_s *session)
                            g_respfmt1, 501, ' ', "Illegal PORT command");
     }
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
 
 #if 1 /* Follow param */
 
@@ -2748,7 +2780,8 @@ static int ftpd_command_port(FAR struct ftpd_session_s *session)
 
           session->data.addr.in4.sin_family = AF_INET;
 
-          utemp = (value[0] << 24) | (value[1] << 16) | (value[2] << 8) | (value[3]);
+          utemp = (value[0] << 24) | (value[1] << 16) |
+                  (value[2] << 8) | (value[3]);
           session->data.addr.in4.sin_addr.s_addr = htonl(utemp);
         }
 
@@ -2761,7 +2794,8 @@ static int ftpd_command_port(FAR struct ftpd_session_s *session)
 
       session->data.addr.in4.sin_family = AF_INET;
 
-      utemp = (value[0] << 24) | (value[1] << 16) | (value[2] << 8) | (value[3]);
+      utemp = (value[0] << 24) | (value[1] << 16) |
+              (value[2] << 8) | (value[3]);
       session->data.addr.in4.sin_addr.s_addr = htonl(utemp);
     }
 
@@ -2800,11 +2834,12 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
     {
       /* no message ? */
 
-      (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                          g_respfmt1, 502, ' ',
-                          "EPRT command not implemented !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 502, ' ',
+                    "EPRT command not implemented !");
       return -EINVAL;
     }
+
   right--;
 
   while (session->param[left] != '\0')
@@ -2814,6 +2849,7 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
           left++;
           break;
         }
+
       left++;
     }
 
@@ -2821,9 +2857,9 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
     {
       /* Invalid format */
 
-      (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                          g_respfmt1, 502, ' ',
-                          "EPRT command not implemented !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 502, ' ',
+                    "EPRT command not implemented !");
       return -EINVAL;
     }
 
@@ -2837,15 +2873,15 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
   for (index = 0; index < count && *str != '\0'; index++)
     {
       field[index] = ftpd_strtok_alloc(true, ",|)", &str);
-       if (!field[index])
-         {
-            break;
-         }
+      if (!field[index])
+        {
+          break;
+        }
 
-       if (*str != '\0')
-         {
-            str++;
-         }
+      if (*str != '\0')
+        {
+          str++;
+        }
     }
 
   if (index < count)
@@ -2858,13 +2894,13 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
             }
         }
 
-      (void)ftpd_response(session->cmd.sd, session->txtimeout,
-                          g_respfmt1, 502, ' ',
-                          "EPRT command not implemented !");
-        return -EINVAL;
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 502, ' ',
+                    "EPRT command not implemented !");
+      return -EINVAL;
     }
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
 
   memset(&session->data.addr, 0, sizeof(session->data.addr));
   family = atoi(field[0]);
@@ -2874,7 +2910,7 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
       family = AF_INET;
 
       session->data.addr.in4.sin_family = family;
-      (void)inet_pton(family, field[1], &session->data.addr.in4.sin_addr);
+      inet_pton(family, field[1], &session->data.addr.in4.sin_addr);
       session->data.addr.in4.sin_port = htons((short)atoi(field[2]));
     }
   else
@@ -2885,7 +2921,7 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
       family = AF_INET6;
 
       session->data.addr.in6.sin6_family = family;
-      (void)inet_pton(family, field[1], &session->data.addr.in6.sin6_addr);
+      inet_pton(family, field[1], &session->data.addr.in6.sin6_addr);
       session->data.addr.in6.sin6_port = htons((short)atoi(field[2]));
     }
   else
@@ -2895,7 +2931,7 @@ static int ftpd_command_eprt(FAR struct ftpd_session_s *session)
       family = AF_UNSPEC;
     }
 
-  for (index = 0;index < count;index++)
+  for (index = 0; index < count; index++)
     {
       if (field[index])
         {
@@ -2968,9 +3004,10 @@ static int ftpd_command_rmd(FAR struct ftpd_session_s *session)
   ret = ftpd_getpath(session, session->param, &abspath, &workpath);
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not remove directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not remove directory !");
+      return ret;
     }
 
   if (strcmp(session->home, abspath) == 0)
@@ -2978,9 +3015,10 @@ static int ftpd_command_rmd(FAR struct ftpd_session_s *session)
       free(abspath);
       free(workpath);
 
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not remove home directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not remove home directory !");
+      return -EINVAL;
     }
 
   if (strcmp(session->work, workpath) == 0)
@@ -2988,20 +3026,23 @@ static int ftpd_command_rmd(FAR struct ftpd_session_s *session)
       free(abspath);
       free(workpath);
 
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not remove current directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not remove current directory !");
+      return -EINVAL;
     }
 
   ret = rmdir(abspath);
   if (ret < 0)
     {
+      ret = -errno;
       free(abspath);
       free(workpath);
 
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not remove directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not remove directory !");
+      return ret;
     }
 
   free(abspath);
@@ -3024,17 +3065,21 @@ static int ftpd_command_mkd(FAR struct ftpd_session_s *session)
   ret = ftpd_getpath(session, session->param, &abspath, NULL);
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not make directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not make directory !");
+      return ret;
     }
 
-  ret = mkdir(abspath, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  ret = mkdir(abspath, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP |
+                       S_IXGRP | S_IROTH | S_IXOTH);
   if (ret < 0)
     {
+      ret = -errno;
       free(abspath);
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "Can not make directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "Can not make directory !");
+      return ret;
     }
 
   free(abspath);
@@ -3055,8 +3100,9 @@ static int ftpd_command_dele(FAR struct ftpd_session_s *session)
   ret = ftpd_getpath(session, session->param, &abspath, &workpath);
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "Can not delete file !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "Can not delete file !");
+      return ret;
     }
 
   if (strcmp(session->home, abspath) == 0)
@@ -3064,9 +3110,10 @@ static int ftpd_command_dele(FAR struct ftpd_session_s *session)
       free(abspath);
       free(workpath);
 
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not delete home directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not delete home directory !");
+      return -EINVAL;
     }
 
   if (strcmp(session->work, workpath) == 0)
@@ -3074,19 +3121,22 @@ static int ftpd_command_dele(FAR struct ftpd_session_s *session)
       free(abspath);
       free(workpath);
 
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ',
-                           "Can not delete current directory !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ',
+                    "Can not delete current directory !");
+      return -EINVAL;
     }
 
   ret = unlink(abspath);
   if (ret < 0)
     {
+      ret = -errno;
       free(abspath);
       free(workpath);
 
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "Can not delete file !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "Can not delete file !");
+      return ret;
     }
 
   free(abspath);
@@ -3107,63 +3157,67 @@ static int ftpd_command_pasv(FAR struct ftpd_session_s *session)
   unsigned int temp;
   int ret;
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
 
   session->data.addrlen = sizeof(session->data.addr);
 
   session->data.sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (session->data.sd < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 425, ' ', "PASV socket create fail !");
+                           g_respfmt1, 425, ' ',
+                           "PASV socket create fail !");
     }
 
-  ret = getsockname(session->cmd.sd, (FAR struct sockaddr *)&session->data.addr,
+  ret = getsockname(session->cmd.sd,
+                    (FAR struct sockaddr *)&session->data.addr,
                     &session->data.addrlen);
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 425, ' ', "PASV getsockname fail !");
     }
 
 #ifdef CONFIG_NET_IPv6
-    if (session->data.addr.ss.ss_family == AF_INET6)
-      {
-        /* Convert ipv6 to ipv4 */
+  if (session->data.addr.ss.ss_family == AF_INET6)
+    {
+      /* Convert ipv6 to ipv4 */
 
-        if ((IN6_IS_ADDR_V4MAPPED(&session->data.addr.in6.sin6_addr) != 0) ||
-            (IN6_IS_ADDR_V4COMPAT(&session->data.addr.in6.sin6_addr) != 0))
-          {
-            /* convert ipv6 to ipv4 */
+      if ((IN6_IS_ADDR_V4MAPPED(&session->data.addr.in6.sin6_addr) != 0) ||
+          (IN6_IS_ADDR_V4COMPAT(&session->data.addr.in6.sin6_addr) != 0))
+        {
+          /* convert ipv6 to ipv4 */
 
-            in_addr in4addr;
+          in_addr in4addr;
 
-            in4addr.s_addr = session->data.addr.in6.sin6_addr.s6_addr32[3];
+          in4addr.s_addr = session->data.addr.in6.sin6_addr.s6_addr32[3];
 
-            memset(&session->data.addr, 0, sizeof(session->data.addr));
-            session->data.addr.in4.sin_family = AF_INET;
-            session->data.addr.in4.sin_addr.s_addr = in4addr.s_addr;
+          memset(&session->data.addr, 0, sizeof(session->data.addr));
+          session->data.addr.in4.sin_family = AF_INET;
+          session->data.addr.in4.sin_addr.s_addr = in4addr.s_addr;
         }
     }
 #endif
 
   session->data.addr.in4.sin_port = 0;
-  ret = bind(session->data.sd, (FAR const struct sockaddr *)&session->data.addr,
+  ret = bind(session->data.sd,
+             (FAR const struct sockaddr *)&session->data.addr,
              session->data.addrlen);
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 425, ' ', "PASV bind fail !");
     }
 
-  ret = getsockname(session->data.sd, (FAR struct sockaddr *)&session->data.addr,
+  ret = getsockname(session->data.sd,
+                    (FAR struct sockaddr *)&session->data.addr,
                     &session->data.addrlen);
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 425, ' ', "PASV getsockname fail !");
     }
@@ -3171,14 +3225,14 @@ static int ftpd_command_pasv(FAR struct ftpd_session_s *session)
   ret = listen(session->data.sd, 1);
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 425, ' ', "PASV listen fail !");
     }
 
   if (ntohl(session->data.addr.in4.sin_addr.s_addr) == INADDR_ANY)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 425, ' ',
                            "Can not open passive connection");
@@ -3201,7 +3255,7 @@ static int ftpd_command_pasv(FAR struct ftpd_session_s *session)
                       value[3], value[4], value[5]);
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
     }
 
   return ret;
@@ -3220,7 +3274,7 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
 {
   int ret;
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
 
   session->data.addrlen = sizeof(session->data.addr);
 
@@ -3236,7 +3290,8 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
     {
 #if defined(IPPROTO_IPV6) && defined(IPV6_V6ONLY)
       int ipv6only = 0;
-      (void)setsockopt(session->data.sd, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6only, sizeof(ipv6only));
+      setsockopt(session->data.sd, IPPROTO_IPV6, IPV6_V6ONLY,
+                 &ipv6only, sizeof(ipv6only));
 #endif
     }
 #else
@@ -3247,17 +3302,18 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
                           g_respfmt1, 500, ' ', "EPSV socket create fail !");
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
-  ret = getsockname(session->cmd.sd, (FAR struct sockaddr *)&session->data.addr,
-                   &session->data.addrlen);
+  ret = getsockname(session->cmd.sd,
+                    (FAR struct sockaddr *)&session->data.addr,
+                    &session->data.addrlen);
   if (ret < 0)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
                           g_respfmt1, 500, ' ', "EPSV getsockname fail !");
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
@@ -3277,28 +3333,31 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
 #endif
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                          g_respfmt1, 500, ' ', "EPSV family not supported!");
-      (void)ftpd_dataclose(session);
+                          g_respfmt1, 500, ' ',
+                          "EPSV family not supported!");
+      ftpd_dataclose(session);
       return ret;
     }
 
-  ret = bind(session->data.sd, (FAR const struct sockaddr *)&session->data.addr,
+  ret = bind(session->data.sd,
+             (FAR const struct sockaddr *)&session->data.addr,
              session->data.addrlen);
   if (ret < 0)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
                           g_respfmt1, 500, ' ', "EPSV bind fail !");
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
-  ret = getsockname(session->data.sd, (FAR struct sockaddr *)&session->data.addr,
+  ret = getsockname(session->data.sd,
+                    (FAR struct sockaddr *)&session->data.addr,
                     &session->data.addrlen);
   if (ret < 0)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
                           g_respfmt1, 500, ' ', "EPSV getsockname fail !");
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
@@ -3307,7 +3366,7 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
             g_respfmt1, 500, ' ', "EPSV listen fail !");
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
@@ -3315,12 +3374,13 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
   if (session->data.addr.ss.ss_family == AF_INET6)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                          "%03u%cEntering Extended Passive Mode (|||%u|).\r\n",
+                          "%03u%cEntering Extended Passive Mode "
+                          "(|||%u|).\r\n",
                           229, ' ',
                           ntohs(session->data.addr.in6.sin6_port));
       if (ret < 0)
         {
-          (void)ftpd_dataclose(session);
+          ftpd_dataclose(session);
           return ret;
         }
     }
@@ -3329,12 +3389,13 @@ static int ftpd_command_epsv(FAR struct ftpd_session_s *session)
   if (session->data.addr.ss.ss_family == AF_INET)
     {
       ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                          "%03u%cEntering Extended Passive Mode (|%u||%u|).\r\n",
-                          229, ' ', 1,
+                          "%03u%cEntering Extended Passive Mode "
+                          "(|||%u|).\r\n",
+                          229, ' ',
                           ntohs(session->data.addr.in4.sin_port));
       if (ret < 0)
         {
-          (void)ftpd_dataclose(session);
+          ftpd_dataclose(session);
           return ret;
         }
     }
@@ -3369,17 +3430,17 @@ static int ftpd_command_list(FAR struct ftpd_session_s *session)
                       "Opening ASCII mode data connection for file list");
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
   opton |= ftpd_listoption((char **)(&session->param));
-  (void)ftpd_list(session, opton);
+  ftpd_list(session, opton);
 
   ret = ftpd_response(session->cmd.sd, session->txtimeout,
                       g_respfmt1, 226, ' ', "Transfer complete");
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
   return ret;
 }
 
@@ -3403,17 +3464,17 @@ static int ftpd_command_nlst(FAR struct ftpd_session_s *session)
                       "Opening ASCII mode data connection for file list");
   if (ret < 0)
     {
-      (void)ftpd_dataclose(session);
+      ftpd_dataclose(session);
       return ret;
     }
 
   opton |= ftpd_listoption((char **)(&session->param));
-  (void)ftpd_list(session, opton);
+  ftpd_list(session, opton);
 
   ret = ftpd_response(session->cmd.sd, session->txtimeout,
                       g_respfmt1, 226, ' ', "Transfer complete");
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
   return ret;
 }
 
@@ -3424,7 +3485,8 @@ static int ftpd_command_nlst(FAR struct ftpd_session_s *session)
 static int ftpd_command_acct(FAR struct ftpd_session_s *session)
 {
   return ftpd_response(session->cmd.sd, session->txtimeout,
-                       g_respfmt1, 502, ' ', "ACCT command not implemented !");
+                       g_respfmt1, 502, ' ',
+                       "ACCT command not implemented !");
 }
 
 /****************************************************************************
@@ -3445,9 +3507,11 @@ static int ftpd_command_size(FAR struct ftpd_session_s *session)
   ret = ftpd_getpath(session, session->param, &abspath, NULL);
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "Unknown size !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "Unknown size !");
+      return ret;
     }
+
   path = abspath;
 
   ret = 0;
@@ -3473,7 +3537,8 @@ static int ftpd_command_size(FAR struct ftpd_session_s *session)
         else
           {
             ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                                "%03u%c%llu\r\n", 213, ' ', (unsigned long long)st.st_size);
+                                "%03u%c%llu\r\n", 213, ' ',
+                                (unsigned long long)st.st_size);
           }
       }
       break;
@@ -3483,40 +3548,33 @@ static int ftpd_command_size(FAR struct ftpd_session_s *session)
         status = stat(path, &st);
         if (status < 0)
           {
-            ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                                g_respfmt2, 550, ' ', session->param,
-                                ": not a regular file.");
-            if (ret < 0)
-              {
-                return ret;
-              }
+            ret = -errno;
+            ftpd_response(session->cmd.sd, session->txtimeout,
+                          g_respfmt2, 550, ' ', session->param,
+                          ": not a regular file.");
+            goto errout_with_abspath;
           }
         else if (!S_ISREG(st.st_mode))
           {
             ret = ftpd_response(session->cmd.sd, session->txtimeout,
                                 g_respfmt2, 550, ' ', session->param,
                                 ": not a regular file.");
-            if (ret < 0)
-              {
-                return ret;
-              }
+            ret = -EPERM;
+            goto errout_with_abspath;
           }
-
 
         outstream = fopen(path, "r");
         if (!outstream)
           {
-            ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                                g_respfmt2, 550, ' ', session->param,
-                                ": Can not open file !");
-            if (ret < 0)
-              {
-                return ret;
-              }
-           }
+            ret = -errno;
+            ftpd_response(session->cmd.sd, session->txtimeout,
+                          g_respfmt2, 550, ' ', session->param,
+                          ": Can not open file !");
+            goto errout_with_abspath;
+          }
 
         offset = 0;
-        for (;;)
+        for (; ; )
           {
             ch = getc(outstream);
             if (ch == EOF)
@@ -3527,23 +3585,27 @@ static int ftpd_command_size(FAR struct ftpd_session_s *session)
               {
                 offset++;
               }
+
             offset++;
           }
 
-        (void)fclose(outstream);
+        fclose(outstream);
         ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                            "%03u%c%llu\r\n", 213, ' ', (unsigned long long)offset);
+                            "%03u%c%llu\r\n", 213, ' ',
+                            (unsigned long long)offset);
       }
       break;
 
     default:
       {
         ret = ftpd_response(session->cmd.sd, session->txtimeout,
-                            g_respfmt1, 504, ' ', "SIZE not implemented for type");
+                            g_respfmt1, 504, ' ',
+                            "SIZE not implemented for type");
       }
       break;
     }
 
+errout_with_abspath:
   free(abspath);
   return ret;
 }
@@ -3555,7 +3617,8 @@ static int ftpd_command_size(FAR struct ftpd_session_s *session)
 static int ftpd_command_stru(FAR struct ftpd_session_s *session)
 {
   return ftpd_response(session->cmd.sd, session->txtimeout,
-                       g_respfmt1, 502, ' ', "STRU command not implemented !");
+                       g_respfmt1, 502, ' ',
+                       "STRU command not implemented !");
 }
 
 /****************************************************************************
@@ -3565,7 +3628,6 @@ static int ftpd_command_stru(FAR struct ftpd_session_s *session)
 static int ftpd_command_rnfr(FAR struct ftpd_session_s *session)
 {
   FAR char *abspath;
-  FAR char *path;
   struct stat st;
   int ret;
 
@@ -3578,12 +3640,12 @@ static int ftpd_command_rnfr(FAR struct ftpd_session_s *session)
   ret = ftpd_getpath(session, session->param, &abspath, NULL);
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "RNFR error !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "RNFR error !");
+      return ret;
     }
-  path = abspath;
 
-  ret = stat(path, &st);
+  ret = stat(abspath, &st);
   if (ret < 0)
     {
       free(abspath);
@@ -3612,22 +3674,26 @@ static int ftpd_command_rnto(FAR struct ftpd_session_s *session)
     {
       return ftpd_response(session->cmd.sd, session->txtimeout,
                            g_respfmt1, 550, ' ', "RNTO error !");
+      return ret;
     }
 
   ret = ftpd_getpath(session, session->param, &abspath, NULL);
   if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "RNTO error !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "RNTO error !");
+      return ret;
     }
 
   ret = rename(session->renamefrom, abspath);
   if (ret < 0)
     {
+      ret = -errno;
       free(abspath);
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt2, 550, ' ', session->param,
-                           ": Rename error.");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt2, 550, ' ', session->param,
+                    ": Rename error.");
+      return ret;
     }
 
   free(abspath);
@@ -3641,7 +3707,7 @@ static int ftpd_command_rnto(FAR struct ftpd_session_s *session)
 
 static int ftpd_command_retr(FAR struct ftpd_session_s *session)
 {
-    return ftpd_stream(session, 0);
+  return ftpd_stream(session, 0);
 }
 
 /****************************************************************************
@@ -3650,7 +3716,7 @@ static int ftpd_command_retr(FAR struct ftpd_session_s *session)
 
 static int ftpd_command_stor(FAR struct ftpd_session_s *session)
 {
-    return ftpd_stream(session, 1);
+  return ftpd_stream(session, 1);
 }
 
 /****************************************************************************
@@ -3659,7 +3725,7 @@ static int ftpd_command_stor(FAR struct ftpd_session_s *session)
 
 static int ftpd_command_appe(FAR struct ftpd_session_s *session)
 {
-    return ftpd_stream(session, 2);
+  return ftpd_stream(session, 2);
 }
 
 /****************************************************************************
@@ -3669,14 +3735,14 @@ static int ftpd_command_appe(FAR struct ftpd_session_s *session)
 static int ftpd_command_rest(FAR struct ftpd_session_s *session)
 {
 #ifdef CONFIG_HAVE_LONG_LONG
-    session->restartpos = (off_t)atoll(session->param);
+  session->restartpos = (off_t)atoll(session->param);
 #else
-    session->restartpos = (off_t)atoi(session->param);
+  session->restartpos = (off_t)atoi(session->param);
 #endif
-    session->flags |= FTPD_SESSIONFLAG_RESTARTPOS;
+  session->flags |= FTPD_SESSIONFLAG_RESTARTPOS;
 
-    return ftpd_response(session->cmd.sd, session->txtimeout,
-                         g_respfmt1, 320, ' ', "Restart position ready");
+  return ftpd_response(session->cmd.sd, session->txtimeout,
+                       g_respfmt1, 320, ' ', "Restart position ready");
 }
 
 /****************************************************************************
@@ -3692,28 +3758,33 @@ static int ftpd_command_mdtm(FAR struct ftpd_session_s *session)
   int ret;
 
   ret = ftpd_getpath(session, session->param, &abspath, NULL);
-  if (ret <0)
+  if (ret < 0)
     {
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt1, 550, ' ', "Unknown size !");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt1, 550, ' ', "Unknown size !");
+      return ret;
     }
+
   path = abspath;
 
   ret = stat(path, &st);
   if (ret < 0)
     {
+      ret = -errno;
       free(abspath);
-      return ftpd_response(session->cmd.sd, session->txtimeout,
-                           g_respfmt2, 550, ' ', session->param,
-                           ": not a plain file.");
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt2, 550, ' ', session->param,
+                    ": not a plain file.");
+      return ret;
     }
 
-    if (!S_ISREG(st.st_mode))
-      {
-        free(abspath);
-        return ftpd_response(session->cmd.sd, session->txtimeout,
-                             g_respfmt2, 550, ' ', session->param,
-                             ": not a plain file.");
+  if (!S_ISREG(st.st_mode))
+    {
+      free(abspath);
+      ftpd_response(session->cmd.sd, session->txtimeout,
+                    g_respfmt2, 550, ' ', session->param,
+                    ": not a plain file.");
+      return -EISDIR;
     }
 
   free(abspath);
@@ -3751,6 +3822,7 @@ static int ftpd_command_opts(FAR struct ftpd_session_s *session)
       *str = '\0';
       str++;
     }
+
   value = str;
 
   if (strcasecmp(option, "UTF8") == 0 || strcasecmp(option, "UTF-8") == 0)
@@ -3760,10 +3832,11 @@ static int ftpd_command_opts(FAR struct ftpd_session_s *session)
       if (value[0] == '\0' || strcasecmp(value, "ON") == 0 ||
           strcasecmp(value, "ENABLE") == 0 || strcasecmp(value, "TRUE") == 0)
         {
-            remote = true;
+          remote = true;
         }
-        else {
-            remote = false;
+      else
+        {
+          remote = false;
         }
 
       lang = getenv("LANG");
@@ -3807,7 +3880,8 @@ static int ftpd_command_opts(FAR struct ftpd_session_s *session)
 static int ftpd_command_site(FAR struct ftpd_session_s *session)
 {
   return ftpd_response(session->cmd.sd, session->txtimeout,
-                       g_respfmt1, 502, ' ', "SITE command not implemented !");
+                       g_respfmt1, 502, ' ',
+                       "SITE command not implemented !");
 }
 
 /****************************************************************************
@@ -3903,6 +3977,7 @@ static int ftpd_command(FAR struct ftpd_session_s *session)
 /****************************************************************************
  * Worker Thread
  ****************************************************************************/
+
 /****************************************************************************
  * Name: ftpd_startworker
  ****************************************************************************/
@@ -3993,7 +4068,7 @@ static void ftpd_freesession(FAR struct ftpd_session_s *session)
       free(session->data.buffer);
     }
 
-  (void)ftpd_dataclose(session);
+  ftpd_dataclose(session);
 
   if (session->cmd.buffer)
     {
@@ -4023,19 +4098,19 @@ static void ftpd_workersetup(FAR struct ftpd_session_s *session)
 
 #ifdef CONFIG_NET_HAVE_IPTOS
   temp = IPTOS_LOWDELAY;
-  (void)setsockopt(session->cmd.sd, IPPROTO_IP, IP_TOS, &temp, sizeof(temp));
+  setsockopt(session->cmd.sd, IPPROTO_IP, IP_TOS, &temp, sizeof(temp));
 #endif
 
 #ifdef CONFIG_NET_HAVE_OOBINLINE
   temp = 1;
-  (void)setsockopt(session->cmd.sd, SOL_SOCKET, SO_OOBINLINE, &temp, sizeof(temp));
+  setsockopt(session->cmd.sd, SOL_SOCKET, SO_OOBINLINE, &temp, sizeof(temp));
 #endif
 
 #ifdef CONFIG_NET_SOLINGER
-  (void)memset(&ling, 0, sizeof(ling));
+  memset(&ling, 0, sizeof(ling));
   ling.l_onoff = 1;
   ling.l_linger = 4;
-  (void)setsockopt(session->cmd.sd, SOL_SOCKET, SO_LINGER, &ling, sizeof(ling));
+  setsockopt(session->cmd.sd, SOL_SOCKET, SO_LINGER, &ling, sizeof(ling));
 #endif
 }
 
@@ -4071,7 +4146,7 @@ static FAR void *ftpd_worker(FAR void *arg)
 
   /* Then loop processing FTP commands */
 
-  for (;;)
+  for (; ; )
     {
       /* Receive the next command */
 
@@ -4089,7 +4164,7 @@ static FAR void *ftpd_worker(FAR void *arg)
           break;
         }
 
-      /* Make sure that the recevied string is NUL terminated */
+      /* Make sure that the received string is NUL terminated */
 
       session->cmd.buffer[recvbytes] = '\0';
 
@@ -4103,12 +4178,13 @@ static FAR void *ftpd_worker(FAR void *arg)
       while (recvbytes > 0)
         {
           ch = session->cmd.buffer[offset];
-            if (ch != 0xff && ch != 0xf4 && ch != 0xf2)
-              {
-                break;
-              }
+          if (ch != 0xff && ch != 0xf4 && ch != 0xf2)
+            {
+              break;
+            }
 
-          (void)ftpd_send(session->cmd.sd, &session->cmd.buffer[offset], 1, session->txtimeout);
+          ftpd_send(session->cmd.sd, &session->cmd.buffer[offset], 1,
+                    session->txtimeout);
 
           offset++;
           recvbytes--;
@@ -4132,6 +4208,7 @@ static FAR void *ftpd_worker(FAR void *arg)
               session->cmd.buffer[offset] = '\0';
               break;
             }
+
           offset++;
         }
 
@@ -4205,8 +4282,8 @@ FTPD_SESSION ftpd_open(sa_family_t family)
  *
  * Input Parameters:
  *    handle - A handle previously returned by ftpd_open
- *    accountflags - The characteristics of this user (see FTPD_ACCOUNTFLAGS_*
- *      definitions).
+ *    accountflags - The characteristics of this user
+ *      (see FTPD_ACCOUNTFLAGS_* definitions).
  *    user - The user login name. May be NULL indicating that no login is
  *      required.
  *    passwd - The user password.  May be NULL indicating that no password
@@ -4232,7 +4309,7 @@ int ftpd_adduser(FTPD_SESSION handle, uint8_t accountflags,
   newaccount = ftpd_account_new(user, accountflags);
   if (!newaccount)
     {
-      nerr("ERROR: Failed to allocte memory to the account\n");
+      nerr("ERROR: Failed to allocate memory to the account\n");
       ret = -ENOMEM;
       goto errout;
     }
@@ -4302,7 +4379,8 @@ int ftpd_session(FTPD_SESSION handle, int timeout)
 
   /* Allocate a session */
 
-  session = (FAR struct ftpd_session_s *)zalloc(sizeof(struct ftpd_session_s));
+  session = (FAR struct ftpd_session_s *)
+    zalloc(sizeof(struct ftpd_session_s));
   if (!session)
     {
       nerr("ERROR: Failed to allocate session\n");
@@ -4362,7 +4440,9 @@ int ftpd_session(FTPD_SESSION handle, int timeout)
                                 &session->cmd.addrlen, timeout);
   if (session->cmd.sd < 0)
     {
-      /* Only report interesting, infrequent errors (not the common timeout) */
+      /* Only report interesting,
+       * infrequent errors (not the common timeout)
+       */
 
 #ifdef CONFIG_DEBUG_NET
       if (session->cmd.sd != -ETIMEDOUT)
@@ -4370,6 +4450,7 @@ int ftpd_session(FTPD_SESSION handle, int timeout)
           nerr("ERROR: ftpd_accept() failed: %d\n", session->cmd.sd);
         }
 #endif
+
       ret = session->cmd.sd;
       goto errout_with_session;
     }
@@ -4424,4 +4505,3 @@ void ftpd_close(FTPD_SESSION handle)
 
   free(server);
 }
-
