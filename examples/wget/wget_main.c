@@ -113,6 +113,12 @@ int main(int argc, FAR char *argv[])
   uint8_t mac[IFHWADDRLEN];
 #endif
 
+  if (argc != 2)
+    {
+      printf("usage: $s [url]\n", argv[0]);
+      return -1;
+    }
+
 /* Many embedded network interfaces must have a software assigned MAC */
 
 #ifdef CONFIG_EXAMPLES_WGET_NOMAC
@@ -125,6 +131,7 @@ int main(int argc, FAR char *argv[])
   netlib_setmacaddr("eth0", mac);
 #endif
 
+#ifndef CONFIG_NSH_NETINIT
   /* Set up our host address */
 
   addr.s_addr = HTONL(CONFIG_EXAMPLES_WGET_IPADDR);
@@ -145,11 +152,12 @@ int main(int argc, FAR char *argv[])
    */
 
   netlib_ifup("eth0");
+#endif /* CONFIG_NSH_NETINIT */
 
   wget_initialize();
 
   /* Then start the server */
 
-  wget(CONFIG_EXAMPLES_WGET_URL, g_iobuffer, 512, callback, NULL);
+  wget(argv[1], g_iobuffer, 512, callback, NULL);
   return 0;
 }
