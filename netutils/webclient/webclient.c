@@ -199,7 +199,7 @@ static const char g_httpscheme[]      = "http";
 static const char g_httpsscheme[]     = "https";
 #endif
 
-static struct wget_transport_s g_transport =
+static struct sock_methods_s g_sockmethods =
 {
   .connect = wget_socketconnect,
   .send = wget_socketsend,
@@ -672,7 +672,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
 
       /* Connect to server. */
 
-      sockfd = g_transport.connect(use_ssl, ws.hostname, ws.port);
+      sockfd = g_sockmethods.connect(use_ssl, ws.hostname, ws.port);
       if (sockfd < 0)
         {
           nerr("ERROR: connect failed: %d\n", sockfd);
@@ -730,7 +730,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
 
       do
         {
-          ret = g_transport.send(sockfd, buffer + ((dest - buffer) - len),
+          ret = g_sockmethods.send(sockfd, buffer + ((dest - buffer) - len),
                                  len, 0);
           if (ret < 0)
             {
@@ -750,7 +750,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
       redirected = false;
       for (;;)
         {
-          ws.datend = g_transport.recv(sockfd, ws.buffer, ws.buflen, 0);
+          ws.datend = g_sockmethods.recv(sockfd, ws.buffer, ws.buflen, 0);
           if (ws.datend < 0)
             {
               nerr("ERROR: recv failed: %d\n", errno);
@@ -760,7 +760,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
           else if (ws.datend == 0)
             {
               ninfo("Connection lost\n");
-              g_transport.close(sockfd);
+              g_sockmethods.close(sockfd);
               break;
             }
 
@@ -800,7 +800,7 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
               else
                 {
                   redirected = true;
-                  g_transport.close(sockfd);
+                  g_sockmethods.close(sockfd);
                   break;
                 }
             }
@@ -814,7 +814,7 @@ errout_with_errno:
   set_errno(-ret);
   if (sockfd >= 0)
     {
-      g_transport.close(sockfd);
+      g_sockmethods.close(sockfd);
     }
   return ERROR;
 }
@@ -949,35 +949,12 @@ int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
 
 void wget_initialize(void)
 {
-#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
+#ifdef CONFIG_WEBCLIENT_USE_SSL
 
-  /* wget_ssl_register() is not implemented by webclient. So must be provided
-   * by each SSL/TLS implementation. */
+  /* 
+   * If there are any SSL/TLS implementation and provided sock_methdos_s. */
 
-  wget_ssl_register();
+  get_sslsocket_methods(&g_sockmethods);
 #endif
 }
 
-/****************************************************************************
- * Name: wget_register_transport
- *
- * Description:
- *   Register the specified interface in the webclient transport interface
- *   and change it from the default. If the registered interface supports
- *   SSL/TLS, wget can use HTTPS.
- *
- * Input Parameters
- *   transport -  webclient transport interface implemented by the user.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-void wget_register_transport(FAR struct wget_transport_s *transport)
-{
-  g_transport.connect = transport->connect;
-  g_transport.send    = transport->send;
-  g_transport.recv    = transport->recv;
-  g_transport.close   = transport->close;
-}

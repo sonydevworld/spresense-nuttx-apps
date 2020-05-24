@@ -51,6 +51,8 @@
 #endif
 #include <sys/types.h>
 
+#include <netutils/ssl_connection.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -97,14 +99,6 @@
 
 typedef void (*wget_callback_t)(FAR char **buffer, int offset,
                                 int datend, FAR int *buflen, FAR void *arg);
-
-struct wget_transport_s
-{
-  int (*connect)(int use_ssl, FAR const char *host, uint16_t port);
-  ssize_t (*send)(int fd, FAR const void *buf, size_t len, int flags);
-  ssize_t (*recv)(int fd, FAR void *buf, size_t len, int flags);
-  int (*close)(int fd);
-};
 
 /****************************************************************************
  * Public Function Prototypes
@@ -168,40 +162,6 @@ int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
  ****************************************************************************/
 
 void wget_initialize(void);
-
-/****************************************************************************
- * Name: wget_register_transport
- *
- * Description:
- *   Register the specified interface in the webclient transport interface
- *   and change it from the default. If the registered interface supports
- *   SSL/TLS, wget can use HTTPS.
- *
- * Input Parameters
- *   transport -  webclient transport interface implemented by the user.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-void wget_register_transport(FAR struct wget_transport_s *transport);
-
-/****************************************************************************
- * Name: webclient_ssl_register
- *
- * Description:
- *   If CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL is selected, SSL/TLS interface
- *   registration will be performed in wget_initialize() by a function called
- *   wget_ssl_register().
- *   This function is not implemented by webclient. So must be provided
- *   by each SSL/TLS implementation.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
-void wget_ssl_register(void);
-#endif
 
 #undef EXTERN
 #ifdef __cplusplus
