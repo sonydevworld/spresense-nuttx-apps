@@ -52,13 +52,21 @@
  ****************************************************************************/
 
 #ifdef TCPBLASTER_HOST
-   /* HTONS/L macros are unique to uIP */
+/* HTONS/L macros are unique to NuttX */
 
-#  define HTONS(a)       htons(a)
-#  define HTONL(a)       htonl(a)
+#  undef HTONS
+#  undef HTONL
+#  define HTONS(ns) htons(ns)
+#  define HTONL(nl) htonl(nl)
 
-   /* Have SO_LINGER */
+#  undef NTOHS
+#  undef NTOHL
+#  define NTOHS(hs) ntohs(hs)
+#  define NTOHL(hl) ntohl(hl)
 
+/* Have SO_LINGER */
+
+#  define FAR
 #  define TCPBLASTER_HAVE_SOLINGER 1
 
 #else
@@ -87,14 +95,20 @@
 #  define SENDSIZE 4096
 #endif
 
+#ifdef CONFIG_EXAMPLES_TCPBLASTER_GROUPSIZE
+#  define GROUPSIZE CONFIG_EXAMPLES_TCPBLASTER_GROUPSIZE
+#else
+#  define GROUPSIZE 50
+#endif
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
 #ifdef CONFIG_EXAMPLES_TCPBLASTER_IPv6
-uint16_t g_tcpblasterserver_ipv6[8];
+extern uint16_t g_tcpblasterserver_ipv6[8];
 #else
-uint32_t g_tcpblasterserver_ipv4;
+extern uint32_t g_tcpblasterserver_ipv4;
 #endif
 
 /****************************************************************************
