@@ -73,15 +73,19 @@ void tcpblaster_server(void)
   unsigned long recvtotal;
   socklen_t addrlen;
   char *buffer;
+  int groupcount;
   int recvcount;
   int listensd;
   int acceptsd;
   int nbytesread;
   int optval;
+  char timebuff[100];
+
+  setbuf(stdout, NULL);
 
   /* Allocate a BIG buffer */
 
-  buffer = (char*)malloc(SENDSIZE);
+  buffer = (FAR char *)malloc(SENDSIZE);
   if (!buffer)
     {
       printf("server: failed to allocate buffer\n");
@@ -100,7 +104,8 @@ void tcpblaster_server(void)
   /* Set socket to reuse address */
 
   optval = 1;
-  if (setsockopt(listensd, SOL_SOCKET, SO_REUSEADDR, (void*)&optval, sizeof(int)) < 0)
+  if (setsockopt(listensd, SOL_SOCKET, SO_REUSEADDR, (FAR void *)&optval,
+                 sizeof(int)) < 0)
     {
       printf("server: setsockopt SO_REUSEADDR failure: %d\n", errno);
       goto errout_with_listensd;
@@ -110,25 +115,31 @@ void tcpblaster_server(void)
 
 #ifdef CONFIG_EXAMPLES_TCPBLASTER_IPv6
 
-  myaddr.sin6_family            = AF_INET6;
-  myaddr.sin6_port              = HTONS(CONFIG_EXAMPLES_TCPBLASTER_SERVER_PORTNO);
-#if defined(CONFIG_EXAMPLES_TCPBLASTER_LOOPBACK) && !defined(NET_LOOPBACK)
-  memcpy(myaddr.sin6_addr.s6_addr16, g_tcpblasterserver_ipv6, 8 * sizeof(uint16_t));
+  myaddr.sin6_family = AF_INET6;
+  myaddr.sin6_port   = HTONS(CONFIG_EXAMPLES_TCPBLASTER_SERVER_PORTNO);
+#if defined(CONFIG_EXAMPLES_TCPBLASTER_LOOPBACK) && !defined(CONFIG_NET_LOOPBACK)
+  memcpy(myaddr.sin6_addr.s6_addr, g_tcpblasterserver_ipv6, 16);
 #else
-  memset(myaddr.sin6_addr.s6_addr16, 0, 8 * sizeof(uint16_t));
+  memset(myaddr.sin6_addr.s6_addr, 0, 16);
 #endif
   addrlen = sizeof(struct sockaddr_in6);
 
-  printf("Binding to IPv6 Address: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-         myaddr.sin6_addr.s6_addr16[0], myaddr.sin6_addr.s6_addr16[1],
-         myaddr.sin6_addr.s6_addr16[2], myaddr.sin6_addr.s6_addr16[3],
-         myaddr.sin6_addr.s6_addr16[4], myaddr.sin6_addr.s6_addr16[5],
-         myaddr.sin6_addr.s6_addr16[6], myaddr.sin6_addr.s6_addr16[7]);
+  printf("Binding to IPv6 Address: "
+         "%02x%02x:%02x%02x:%02x%02x:%02x%02x:"
+         "%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",
+         myaddr.sin6_addr.s6_addr[0], myaddr.sin6_addr.s6_addr[1],
+         myaddr.sin6_addr.s6_addr[2], myaddr.sin6_addr.s6_addr[3],
+         myaddr.sin6_addr.s6_addr[4], myaddr.sin6_addr.s6_addr[5],
+         myaddr.sin6_addr.s6_addr[6], myaddr.sin6_addr.s6_addr[7],
+         myaddr.sin6_addr.s6_addr[8], myaddr.sin6_addr.s6_addr[9],
+         myaddr.sin6_addr.s6_addr[10], myaddr.sin6_addr.s6_addr[11],
+         myaddr.sin6_addr.s6_addr[12], myaddr.sin6_addr.s6_addr[13],
+         myaddr.sin6_addr.s6_addr[14], myaddr.sin6_addr.s6_addr[15]);
 #else
-  myaddr.sin_family             = AF_INET;
-  myaddr.sin_port               = HTONS(CONFIG_EXAMPLES_TCPBLASTER_SERVER_PORTNO);
+  myaddr.sin_family  = AF_INET;
+  myaddr.sin_port    = HTONS(CONFIG_EXAMPLES_TCPBLASTER_SERVER_PORTNO);
 
-#if defined(CONFIG_EXAMPLES_TCPBLASTER_LOOPBACK) && !defined(NET_LOOPBACK)
+#if defined(CONFIG_EXAMPLES_TCPBLASTER_LOOPBACK) && !defined(CONFIG_NET_LOOPBACK)
   myaddr.sin_addr.s_addr        = (in_addr_t)g_tcpblasterserver_ipv4;
 #else
   myaddr.sin_addr.s_addr        = INADDR_ANY;
@@ -139,7 +150,7 @@ void tcpblaster_server(void)
          (unsigned long)myaddr.sin_addr.s_addr);
 #endif
 
-  if (bind(listensd, (struct sockaddr*)&myaddr, addrlen) < 0)
+  if (bind(listensd, (FAR struct sockaddr *)&myaddr, addrlen) < 0)
     {
       printf("server: bind failure: %d\n", errno);
       goto errout_with_listensd;
@@ -157,7 +168,7 @@ void tcpblaster_server(void)
 
   printf("server: Accepting connections on port %d\n",
          CONFIG_EXAMPLES_TCPBLASTER_SERVER_PORTNO);
-  acceptsd = accept(listensd, (struct sockaddr*)&myaddr, &addrlen);
+  acceptsd = accept(listensd, (FAR struct sockaddr *)&myaddr, &addrlen);
   if (acceptsd < 0)
     {
       printf("server: accept failure: %d\n", errno);
@@ -172,7 +183,7 @@ void tcpblaster_server(void)
   ling.l_onoff  = 1;
   ling.l_linger = 30;     /* timeout is seconds */
 
-  if (setsockopt(acceptsd, SOL_SOCKET, SO_LINGER, &ling, sizeof(struct linger)) < 0)
+  if (setsockopt(acceptsd, SOL_SOCKET, SO_LINGER, &ling, sizeof(ling)) < 0)
     {
       printf("server: setsockopt SO_LINGER failure: %d\n", errno);
       goto errout_with_acceptsd;
@@ -183,8 +194,9 @@ void tcpblaster_server(void)
 
   recvcount = 0;
   recvtotal = 0;
+  groupcount = 0;
 
-  (void)clock_gettime(CLOCK_REALTIME, &start);
+  clock_gettime(CLOCK_REALTIME, &start);
 
   for (; ; )
     {
@@ -226,14 +238,14 @@ void tcpblaster_server(void)
 
       recvtotal += nbytesread;
 
-      if (++recvcount >= 50)
+      if (++recvcount >= GROUPSIZE)
         {
           struct timespec elapsed;
           struct timespec curr;
           float fkbsent;
           float felapsed;
 
-          (void)clock_gettime(CLOCK_REALTIME, &curr);
+          clock_gettime(CLOCK_REALTIME, &curr);
 
           elapsed.tv_sec  = curr.tv_sec - start.tv_sec;
           if (curr.tv_nsec >= start.tv_nsec)
@@ -247,16 +259,22 @@ void tcpblaster_server(void)
               elapsed.tv_nsec = curr.tv_nsec + borrow;
             }
 
-          fkbsent  = (float)recvtotal / 1024.0;
-          felapsed = (float)elapsed.tv_sec + (float)elapsed.tv_nsec / 1000000000.0;
-          printf("Received %d buffers:  %7.1f Kb (avg %5.1f Kb) in %6.2f Sec (%7.1f Kb/Sec)\n",
-                  recvcount, fkbsent, fkbsent/recvcount, felapsed, fkbsent/felapsed);
+          strftime(timebuff, 100,
+                   "%Y-%m-%d %H:%M:%S.000", localtime(&curr.tv_sec));
+
+          fkbsent  = recvtotal / 1024.0f;
+          felapsed = elapsed.tv_sec + elapsed.tv_nsec / 1000000000.0f;
+          printf("[%s] %d: Received %d buffers: %7.1f KB (buffer average"
+                 "size: %5.1f KB) in %6.2f seconds (%7.1f KB/second)\n",
+                 timebuff, groupcount, recvcount, fkbsent,
+                 fkbsent / recvcount, felapsed, fkbsent / felapsed);
 
           recvcount       = 0;
           recvtotal       = 0;
+          groupcount++;
 
-          (void)clock_gettime(CLOCK_REALTIME, &start);
-       }
+          clock_gettime(CLOCK_REALTIME, &start);
+        }
     }
 
 errout_with_acceptsd:

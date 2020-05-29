@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(TOPDIR)/Make.defs
 
 # Basic TCP networking test
 
@@ -85,16 +85,16 @@ ifneq ($(CONFIG_EXAMPLES_TCPBLASTER_LOOPBACK),y)
 
   HOSTCFLAGS += -DTCPBLASTER_HOST=1
   ifeq ($(CONFIG_EXAMPLES_TCPBLASTER_SERVER),y)
-    HOSTCFLAGS += -DCONFIG_EXAMPLES_TCPBLASTER_SERVER=1 -DCONFIG_EXAMPLES_TCPBLASTER_SERVERIP="$(CONFIG_EXAMPLES_TCPBLASTER_SERVERIP)"
+    HOSTCFLAGS += -DCONFIG_EXAMPLES_TCPBLASTER_SERVER=1 -DCONFIG_EXAMPLES_TCPBLASTER_SERVERIP=$(CONFIG_EXAMPLES_TCPBLASTER_SERVERIP)
   endif
 
-  HOST_SRCS = tcpblaster_host.c
+  HOST_SRCS = tcpblaster_host.c tcpblaster_cmdline.c
   ifeq ($(CONFIG_EXAMPLES_TCPBLASTER_SERVER),y)
     HOST_SRCS += tcpblaster_client.c
-    HOST_BIN = tcpclient$(EXEEXT)
+    HOST_BIN = tcpclient$(HOSTEXEEXT)
   else
     HOST_SRCS += tcpblaster_server.c
-    HOST_BIN = tcpserver$(EXEEXT)
+    HOST_BIN = tcpserver$(HOSTEXEEXT)
   endif
 
   HOSTOBJEXT ?= hobj
