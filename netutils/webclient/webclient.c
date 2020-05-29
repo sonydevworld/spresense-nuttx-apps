@@ -195,9 +195,7 @@ static const char g_httpcontsize[]    = "Content-Length: ";
 //static const char g_httpcache[]     = "Cache-Control: no-cache";
 
 static const char g_httpscheme[]      = "http";
-#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
 static const char g_httpsscheme[]     = "https";
-#endif
 
 static struct sock_methods_s g_sockmethods =
 {
@@ -631,17 +629,20 @@ static int wget_base(FAR const char *url, FAR char *buffer, int buflen,
       return ERROR;
     }
 
-#ifdef CONFIG_NETUTILS_WEBCLIENT_HAVE_SSL
   if (strncmp(scheme, g_httpsscheme, strlen(g_httpsscheme)) == 0)
     {
       /* Compare scheme with "https". */
 
+#ifdef CONFIG_WEBCLIENT_USE_SSL
       ws.port = (parsed_url.port == 0) ? 443 : parsed_url.port;
       use_ssl = 1;
-    }
-  else
+#else
+      nwarn("WARNING: Not supported scheme: %s\n", scheme);
+      set_errno(-EINVAL);
+      return ERROR;
 #endif
-  if (strncmp(scheme, g_httpscheme, strlen(g_httpscheme)) == 0)
+    }
+  else if (strncmp(scheme, g_httpscheme, strlen(g_httpscheme)) == 0)
     {
       /* Compare scheme with "http". */
 
