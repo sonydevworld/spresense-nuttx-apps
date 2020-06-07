@@ -71,6 +71,7 @@ ifneq ($(BUILD_MODULE),y)
 endif
 
 ROOTDEPPATH += --dep-path .
+ROOTDEPPATH += $(DEPPATH)
 
 VPATH += :.
 
