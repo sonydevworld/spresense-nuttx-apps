@@ -1,0 +1,2 @@
+
+CONFIGURED_APPS += $(APPDIR)/..

@@ -17,7 +17,14 @@ config EXAMPLES_TCPBLASTER_SENDSIZE
 	int "Payload size"
 	default 4096
 	---help---
-		This setting determines size of each test packet sent to the server.
+		This setting determines size of each TCP send that is sent to the server.
+
+config EXAMPLES_TCPBLASTER_GROUPSIZE
+	int "Group size"
+	default 50
+	---help---
+		This setting determines how many TCP sends are sent to the server before printing statistics
+		and starting again.
 
 config EXAMPLES_TCPBLASTER_PROGNAME1
 	string "Target1 program name"
@@ -459,7 +466,7 @@ config EXAMPLES_TCPBLASTER_SERVERIPv6ADDR_1
 	---help---
 		IP address of the server.  If the target is the server, then
 		EXAMPLES_TCPBLASTER_SERVERIP should be the same as
-		EXAMPLES_TCPBLASTER_IPADDR (default).  If the target is the cleint,
+		EXAMPLES_TCPBLASTER_IPADDR (default).  If the target is the client,
 		then the default value of EXAMPLES_TCPBLASTER_SERVERIP is set to the
 		host PC IP address (possibly the gateway address,
 		EXAMPLES_TCPBLASTER_DRIPADDR?).

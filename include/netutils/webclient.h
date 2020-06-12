@@ -51,6 +51,8 @@
 #endif
 #include <sys/types.h>
 
+#include <netutils/ssl_connection.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -154,6 +156,12 @@ int wget(FAR const char *url, FAR char *buffer, int buflen,
 
 int wget_post(FAR const char *url, FAR const char *posts, FAR char *buffer,
               int buflen, wget_callback_t callback, FAR void *arg);
+
+/****************************************************************************
+ * Name: wget_initialize
+ ****************************************************************************/
+
+void wget_initialize(void);
 
 #undef EXTERN
 #ifdef __cplusplus

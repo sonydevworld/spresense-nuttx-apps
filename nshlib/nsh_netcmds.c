@@ -1380,6 +1380,8 @@ int cmd_wget(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
       goto errout;
     }
 
+  wget_initialize();
+
   /* And perform the wget */
 
   ret = wget(url, buffer, 512, wget_callback, (FAR void *)((intptr_t)fd));

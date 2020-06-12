@@ -9,6 +9,7 @@ config NETUTILS_WEBCLIENT
 	depends on NET_TCP
 	select LIBC_NETDB
 	select NET_SOCKOPTS
+	select NETUTILS_NETLIB_GENERICURLPARSER
 	---help---
 		Enable support for the uIP web client.
 
@@ -22,4 +23,13 @@ config WEBCLIENT_TIMEOUT
 	int "Request and receive timeouts"
 	default 10
 
+config WEBCLIENT_USE_SSL
+	bool "Use SSL to enable access to https://"
+	default n
+	---help---
+		Enable to use SSL connection for https:// access.
+		This configuration requires get_sslsocket_methods() implementation on the platform.
+		Without it, this flag makes BUILD ERROR.
+
 endif
+

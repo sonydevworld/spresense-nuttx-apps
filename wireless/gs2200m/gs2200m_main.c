@@ -90,6 +90,7 @@ enum sock_state_e
 {
   CLOSED,
   OPENED,
+  BOUND,
   CONNECTED,
 };
 
@@ -149,73 +150,61 @@ static const struct usrsock_req_handler_s
 {
   uint32_t hdrlen;
   int (CODE *fn)(int fd, FAR struct gs2200m_s *priv, FAR void *req);
-} handlers[USRSOCK_REQUEST__MAX] =
+}
+handlers[USRSOCK_REQUEST__MAX] =
 {
-  [USRSOCK_REQUEST_SOCKET] =
-  {
-    sizeof(struct usrsock_request_socket_s),
-    socket_request,
-  },
-  [USRSOCK_REQUEST_CLOSE] =
-  {
-    sizeof(struct usrsock_request_close_s),
-    close_request,
-  },
-  [USRSOCK_REQUEST_CONNECT] =
-  {
-    sizeof(struct usrsock_request_connect_s),
-    connect_request,
-  },
-  [USRSOCK_REQUEST_SENDTO] =
-  {
-    sizeof(struct usrsock_request_sendto_s),
-    sendto_request,
-  },
-  [USRSOCK_REQUEST_RECVFROM] =
-  {
-    sizeof(struct usrsock_request_recvfrom_s),
-    recvfrom_request,
-  },
-  [USRSOCK_REQUEST_SETSOCKOPT] =
-  {
-    sizeof(struct usrsock_request_setsockopt_s),
-    setsockopt_request,
-  },
-  [USRSOCK_REQUEST_GETSOCKOPT] =
-  {
-    sizeof(struct usrsock_request_getsockopt_s),
-    getsockopt_request,
-  },
-  [USRSOCK_REQUEST_GETSOCKNAME] =
-  {
-    sizeof(struct usrsock_request_getsockname_s),
-    getsockname_request,
-  },
-  [USRSOCK_REQUEST_GETPEERNAME] =
-  {
-    sizeof(struct usrsock_request_getpeername_s),
-    getpeername_request,
-  },
-  [USRSOCK_REQUEST_BIND] =
-  {
-    sizeof(struct usrsock_request_bind_s),
-    bind_request,
-  },
-  [USRSOCK_REQUEST_LISTEN] =
-  {
-    sizeof(struct usrsock_request_listen_s),
-    listen_request,
-  },
-  [USRSOCK_REQUEST_ACCEPT] =
-  {
-    sizeof(struct usrsock_request_accept_s),
-    accept_request,
-  },
-  [USRSOCK_REQUEST_IOCTL] =
-  {
-    sizeof(struct usrsock_request_ioctl_s),
-    ioctl_request,
-  },
+{
+  sizeof(struct usrsock_request_socket_s),
+  socket_request,
+},
+{
+  sizeof(struct usrsock_request_close_s),
+  close_request,
+},
+{
+  sizeof(struct usrsock_request_connect_s),
+  connect_request,
+},
+{
+  sizeof(struct usrsock_request_sendto_s),
+  sendto_request,
+},
+{
+  sizeof(struct usrsock_request_recvfrom_s),
+  recvfrom_request,
+},
+{
+  sizeof(struct usrsock_request_setsockopt_s),
+  setsockopt_request,
+},
+{
+  sizeof(struct usrsock_request_getsockopt_s),
+  getsockopt_request,
+},
+{
+  sizeof(struct usrsock_request_getsockname_s),
+  getsockname_request,
+},
+{
+  sizeof(struct usrsock_request_getpeername_s),
+  getpeername_request,
+},
+{
+  sizeof(struct usrsock_request_bind_s),
+  bind_request,
+},
+{
+  sizeof(struct usrsock_request_listen_s),
+  listen_request,
+},
+{
+  sizeof(struct usrsock_request_accept_s),
+  accept_request,
+},
+{
+  sizeof(struct usrsock_request_ioctl_s),
+  ioctl_request,
+},
 };
 
 static struct gs2200m_s *_daemon;
@@ -376,6 +365,7 @@ read_req(int fd, FAR const struct usrsock_request_common_s *com_hdr,
     {
       return -errno;
     }
+
   if (rlen + sizeof(*com_hdr) != reqsize)
     {
       return -EMSGSIZE;
@@ -508,8 +498,8 @@ static int socket_request(int fd, FAR struct gs2200m_s *priv,
        */
 
       usock = gs2200m_socket_get(priv, usockid);
-      (void)usock_send_event(fd, priv, usock,
-                             USRSOCK_EVENT_SENDTO_READY);
+      usock_send_event(fd, priv, usock,
+                       USRSOCK_EVENT_SENDTO_READY);
     }
 
   gs2200m_printf("%s: end \n", __func__);
@@ -538,22 +528,15 @@ static int close_request(int fd, FAR struct gs2200m_s *priv,
 
   cid = usock->cid;
 
-  if (SOCK_STREAM == usock->type && CONNECTED != usock->state)
+  if ((BOUND != usock->state) && (CONNECTED != usock->state))
     {
       ret = -EBADFD;
       goto errout;
     }
 
-  if (SOCK_DGRAM == usock->type && 'z' == cid)
-    {
-      /* the udp socket is not bound */
-
-      goto errout;
-    }
-
   memset(&clmsg, 0, sizeof(clmsg));
   clmsg.cid = cid;
-  (void)ioctl(priv->gsfd, GS2200M_IOC_CLOSE, (unsigned long)&clmsg);
+  ioctl(priv->gsfd, GS2200M_IOC_CLOSE, (unsigned long)&clmsg);
 
 errout:
 
@@ -649,6 +632,7 @@ static int connect_request(int fd, FAR struct gs2200m_s *priv,
            ntohs(addr.sin_port));
 
   cmsg.cid  = 'z'; /* set to invalid */
+  cmsg.type = usock->type;
 
   ret = ioctl(priv->gsfd, GS2200M_IOC_CONNECT,
               (unsigned long)&cmsg);
@@ -743,7 +727,7 @@ static int sendto_request(int fd, FAR struct gs2200m_s *priv,
 
   /* For UDP, addlen must be provided */
 
-  if (usock->type == SOCK_DGRAM)
+  if (usock->type == SOCK_DGRAM && CONNECTED != usock->state)
     {
       if (req->addrlen == 0)
         {
@@ -793,7 +777,10 @@ static int sendto_request(int fd, FAR struct gs2200m_s *priv,
 
       if (usock->cid != smsg.cid)
         {
+          /* cid is newly assigned (bound) */
+
           usock->cid = smsg.cid;
+          usock->state = BOUND;
         }
 
       if (0 != nret)
@@ -802,7 +789,9 @@ static int sendto_request(int fd, FAR struct gs2200m_s *priv,
           goto prepare;
         }
 
-      ret = req->buflen;
+      /* return length which gs2200m sent */
+
+      ret = smsg.len;
     }
 
 prepare:
@@ -857,6 +846,8 @@ static int recvfrom_request(int fd, FAR struct gs2200m_s *priv,
   gs2200m_printf("%s: start (req->max_buflen=%d) \n",
                  __func__, req->max_buflen);
 
+  memset(&rmsg, 0, sizeof(rmsg));
+
   /* Check if this socket exists. */
 
   usock = gs2200m_socket_get(priv, req->usockid);
@@ -875,8 +866,9 @@ static int recvfrom_request(int fd, FAR struct gs2200m_s *priv,
       goto prepare;
     }
 
-  memset(&rmsg, 0, sizeof(rmsg));
-  rmsg.buf = calloc(1, 1500);
+  rmsg.buf = calloc(1, req->max_buflen);
+  ASSERT(rmsg.buf);
+
   rmsg.cid = usock->cid;
   rmsg.reqlen = req->max_buflen;
   rmsg.is_tcp = (usock->type == SOCK_STREAM) ? true : false;
@@ -962,7 +954,10 @@ err_out:
 
   gs2200m_printf("%s: *** end ret=%d \n", __func__, ret);
 
-  free(rmsg.buf);
+  if (rmsg.buf)
+    {
+      free(rmsg.buf);
+    }
 
   return ret;
 }
@@ -1031,6 +1026,7 @@ static int bind_request(int fd, FAR struct gs2200m_s *priv,
   if (0 == ret)
     {
       usock->cid = bmsg.cid;
+      usock->state = BOUND;
     }
 
 prepare:
@@ -1218,8 +1214,78 @@ err_out:
 static int setsockopt_request(int fd, FAR struct gs2200m_s *priv,
                               FAR void *hdrbuf)
 {
-  ASSERT(false);
-  return -EINVAL;
+  FAR struct usrsock_request_setsockopt_s *req = hdrbuf;
+  struct usrsock_message_req_ack_s resp;
+  FAR struct usock_s *usock;
+  ssize_t rlen;
+  int ret = 0;
+  int value;
+
+  DEBUGASSERT(priv);
+  DEBUGASSERT(req);
+
+  gs2200m_printf("%s: called **** \n", __func__);
+
+  /* Check if this socket exists. */
+
+  usock = gs2200m_socket_get(priv, req->usockid);
+
+  if (!usock)
+    {
+      ret = -EBADFD;
+      goto prepare;
+    }
+
+  if (req->level != SOL_SOCKET)
+    {
+      gs2200m_printf("setsockopt: level=%d not supported\n",
+                     __func__, req->level);
+      ret = -ENOPROTOOPT;
+      goto prepare;
+    }
+
+  if (req->option != SO_REUSEADDR)
+    {
+      gs2200m_printf("setsockopt: option=%d not supported\n",
+                     __func__, req->option);
+      ret = -ENOPROTOOPT;
+      goto prepare;
+    }
+
+  if (req->valuelen < sizeof(value))
+    {
+      ret = -EINVAL;
+      goto prepare;
+    }
+
+  /* Read value. */
+
+  rlen = read(fd, &value, sizeof(value));
+
+  if (rlen < 0 || rlen < sizeof(value))
+    {
+      ret = -EFAULT;
+      goto prepare;
+    }
+
+  /* Debug print */
+
+  gs2200m_printf("setsockopt: option=%d value=%d\n",
+                 __func__, req->option, value);
+
+  ret = OK;
+
+prepare:
+
+  /* Send ACK response */
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = ret;
+
+  ret = _send_ack_common(fd, req->head.xid, &resp);
+
+  gs2200m_printf("%s: end (ret=%d) \n", __func__, ret);
+  return ret;
 }
 
 /****************************************************************************
@@ -1229,8 +1295,8 @@ static int setsockopt_request(int fd, FAR struct gs2200m_s *priv,
 static int getsockopt_request(int fd, FAR struct gs2200m_s *priv,
                               FAR void *hdrbuf)
 {
-  ASSERT(false);
-  return -EINVAL;
+  DEBUGASSERT(false);
+  return -ENOSYS;
 }
 
 /****************************************************************************
@@ -1240,8 +1306,83 @@ static int getsockopt_request(int fd, FAR struct gs2200m_s *priv,
 static int getsockname_request(int fd, FAR struct gs2200m_s *priv,
                                FAR void *hdrbuf)
 {
-  ASSERT(false);
-  return -EINVAL;
+  FAR struct usrsock_request_getsockname_s *req = hdrbuf;
+  struct usrsock_message_datareq_ack_s resp;
+  struct gs2200m_name_msg nmsg;
+  FAR struct usock_s *usock;
+  int ret = 0;
+
+  DEBUGASSERT(priv);
+  DEBUGASSERT(req);
+
+  gs2200m_printf("%s: called **** \n", __func__);
+
+  /* Check if this socket exists. */
+
+  usock = gs2200m_socket_get(priv, req->usockid);
+
+  if (!usock)
+    {
+      ret = -EBADFD;
+      goto prepare;
+    }
+
+  memset(&nmsg, 0, sizeof(nmsg));
+  nmsg.cid = usock->cid;
+  nmsg.local = true; /* Obtain local address & port */
+
+  ret = ioctl(priv->gsfd, GS2200M_IOC_NAME, (unsigned long)&nmsg);
+
+prepare:
+
+  /* Prepare response. */
+
+  memset(&resp, 0, sizeof(resp));
+  resp.reqack.xid = req->head.xid;
+  resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
+  resp.reqack.head.flags = 0;
+  resp.reqack.result = ret;
+
+  if (0 == ret)
+    {
+      resp.valuelen_nontrunc = sizeof(nmsg.addr);
+      resp.valuelen = resp.valuelen_nontrunc;
+
+      if (resp.valuelen > req->max_addrlen)
+        {
+          resp.valuelen = req->max_addrlen;
+        }
+    }
+  else
+    {
+      resp.valuelen_nontrunc = 0;
+      resp.valuelen = 0;
+    }
+
+  /* Send response. */
+
+  ret = _write_to_usock(fd, &resp, sizeof(resp));
+
+  if (0 > ret)
+    {
+      goto err_out;
+    }
+
+  if (resp.valuelen > 0)
+    {
+      /* Send address (value) */
+
+      ret = _write_to_usock(fd, &nmsg.addr, resp.valuelen);
+
+      if (0 > ret)
+        {
+          goto err_out;
+        }
+    }
+
+err_out:
+  gs2200m_printf("%s: end \n", __func__);
+  return ret;
 }
 
 /****************************************************************************
@@ -1251,8 +1392,8 @@ static int getsockname_request(int fd, FAR struct gs2200m_s *priv,
 static int getpeername_request(int fd, FAR struct gs2200m_s *priv,
                                FAR void *hdrbuf)
 {
-  ASSERT(false);
-  return -EINVAL;
+  DEBUGASSERT(false);
+  return -ENOSYS;
 }
 
 /****************************************************************************
@@ -1281,7 +1422,7 @@ static int ioctl_request(int fd, FAR struct gs2200m_s *priv,
       case SIOCSIFDSTADDR:
       case SIOCSIFNETMASK:
 
-        (void)read(fd, &imsg.ifr, sizeof(imsg.ifr));
+        read(fd, &imsg.ifr, sizeof(imsg.ifr));
         break;
 
       default:
@@ -1314,7 +1455,7 @@ static int ioctl_request(int fd, FAR struct gs2200m_s *priv,
       resp2.valuelen_nontrunc = sizeof(imsg.ifr);
       resp2.valuelen = sizeof(imsg.ifr);
 
-      (void)_write_to_usock(fd, &resp2, sizeof(resp2));
+      _write_to_usock(fd, &resp2, sizeof(resp2));
 
       /* Return struct ifreq address */
 
@@ -1348,12 +1489,16 @@ static int gs2200m_loop(FAR struct gs2200m_s *priv)
   amsg.key  = priv->key;
   amsg.mode = priv->mode;
   amsg.ch   = priv->ch;
-  ret = ioctl(priv->gsfd, GS2200M_IOC_ASSOC, (unsigned long)&amsg);
-
-  if (0 != ret)
+  while (true)
     {
-      fprintf(stderr, "association failed : invalid ssid or key \n");
-      goto errout;
+      ret = ioctl(priv->gsfd, GS2200M_IOC_ASSOC, (unsigned long)&amsg);
+
+      if (0 == ret)
+        {
+          break;
+        }
+
+      fprintf(stderr, "association failed : retrying\n");
     }
 
   while (true)
@@ -1404,11 +1549,8 @@ static int gs2200m_loop(FAR struct gs2200m_s *priv)
                                USRSOCK_EVENT_RECVFROM_AVAIL);
             }
         }
-
-      usleep(1);
     }
 
-errout:
   close(fd[1]);
   close(fd[0]);
 
@@ -1424,12 +1566,13 @@ errout:
 static void _show_usage(FAR char *cmd)
 {
   fprintf(stderr,
-          "Usage: %s [-a [ch]] ssid key \n\n", cmd);
+          "Usage: %s [-a [ch]] ssid passphrase(key) \n\n", cmd);
   fprintf(stderr,
-          "AP mode : specify -a option (optionaly with channel) with ssid\n"
-          "          and 10 hex digits for WEP key \n");
+          "AP mode : specify -a option (optionally with channel) with ssid\n"
+          "          and 8 to 63 ascii passphrase for WPA2-PSK \n"
+          "          or 10 hex digits key for WEP \n");
   fprintf(stderr,
-          "STA mode: specify ssid and passphrase (key) for WPA/WPA2 PSK \n");
+          "STA mode: specify ssid and passphrase for WPA/WPA2 PSK \n");
 }
 
 /****************************************************************************
