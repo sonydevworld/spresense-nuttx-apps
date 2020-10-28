@@ -1,0 +1,3 @@
+
+%:
+	$(Q) $(MAKE) -C $(APPDIR)/.. TOPDIR=$(TOPDIR) APPDIR=$(APPDIR) $@
