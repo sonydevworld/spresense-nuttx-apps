@@ -1,0 +1,59 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config NETUTILS_WIZNET
+	tristate "WIZnet W5x00 usrsock daemon"
+	default n
+	depends on NET_USRSOCK && NET_WIZNET
+	select NET_USRSOCK_TCP
+	select PIPES
+	---help---
+		Enable support for the WIZnet usrsock daemon
+
+if NETUTILS_WIZNET
+
+config NETUTILS_WIZNET_DEFAULT_MAC_ADDR
+	hex "Default device MAC address"
+	default 0x021a80000000
+	---help---
+	  Default MAC address. This can be changed by command line option.
+
+config NETUTILS_WIZNET_ENABLE_DHCP
+	bool "Use WIZnet DHCP client"
+	default y
+
+if !NETUTILS_WIZNET_ENABLE_DHCP
+
+config NETUTILS_WIZNET_IP_ADDR
+	string "WIZnet IP address"
+	default "192.168.0.100"
+
+config NETUTILS_WIZNET_SUBNET_MASK
+	string "WIZnet subnet mask"
+	default "255.255.255.0"
+
+config NETUTILS_WIZNET_GATEWAY_ADDR
+	string "WIZnet gateway address"
+	default "192.168.0.1"
+
+config NETUTILS_WIZNET_DNS_ADDR
+	string "WIZnet DNS server address"
+	default "192.168.0.1"
+
+endif #!NETUTILS_WIZNET_ENABLE_DHCP
+
+config NETUTILS_WIZNET_PROGNAME
+	string "wiznet program name"
+	default "wiznet"
+
+config NETUTILS_WIZNET_PRIORITY
+	int "wiznet task priority"
+	default 50
+
+config NETUTILS_WIZNET_STACKSIZE
+	int "wiznet stack size"
+	default 2048
+
+endif # NETUTILS_WIZNET
