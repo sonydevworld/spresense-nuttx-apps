@@ -95,10 +95,13 @@ enum sock_state_e
 
 struct usock_s
 {
-  enum sock_state_e state;
-  uint8_t           type;
-  uint16_t          port;
-  int               bind_sock;
+  enum sock_state_e  state;
+  uint8_t            type;
+  uint16_t           port;
+  int                bind_sock;
+  int                orig_sock;
+  struct sockaddr_in bind_addr;
+  int                backlog;
 };
 
 struct wiznet_s
@@ -285,6 +288,8 @@ static int16_t f_socket_alloc(FAR struct wiznet_s *priv, int type)
           memset(usock, 0, sizeof(*usock));
           usock->state = OPENED;
           usock->type = type;
+          usock->bind_sock = 0;
+          usock->orig_sock = 0;
           return f_sockfd_to_usock(i);
         }
     }
@@ -535,6 +540,14 @@ static int close_request(int fd, FAR struct wiznet_s *priv,
   cmsg.sockfd = f_usockid_to_sockfd(req->usockid);
   ret = ioctl(priv->gsfd, WIZNET_IOC_CLOSE, (unsigned long)&cmsg);
 
+  /* bind sock */
+
+  if (usock->bind_sock > 0)
+    {
+      cmsg.sockfd = f_usockid_to_sockfd(usock->bind_sock);
+      ioctl(priv->gsfd, WIZNET_IOC_CLOSE, (unsigned long)&cmsg);
+    }
+
 errout:
 
   /* Send ACK response */
@@ -550,6 +563,10 @@ errout:
 
   /* Free socket */
 
+  if (usock->bind_sock > 0)
+    {
+      f_socket_free(priv, usock->bind_sock);
+    }
   ret = f_socket_free(priv, req->usockid);
 
   wiznet_printf("%s: end \n", __func__);
@@ -934,7 +951,6 @@ static int bind_request(int fd, FAR struct wiznet_s *priv,
   struct wiznet_socket_msg smsg;
   struct wiznet_close_msg cmsg;
   struct wiznet_bind_msg bmsg;
-  struct sockaddr_in *addr = (struct sockaddr_in *)&bmsg.addr;
   FAR struct usock_s *usock;
   FAR struct usock_s *new_usock = NULL;
   ssize_t rlen;
@@ -965,7 +981,7 @@ static int bind_request(int fd, FAR struct wiznet_s *priv,
 
   /* Read address. */
 
-  rlen = read(fd, addr, sizeof(struct sockaddr_in));
+  rlen = read(fd, &usock->bind_addr, sizeof(struct sockaddr_in));
 
   if (rlen < 0 || rlen < req->addrlen)
     {
@@ -975,7 +991,7 @@ static int bind_request(int fd, FAR struct wiznet_s *priv,
 
   /* Check address family. */
 
-  if (addr->sin_family != AF_INET)
+  if (usock->bind_addr.sin_family != AF_INET)
     {
       ret = -EAFNOSUPPORT;
       goto prepare;
@@ -999,10 +1015,11 @@ static int bind_request(int fd, FAR struct wiznet_s *priv,
         }
 
       new_usock = f_socket_get(priv, usockid);
-      usock->port = addr->sin_port;
-      new_usock->port = addr->sin_port;
+      usock->port = usock->bind_addr.sin_port;
+      new_usock->port = usock->bind_addr.sin_port;
 
       bmsg.sockfd  = f_usockid_to_sockfd(usockid);
+      memcpy(&bmsg.addr, &usock->bind_addr, sizeof(struct sockaddr_in));
       bmsg.addrlen = sizeof(struct sockaddr_in);
       ret = ioctl(priv->gsfd, WIZNET_IOC_BIND, (unsigned long)&bmsg);
 
@@ -1010,7 +1027,7 @@ static int bind_request(int fd, FAR struct wiznet_s *priv,
         {
           new_usock->state = BOUND;
           usock->bind_sock = usockid;
-          new_usock->bind_sock = req->usockid;
+          new_usock->orig_sock = req->usockid;
         }
       else
         {
@@ -1021,16 +1038,17 @@ static int bind_request(int fd, FAR struct wiznet_s *priv,
     }
   else
     {
-      usock->port = addr->sin_port;
+      usock->port = usock->bind_addr.sin_port;
 
       bmsg.sockfd  = f_usockid_to_sockfd(req->usockid);
+      memcpy(&bmsg.addr, &usock->bind_addr, sizeof(struct sockaddr_in));
       bmsg.addrlen = sizeof(struct sockaddr_in);
       ret = ioctl(priv->gsfd, WIZNET_IOC_BIND, (unsigned long)&bmsg);
 
       if (0 == ret)
         {
           usock->state = BOUND;
-          usock->bind_sock = req->usockid;
+          usock->orig_sock = req->usockid;
         }
     }
 
@@ -1102,6 +1120,8 @@ prepare:
       return ret;
     }
 
+  usock->backlog = req->backlog;
+
   wiznet_printf("%s: end \n", __func__);
   return ret;
 }
@@ -1117,6 +1137,9 @@ static int accept_request(int fd, FAR struct wiznet_s *priv,
   struct usrsock_message_datareq_ack_s resp;
   struct wiznet_accept_msg amsg;
   struct wiznet_close_msg cmsg;
+  struct wiznet_socket_msg smsg;
+  struct wiznet_bind_msg bmsg;
+  struct wiznet_listen_msg lmsg;
   struct sockaddr_in *addr = (struct sockaddr_in *)&amsg.addr;
   FAR struct usock_s *usock;
   FAR struct usock_s *new_usock = NULL;
@@ -1220,11 +1243,62 @@ prepare:
           goto err_out;
         }
 
-      /* Set events ofr new_usock */
+      /* Set events of new_usock */
 
       usock_send_event(fd, priv, new_usock,
                        USRSOCK_EVENT_SENDTO_READY
                        );
+    }
+
+  /* Remake bind_sock */
+
+  usockid = f_socket_alloc(priv, usock->type);
+  ASSERT(0 < usockid);
+
+  smsg.sockfd = f_usockid_to_sockfd(usockid);
+  smsg.type   = usock->type;
+  ret = ioctl(priv->gsfd, WIZNET_IOC_SOCKET, (unsigned long)&smsg);
+
+  if (0 > ret)
+    {
+      f_socket_free(priv, usockid);
+      usock->bind_sock = 0;
+      goto err_out;
+    }
+
+  new_usock = f_socket_get(priv, usockid);
+  new_usock->port = usock->port;
+
+  bmsg.sockfd  = f_usockid_to_sockfd(usockid);
+  memcpy(&bmsg.addr, &usock->bind_addr, sizeof(struct sockaddr_in));
+  bmsg.addrlen = sizeof(struct sockaddr_in);
+  ret = ioctl(priv->gsfd, WIZNET_IOC_BIND, (unsigned long)&bmsg);
+
+  if (0 == ret)
+    {
+      new_usock->state = BOUND;
+      usock->bind_sock = usockid;
+      new_usock->orig_sock = req->usockid;
+    }
+  else
+    {
+      cmsg.sockfd = f_usockid_to_sockfd(usockid);
+      ioctl(priv->gsfd, WIZNET_IOC_CLOSE, (unsigned long)&cmsg);
+      f_socket_free(priv, usockid);
+      usock->bind_sock = 0;
+      goto err_out;
+    }
+
+  lmsg.sockfd  = f_usockid_to_sockfd(usockid);
+  lmsg.backlog = usock->backlog;
+  ret = ioctl(priv->gsfd, WIZNET_IOC_LISTEN, (unsigned long)&lmsg);
+
+  if (0 > ret)
+    {
+      cmsg.sockfd = f_usockid_to_sockfd(usockid);
+      ioctl(priv->gsfd, WIZNET_IOC_CLOSE, (unsigned long)&cmsg);
+      f_socket_free(priv, usockid);
+      usock->bind_sock = 0;
     }
 
 err_out:
@@ -1617,8 +1691,8 @@ static int wiznet_loop(FAR struct wiznet_s *priv, FAR uint64_t *mac)
   struct wiznet_device_msg cmsg;
   struct pollfd fds[2];
   int  fd[2];
+  int  cid;
   int  ret;
-  int  i;
   FAR struct usock_s *usock;
   int16_t sockfd;
 
@@ -1684,34 +1758,35 @@ static int wiznet_loop(FAR struct wiznet_s *priv, FAR uint64_t *mac)
           wiznet_printf("=== %s: event from /dev/wiznet \n",
                         __func__);
 
-          for (i = 1; i < SOCKET_NUMBER; i++)
-            {
-              usock = &priv->sockets[i];
+          cid = 0;
+          ret = read(fd[1], &cid, sizeof(cid));
+          ASSERT(ret == sizeof(cid));
 
-              if (BOUND == usock->state)
-                {
-                  wiznet_printf("=== %s: %d is bound\n",
-                                __func__, i);
-                  sockfd = f_usockid_to_sockfd(usock->bind_sock);
-                  usock = &priv->sockets[sockfd];
-                  usock_send_event(fd[0], priv, usock,
-                                   USRSOCK_EVENT_RECVFROM_AVAIL);
-                }
-              else if (CONNECTED == usock->state)
-                {
-                  wiznet_printf("=== %s: %d is connected\n",
-                                __func__, i);
-                  usock_send_event(fd[0], priv, usock,
-                                   USRSOCK_EVENT_RECVFROM_AVAIL);
-                }
-              else if ((OPENED == usock->state)
-                       && (SOCK_DGRAM == usock->type))
-                {
-                  wiznet_printf("=== %s: %d is stream\n",
-                                __func__, i);
-                  usock_send_event(fd[0], priv, usock,
-                                   USRSOCK_EVENT_RECVFROM_AVAIL);
-                }
+          usock = &priv->sockets[cid];
+
+          if (BOUND == usock->state)
+            {
+              wiznet_printf("=== %s: %d is bound\n",
+                            __func__, cid);
+              sockfd = f_usockid_to_sockfd(usock->orig_sock);
+              usock = &priv->sockets[sockfd];
+              usock_send_event(fd[0], priv, usock,
+                               USRSOCK_EVENT_RECVFROM_AVAIL);
+            }
+          else if (CONNECTED == usock->state)
+            {
+              wiznet_printf("=== %s: %d is connected\n",
+                            __func__, cid);
+              usock_send_event(fd[0], priv, usock,
+                               USRSOCK_EVENT_RECVFROM_AVAIL);
+            }
+          else if ((OPENED == usock->state)
+                   && (SOCK_DGRAM == usock->type))
+            {
+              wiznet_printf("=== %s: %d is stream\n",
+                            __func__, cid);
+              usock_send_event(fd[0], priv, usock,
+                               USRSOCK_EVENT_RECVFROM_AVAIL);
             }
         }
     }
