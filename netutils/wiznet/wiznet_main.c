@@ -141,6 +141,12 @@ static int listen_request(int fd, FAR struct wiznet_s *priv,
 static int accept_request(int fd, FAR struct wiznet_s *priv,
                           FAR void *hdrbuf);
 
+/* NOTE: This is just temporary solution for VTUN */
+
+#ifdef CONFIG_EXTERNALS_VTUN
+extern int vtun_session_established(void);
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -463,6 +469,19 @@ static int socket_request(int fd, FAR struct wiznet_s *priv,
 
   /* Check domain requested */
 
+#ifdef CONFIG_EXTERNALS_VTUN
+  /* NOTE: This is just temporary solution for VTUN
+   * For using kernel network stack, daemon need to
+   * return ENETDOWN
+   */
+
+  if (vtun_session_established())
+    {
+      wiznet_printf("VPN connected -> socket return ENETDOWN\n");
+      usockid = -ENETDOWN;
+    }
+  else
+#endif
   if (req->domain != AF_INET)
     {
       usockid = -EAFNOSUPPORT;
