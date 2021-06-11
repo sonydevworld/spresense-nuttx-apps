@@ -245,7 +245,7 @@ static int f_write_to_usock(int fd, void *buf, size_t count)
       return -errno;
     }
 
-  if (wlen != count)
+  if (wlen != (ssize_t)count)
     {
       return -ENOSPC;
     }
@@ -378,7 +378,7 @@ static int usrsock_request(int fd, FAR struct wiznet_s *priv)
   uint8_t hdrbuf[16];
   ssize_t rlen;
 
-  com_hdr = (FAR void *)hdrbuf;
+  com_hdr = (FAR struct usrsock_request_common_s *)hdrbuf;
   rlen = read(fd, com_hdr, sizeof(*com_hdr));
 
   if (rlen < 0)
@@ -451,7 +451,8 @@ static int usock_send_event(int fd, FAR struct wiznet_s *priv,
 static int socket_request(int fd, FAR struct wiznet_s *priv,
                           FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_socket_s *req = hdrbuf;
+  FAR struct usrsock_request_socket_s *req
+    = (FAR struct usrsock_request_socket_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct wiznet_socket_msg cmsg;
   FAR struct usock_s *usock;
@@ -519,7 +520,8 @@ static int socket_request(int fd, FAR struct wiznet_s *priv,
 static int close_request(int fd, FAR struct wiznet_s *priv,
                          FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_close_s *req = hdrbuf;
+  FAR struct usrsock_request_close_s *req
+    = (FAR struct usrsock_request_close_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct wiznet_close_msg cmsg;
   FAR struct usock_s *usock;
@@ -581,7 +583,8 @@ errout:
 static int connect_request(int fd, FAR struct wiznet_s *priv,
                            FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_connect_s *req = hdrbuf;
+  FAR struct usrsock_request_connect_s *req
+    = (FAR struct usrsock_request_connect_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct wiznet_connect_msg cmsg;
   struct sockaddr_in *addr = (struct sockaddr_in *)&cmsg.addr;
@@ -682,7 +685,8 @@ prepare:
 static int sendto_request(int fd, FAR struct wiznet_s *priv,
                           FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_sendto_s *req = hdrbuf;
+  FAR struct usrsock_request_sendto_s *req
+    = (FAR struct usrsock_request_sendto_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct wiznet_send_msg cmsg;
   struct sockaddr_in *addr = (struct sockaddr_in *)&cmsg.addr;
@@ -755,7 +759,7 @@ static int sendto_request(int fd, FAR struct wiznet_s *priv,
 
   if (req->buflen > 0)
     {
-      sendbuf = calloc(1, req->buflen);
+      sendbuf = (uint8_t *)calloc(1, req->buflen);
       ASSERT(sendbuf);
 
       /* Read data from usrsock. */
@@ -822,7 +826,8 @@ prepare:
 static int recvfrom_request(int fd, FAR struct wiznet_s *priv,
                             FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_recvfrom_s *req = hdrbuf;
+  FAR struct usrsock_request_recvfrom_s *req
+    = (FAR struct usrsock_request_recvfrom_s *)hdrbuf;
   struct usrsock_message_datareq_ack_s resp;
   struct wiznet_recv_msg cmsg;
   struct sockaddr_in *addr = (struct sockaddr_in *)&cmsg.addr;
@@ -854,7 +859,7 @@ static int recvfrom_request(int fd, FAR struct wiznet_s *priv,
       goto prepare;
     }
 
-  recvbuf = calloc(1, req->max_buflen);
+  recvbuf = (uint8_t *)calloc(1, req->max_buflen);
   ASSERT(recvbuf);
 
   cmsg.sockfd  = f_usockid_to_sockfd(req->usockid);
@@ -946,7 +951,8 @@ err_out:
 static int bind_request(int fd, FAR struct wiznet_s *priv,
                         FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_bind_s *req = hdrbuf;
+  FAR struct usrsock_request_bind_s *req
+    = (FAR struct usrsock_request_bind_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct wiznet_socket_msg smsg;
   struct wiznet_close_msg cmsg;
@@ -1076,7 +1082,8 @@ prepare:
 static int listen_request(int fd, FAR struct wiznet_s *priv,
                           FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_listen_s *req = hdrbuf;
+  FAR struct usrsock_request_listen_s *req
+    = (FAR struct usrsock_request_listen_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct wiznet_listen_msg cmsg;
   FAR struct usock_s *usock;
@@ -1133,7 +1140,8 @@ prepare:
 static int accept_request(int fd, FAR struct wiznet_s *priv,
                           FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_accept_s *req = hdrbuf;
+  FAR struct usrsock_request_accept_s *req
+    = (FAR struct usrsock_request_accept_s *)hdrbuf;
   struct usrsock_message_datareq_ack_s resp;
   struct wiznet_accept_msg amsg;
   struct wiznet_close_msg cmsg;
@@ -1313,7 +1321,8 @@ err_out:
 static int setsockopt_request(int fd, FAR struct wiznet_s *priv,
                               FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_setsockopt_s *req = hdrbuf;
+  FAR struct usrsock_request_setsockopt_s *req
+    = (FAR struct usrsock_request_setsockopt_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   FAR struct usock_s *usock;
   ssize_t rlen;
@@ -1345,7 +1354,7 @@ static int setsockopt_request(int fd, FAR struct wiznet_s *priv,
 
   rlen = read(fd, &value, sizeof(value));
 
-  if (rlen < 0 || rlen < sizeof(value))
+  if (rlen < 0 || rlen < (ssize_t)sizeof(value))
     {
       ret = -EFAULT;
       goto prepare;
@@ -1373,7 +1382,8 @@ prepare:
 static int getsockopt_request(int fd, FAR struct wiznet_s *priv,
                               FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_getsockopt_s *req = hdrbuf;
+  FAR struct usrsock_request_getsockopt_s *req
+    = (FAR struct usrsock_request_getsockopt_s *)hdrbuf;
   struct usrsock_message_datareq_ack_s resp;
   FAR struct usock_s *usock;
   int ret = 0;
@@ -1446,7 +1456,8 @@ err_out:
 static int getsockname_request(int fd, FAR struct wiznet_s *priv,
                                FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_getsockname_s *req = hdrbuf;
+  FAR struct usrsock_request_getsockname_s *req
+    = (FAR struct usrsock_request_getsockname_s *)hdrbuf;
   struct usrsock_message_datareq_ack_s resp;
   struct wiznet_name_msg cmsg;
   struct sockaddr_in *addr = (struct sockaddr_in *)&cmsg.addr;
@@ -1531,7 +1542,8 @@ err_out:
 static int getpeername_request(int fd, FAR struct wiznet_s *priv,
                                FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_getpeername_s *req = hdrbuf;
+  FAR struct usrsock_request_getpeername_s *req
+    = (FAR struct usrsock_request_getpeername_s *)hdrbuf;
   struct usrsock_message_datareq_ack_s resp;
   struct wiznet_name_msg cmsg;
   struct sockaddr_in *addr = (struct sockaddr_in *)&cmsg.addr;
@@ -1616,7 +1628,8 @@ err_out:
 static int ioctl_request(int fd, FAR struct wiznet_s *priv,
                          FAR void *hdrbuf)
 {
-  FAR struct usrsock_request_ioctl_s *req = hdrbuf;
+  FAR struct usrsock_request_ioctl_s *req
+    = (FAR struct usrsock_request_ioctl_s *)hdrbuf;
   struct usrsock_message_req_ack_s resp;
   struct usrsock_message_datareq_ack_s resp2;
   struct wiznet_ifreq_msg cmsg;
