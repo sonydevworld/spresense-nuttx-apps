@@ -451,7 +451,10 @@ static inline int wget_parsestatus(struct webclient_context *ctx,
       else
         {
           offset++;
-          ndx++;
+          if (ndx < CONFIG_WEBCLIENT_MAXHTTPLINE - 1)
+            {
+              ndx++;
+            }
         }
     }
 
@@ -581,7 +584,10 @@ static inline int wget_parseheaders(struct wget_s *ws)
         }
       else
         {
-          ndx++;
+          if (ndx < CONFIG_WEBCLIENT_MAXHTTPLINE - 1)
+            {
+              ndx++;
+            }
         }
 
       offset++;
