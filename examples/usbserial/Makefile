@@ -33,14 +33,14 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # USB serial device example
 # Built-in application info
 
 PROGNAME = usbserial
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_USBSERIAL)
 
 MAINSRC = usbserial_main.c

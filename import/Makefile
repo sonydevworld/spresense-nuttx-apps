@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Sub-directories from the NuttX export package
 
@@ -41,11 +41,13 @@ SUBDIRS = arch include libs scripts startup tmp tools
 FILES   = .config System.map User.map
 
 all:
-.PHONY: context depend clean distclean
+.PHONY: context register depend clean distclean
 
 install:
 
 context:
+
+register:
 
 depend:
 

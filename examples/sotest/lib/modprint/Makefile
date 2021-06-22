@@ -33,23 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
-
-OBJEXT ?= .o
-DELIM ?= /
-
-ifeq ($(WINTOOL),y)
-NUTTXLIB = "${shell cygpath -w $(TOPDIR)$(DELIM)staging}"
-else
-NUTTXLIB = "$(TOPDIR)$(DELIM)staging"
-endif
-
-KDEFINE = ${shell $(TOPDIR)/tools/define.sh "$(CC)" __KERNEL__}
-CMODULEFLAGS += $(KDEFINE)
-
-LDLIBPATH =
-LDLIBS =
 
 ifeq ($(CONFIG_EXAMPLES_SOTEST_LIBGCC),y)
 LIBGCC = "${shell $(CC) $(ARCHCPUFLAGS) -print-libgcc-file-name 2>/dev/null}"
@@ -65,11 +49,7 @@ LDLIBPATH +=  -L $(NUTTXLIB)
 endif
 
 ifeq ($(CONFIG_EXAMPLES_SOTEST_LIBC),y)
-ifeq ($(CONFIG_BUILD_PROTECTED),y)
-LDLIBS += -luc
-else
 LDLIBS += -lc
-endif
 endif
 
 BIN = modprint
@@ -78,20 +58,22 @@ SRCS = $(BIN).c
 OBJS = $(SRCS:.c=$(OBJEXT))
 
 all: $(BIN)
-.PHONY: clean install
+.PHONY: all clean install
 
 $(OBJS): %$(OBJEXT): %.c
-	@echo "CC: $<"
-	$(Q) $(CC) -c $(CMODULEFLAGS) $< -o $@
+	@echo "MODULECC: $<"
+	$(Q) $(MODULECC) -c $(CMODULEFLAGS) $< -o $@
 
 $(BIN): $(OBJS)
-	@echo "LD: $<"
-	$(Q) $(LD) $(LDMODULEFLAGS) $(LDLIBPATH) -o $@ $(ARCHCRT0OBJ) $^ $(LDLIBS)
+	@echo "MODULELD: $<"
+	$(Q) $(MODULELD) $(LDMODULEFLAGS) $(LDLIBPATH) -o $@ $(ARCHCRT0OBJ) $^ $(LDLIBS)
+
+$(FSROOT_DIR)/$(BIN): $(BIN)
+	$(Q) mkdir -p $(FSROOT_DIR)
+	$(Q) install $(BIN) $(FSROOT_DIR)/$(BIN)
+
+install: $(FSROOT_DIR)/$(BIN)
 
 clean:
 	$(call DELFILE, $(BIN))
 	$(call CLEAN)
-
-install:
-	$(Q) mkdir -p $(FSROOT_DIR)
-	$(Q) install $(BIN) $(FSROOT_DIR)/$(BIN)

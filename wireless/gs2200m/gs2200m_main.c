@@ -1,39 +1,20 @@
 /****************************************************************************
  * apps/wireless/gs2200m_main.c
  *
- *   Copyright 2019 Sony Home Entertainment & Sound Products Inc.
- *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Based on usrsocktest_daemon.c
- *   Copyright (C) 2015, 2017 Haltian Ltd. All rights reserved.
- *    Author: Jussi Kivilinna <jussi.kivilinna@haltian.com>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -61,6 +42,7 @@
 #include <net/if.h>
 
 #include <nuttx/net/usrsock.h>
+#include <nuttx/wireless/wireless.h>
 #include <nuttx/wireless/gs2200m.h>
 
 /****************************************************************************
@@ -96,9 +78,11 @@ enum sock_state_e
 
 struct usock_s
 {
-  int8_t  type;
-  char    cid;
+  int8_t   type;
+  char     cid;
   enum sock_state_e state;
+  uint16_t lport;           /* local port */
+  struct sockaddr_in raddr; /* remote addr */
 };
 
 struct gs2200m_s
@@ -141,12 +125,6 @@ static int listen_request(int fd, FAR struct gs2200m_s *priv,
                           FAR void *hdrbuf);
 static int accept_request(int fd, FAR struct gs2200m_s *priv,
                           FAR void *hdrbuf);
-
-/* NOTE: This is just temporary solution for VTUN */
-
-#ifdef CONFIG_EXTERNALS_VTUN
-extern int vtun_session_established(void);
-#endif
 
 /****************************************************************************
  * Private Data
@@ -474,19 +452,6 @@ static int socket_request(int fd, FAR struct gs2200m_s *priv,
 
   /* Check domain requested */
 
-#ifdef CONFIG_EXTERNALS_VTUN
-  /* NOTE: This is just temporary solution for VTUN
-   * For using kernel network stack, daemon need to
-   * return ENETDOWN
-   */
-
-  if (vtun_session_established())
-    {
-      gs2200m_printf("VPN connected -> socket return ENETDOWN\n");
-      usockid = -ENETDOWN;
-    }
-  else
-#endif
   if (req->domain != AF_INET)
     {
       usockid = -EAFNOSUPPORT;
@@ -619,6 +584,35 @@ static int connect_request(int fd, FAR struct gs2200m_s *priv,
       goto prepare;
     }
 
+  memset(&cmsg, 0, sizeof(cmsg));
+
+  /* Check if this socket is already connected. */
+
+  if (BOUND == usock->state)
+    {
+      if (usock->type == SOCK_STREAM)
+        {
+          ret = -EISCONN;
+          goto prepare;
+        }
+      else
+        {
+          /* Firstly, close the socket */
+
+          struct gs2200m_close_msg clmsg;
+          memset(&clmsg, 0, sizeof(clmsg));
+          clmsg.cid = usock->cid;
+
+          ioctl(priv->gsfd, GS2200M_IOC_CLOSE, (unsigned long)&clmsg);
+
+          /* Copy the local port info */
+
+          cmsg.lport = usock->lport;
+
+          usock->state = OPENED;
+        }
+    }
+
   /* Check if address size ok. */
 
   if (req->addrlen > sizeof(addr))
@@ -660,6 +654,7 @@ static int connect_request(int fd, FAR struct gs2200m_s *priv,
     {
       usock->cid   = cmsg.cid;
       usock->state = CONNECTED;
+      usock->raddr = addr;
     }
   else
     {
@@ -742,26 +737,41 @@ static int sendto_request(int fd, FAR struct gs2200m_s *priv,
       goto prepare;
     }
 
+  memset(&smsg, 0, sizeof(smsg));
+
   smsg.is_tcp = (usock->type == SOCK_STREAM) ? true : false;
 
   /* For UDP, addlen must be provided */
 
-  if (usock->type == SOCK_DGRAM && CONNECTED != usock->state)
+  if (usock->type == SOCK_DGRAM)
     {
-      if (req->addrlen == 0)
+      if (CONNECTED != usock->state)
         {
-          ret = -EINVAL;
-          goto prepare;
+          if (req->addrlen == 0)
+            {
+              ret = -EINVAL;
+              goto prepare;
+            }
+
+          /* In UDP case, read the address. */
+
+          rlen = read(fd, &smsg.addr, sizeof(smsg.addr));
+
+          if (rlen < 0 || rlen < req->addrlen)
+            {
+              ret = -EFAULT;
+              goto prepare;
+            }
         }
-
-      /* In UDP case, read the address. */
-
-      rlen = read(fd, &smsg.addr, sizeof(smsg.addr));
-
-      if (rlen < 0 || rlen < req->addrlen)
+      else if (CONNECTED == usock->state)
         {
-          ret = -EFAULT;
-          goto prepare;
+          /* Copy remote address */
+
+          smsg.addr = usock->raddr;
+        }
+      else
+        {
+          ASSERT(false);
         }
 
       gs2200m_printf("%s: addr: %s:%d",
@@ -885,15 +895,19 @@ static int recvfrom_request(int fd, FAR struct gs2200m_s *priv,
       goto prepare;
     }
 
-  rmsg.buf = calloc(1, req->max_buflen);
-  ASSERT(rmsg.buf);
-
   rmsg.cid = usock->cid;
   rmsg.reqlen = req->max_buflen;
   rmsg.is_tcp = (usock->type == SOCK_STREAM) ? true : false;
+  rmsg.flags = req->flags;
 
-  ret = ioctl(priv->gsfd, GS2200M_IOC_RECV,
-              (unsigned long)&rmsg);
+  if (0 < req->max_buflen)
+    {
+      rmsg.buf = calloc(1, req->max_buflen);
+      ASSERT(rmsg.buf);
+
+      ret = ioctl(priv->gsfd, GS2200M_IOC_RECV,
+                  (unsigned long)&rmsg);
+    }
 
   if (0 == ret)
     {
@@ -928,7 +942,7 @@ prepare:
       resp.valuelen = MIN(resp.valuelen_nontrunc,
                           req->max_addrlen);
 
-      if (0 == rmsg.len)
+      if ((0 == rmsg.len) && (0 != rmsg.reqlen))
         {
           usock_send_event(fd, priv, usock,
                            USRSOCK_EVENT_REMOTE_CLOSED
@@ -1044,7 +1058,8 @@ static int bind_request(int fd, FAR struct gs2200m_s *priv,
 
   if (0 == ret)
     {
-      usock->cid = bmsg.cid;
+      usock->cid   = bmsg.cid;
+      usock->lport = ntohs(addr.sin_port);
       usock->state = BOUND;
     }
 
@@ -1118,7 +1133,6 @@ static int accept_request(int fd, FAR struct gs2200m_s *priv,
   struct gs2200m_accept_msg amsg;
   FAR struct usock_s *usock;
   FAR struct usock_s *new_usock = NULL;
-  struct sockaddr_in ep_addr;
   int ret = 0;
   int16_t usockid; /* usockid for new client */
 
@@ -1159,6 +1173,7 @@ static int accept_request(int fd, FAR struct gs2200m_s *priv,
 
   new_usock->cid   = amsg.cid;
   new_usock->state = CONNECTED;
+  new_usock->raddr = amsg.addr;
 
 prepare:
 
@@ -1171,8 +1186,8 @@ prepare:
 
   if (0 == ret)
     {
-      resp.reqack.result = 2; /* ep_addr + usock */
-      resp.valuelen_nontrunc = sizeof(ep_addr);
+      resp.reqack.result = 2; /* new_usock->raddr + usock */
+      resp.valuelen_nontrunc = sizeof(new_usock->raddr);
       resp.valuelen = resp.valuelen_nontrunc;
     }
   else
@@ -1194,11 +1209,7 @@ prepare:
     {
       /* Send address (value) */
 
-      /* TODO: ep_addr should be set */
-
-      memset(&ep_addr, 0, sizeof(ep_addr));
-
-      ret = _write_to_usock(fd, &ep_addr, resp.valuelen);
+      ret = _write_to_usock(fd, &new_usock->raddr, resp.valuelen);
 
       if (0 > ret)
         {
@@ -1405,14 +1416,87 @@ err_out:
 }
 
 /****************************************************************************
- * Name: getsockname_request
+ * Name: getpeername_request
  ****************************************************************************/
 
 static int getpeername_request(int fd, FAR struct gs2200m_s *priv,
                                FAR void *hdrbuf)
 {
-  DEBUGASSERT(false);
-  return -ENOSYS;
+  FAR struct usrsock_request_getpeername_s *req = hdrbuf;
+  struct usrsock_message_datareq_ack_s resp;
+  FAR struct usock_s *usock;
+  int ret = 0;
+
+  DEBUGASSERT(priv);
+  DEBUGASSERT(req);
+
+  gs2200m_printf("%s: called **** \n", __func__);
+
+  /* Check if this socket exists. */
+
+  usock = gs2200m_socket_get(priv, req->usockid);
+
+  if (!usock)
+    {
+      ret = -EBADFD;
+      goto prepare;
+    }
+
+  if (CONNECTED != usock->state)
+    {
+      ret = -ENOTCONN;
+    }
+
+prepare:
+
+  /* Prepare response. */
+
+  memset(&resp, 0, sizeof(resp));
+  resp.reqack.xid = req->head.xid;
+  resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
+  resp.reqack.head.flags = 0;
+  resp.reqack.result = ret;
+
+  if (0 == ret)
+    {
+      resp.valuelen_nontrunc = sizeof(usock->raddr);
+      resp.valuelen = resp.valuelen_nontrunc;
+
+      if (resp.valuelen > req->max_addrlen)
+        {
+          resp.valuelen = req->max_addrlen;
+        }
+    }
+  else
+    {
+      resp.valuelen_nontrunc = 0;
+      resp.valuelen = 0;
+    }
+
+  /* Send response. */
+
+  ret = _write_to_usock(fd, &resp, sizeof(resp));
+
+  if (0 > ret)
+    {
+      goto err_out;
+    }
+
+  if (resp.valuelen > 0)
+    {
+      /* Send address (value) */
+
+      ret = _write_to_usock(fd, &usock->raddr, resp.valuelen);
+
+      if (0 > ret)
+        {
+          goto err_out;
+        }
+    }
+
+err_out:
+  gs2200m_printf("%s: end \n", __func__);
+  return ret;
 }
 
 /****************************************************************************
@@ -1433,7 +1517,11 @@ static int ioctl_request(int fd, FAR struct gs2200m_s *priv,
 
   switch (req->cmd)
     {
+      case SIOCGIFADDR:
       case SIOCGIFHWADDR:
+      case SIOCGIWNWID:
+      case SIOCGIWFREQ:
+      case SIOCGIWSENS:
         getreq = true;
         break;
 

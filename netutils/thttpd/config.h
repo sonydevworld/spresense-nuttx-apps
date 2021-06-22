@@ -1,7 +1,7 @@
 /****************************************************************************
  * netutils/thttpd/config.h
  *
- *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2009, 2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@
 #undef CONFIG_THTTPD
 #if defined(CONFIG_NET) && defined(CONFIG_NET_TCP) && \
     defined(CONFIG_NET_TCPBACKLOG) && !defined(CONFIG_DISABLE_ENVIRON) && \
-    !defined(CONFIG_SDCLONE_DISABLE) && defined(CONFIG_NET_TCP_READAHEAD)
+    !defined(CONFIG_SDCLONE_DISABLE)
 
 #  define CONFIG_THTTPD 1
 
@@ -103,7 +103,7 @@
 #    define CONFIG_THTTPD_CGI_PATH "/mnt/www/cgi-bin"
 #  endif
 
-/* Only CGI programs whose fully expanded pathes match this pattern will be executed.  In fact,
+/* Only CGI programs whose fully expanded paths match this pattern will be executed.  In fact,
  * if this value is not defined then no CGI logic will be built.
  */
 
@@ -247,7 +247,6 @@
 #  ifdef CONFIG_CPP_HAVE_WARNING
 #    warning "THTTPD not built because dependencies not selected in configuration"
 #  endif
-#endif  /* Dependencies not provided */
+#endif /* Dependencies not provided */
 
 #endif /* __NETUTILS_THTTPD_CONFIG_H */
-

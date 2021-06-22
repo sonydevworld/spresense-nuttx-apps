@@ -42,6 +42,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
@@ -57,16 +58,21 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* The default is to use the RAM MTD device at drivers/mtd/rammtd.c.  But
  * an architecture-specific MTD driver can be used instead by defining
- * CONFIG_EXAMPLES_CONFIGDATA_ARCHINIT.  In this case, the initialization logic
- * will call configdata_archinitialize() to obtain the MTD driver instance.
+ * CONFIG_EXAMPLES_CONFIGDATA_ARCHINIT.  In this case, the initialization
+ * logic will call configdata_archinitialize() to obtain the MTD driver
+ * instance.
  */
 
 #ifndef CONFIG_EXAMPLES_CONFIGDATA_ARCHINIT
 
-/* This must exactly match the default configuration in drivers/mtd/rammtd.c */
+/* This must exactly match the default configuration in
+ * drivers/mtd/rammtd.c
+ */
 
 #  ifndef CONFIG_RAMMTD_ERASESIZE
 #    define CONFIG_RAMMTD_ERASESIZE 4096
@@ -119,19 +125,24 @@ struct configdata_entrydesc_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 /* Pre-allocated simulated flash */
 
 #ifndef CONFIG_EXAMPLES_CONFIGDATA_ARCHINIT
-static uint8_t g_simflash[EXAMPLES_CONFIGDATA_BUFSIZE<<1];
+static uint8_t g_simflash[EXAMPLES_CONFIGDATA_BUFSIZE << 1];
 #endif
 
 static uint8_t g_entryimage[CONFIG_EXAMPLES_CONFIGDATA_MAXSIZE];
-static struct configdata_entrydesc_s g_entries[CONFIG_EXAMPLES_CONFIGDATA_MAXENTRIES];
+static struct configdata_entrydesc_s
+  g_entries[CONFIG_EXAMPLES_CONFIGDATA_MAXENTRIES];
+
 static int g_nentries;
 static int g_ndeleted;
 static int g_fd;
-static int g_ntests, g_nverified;
-static int g_ntotalalloc, g_ntotaldelete;
+static int g_ntests;
+static int g_nverified;
+static int g_ntotalalloc;
+static int g_ntotaldelete;
 
 static struct mallinfo g_mmbefore;
 static struct mallinfo g_mmafter;
@@ -176,11 +187,7 @@ static void configdata_loopmemusage(void)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmafter = mallinfo();
-#else
-  (void)mallinfo(&g_mmafter);
-#endif
 
   /* Show the change from the previous loop */
 
@@ -189,11 +196,7 @@ static void configdata_loopmemusage(void)
 
   /* Set up for the next test */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmprevious = g_mmafter;
-#else
-  memcpy(&g_mmprevious, &g_mmafter, sizeof(struct mallinfo));
-#endif
 }
 #endif
 
@@ -203,11 +206,8 @@ static void configdata_loopmemusage(void)
 
 static void configdata_endmemusage(void)
 {
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmafter = mallinfo();
-#else
-  (void)mallinfo(&g_mmafter);
-#endif
+
   printf("\nFinal memory usage:\n");
   configdata_showmemusage(&g_mmbefore, &g_mmafter);
 
@@ -227,7 +227,7 @@ static inline uint16_t configdata_randid(void)
   int value;
 
 retry:
-  value = rand() & 0x7FFF;
+  value = rand() & 0x7fff;
   if (value == 0)
     {
       value = 100;
@@ -286,7 +286,8 @@ static void configdata_freeentry(FAR struct configdata_entrydesc_s *entry)
  * Name: configdata_wrentry
  ****************************************************************************/
 
-static inline int configdata_wrentry(FAR struct configdata_entrydesc_s *entry)
+static inline int
+  configdata_wrentry(FAR struct configdata_entrydesc_s *entry)
 {
   size_t x;
   int ret;
@@ -302,7 +303,7 @@ static inline int configdata_wrentry(FAR struct configdata_entrydesc_s *entry)
 
   for (x = 0; x < entry->len; x++)
     {
-      g_entryimage[x] = rand() & 0xFF;
+      g_entryimage[x] = rand() & 0xff;
     }
 
   /* Calculate the crc32 for the data */
@@ -368,7 +369,8 @@ static int configdata_fillconfig(void)
  * Name: configdata_rdentry
  ****************************************************************************/
 
-static inline int configdata_rdentry(FAR struct configdata_entrydesc_s *entry)
+static inline int
+  configdata_rdentry(FAR struct configdata_entrydesc_s *entry)
 {
   struct config_data_s config;
   uint32_t crc;
@@ -446,7 +448,9 @@ static int configdata_verifyconfig(void)
             }
           else
             {
-              /* Check if this entry has been deleted and should report an error */
+              /* Check if this entry has been deleted and should report an
+               * error.
+               */
 
               if (entry->deleted)
                 {
@@ -459,7 +463,8 @@ static int configdata_verifyconfig(void)
                 {
                   g_nverified++;
 #if CONFIG_EXAMPLES_CONFIGDATA_VERBOSE != 0
-                  printf("  Verifed entry %04X, %d\n", entry->id, entry->instance);
+                  printf("  Verifed entry %04X, %d\n",
+                         entry->id, entry->instance);
 #endif
                 }
             }
@@ -504,7 +509,7 @@ static int configdata_delentries(void)
 
       /* And delete the next undeleted file after that random index */
 
-      for (j = ndx + 1; j != ndx;)
+      for (j = ndx + 1; j != ndx; )
         {
           entry = &g_entries[j];
           if (entry->id && !entry->deleted)
@@ -515,7 +520,7 @@ static int configdata_delentries(void)
               ret = ioctl(g_fd, CFGDIOC_SETCONFIG, (unsigned long) &hdr);
               if (ret < 0)
                 {
-                  printf("ERROR: Delete %d failed: %d\n", i+1, errno);
+                  printf("ERROR: Delete %d failed: %d\n", i + 1, errno);
                   printf("  Entry id:    %04X\n", entry->id);
                   printf("  Entry size:  %d\n", entry->len);
                   printf("  Entry index: %d\n", j);
@@ -580,7 +585,9 @@ static void configdata_cleardeleted(void)
     {
       /* Find next non-deleted entry after the deleted one */
 
-      for (x = nextdeleted + 1; x < CONFIG_EXAMPLES_CONFIGDATA_MAXENTRIES; x++)
+      for (x = nextdeleted + 1;
+           x < CONFIG_EXAMPLES_CONFIGDATA_MAXENTRIES;
+           x++)
         {
           if (g_entries[x].id && !g_entries[x].deleted)
             {
@@ -605,6 +612,7 @@ static void configdata_cleardeleted(void)
       else
         {
           /* Just remove the entry */
+
           g_entries[nextdeleted].id = 0;
           g_entries[nextdeleted].deleted = FALSE;
         }
@@ -679,11 +687,7 @@ int main(int argc, FAR char *argv[])
 
   /* Initialize the before memory values */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmbefore = mallinfo();
-#else
-  (void)mallinfo(&g_mmbefore);
-#endif
 
   /* Loop seveal times ... create some config data items, delete them
    * randomly, verify them randomly, add new config items.
@@ -698,15 +702,15 @@ int main(int argc, FAR char *argv[])
   for (i = 1; i <= CONFIG_EXAMPLES_CONFIGDATA_NLOOPS; i++)
 #endif
     {
-      /* Write config data to the /dev/config device until either (1) all of the
-       * open file structures are utilized or until (2) CONFIGDATA reports an error
-       * (hopefully that the /dev/config device is full)
+      /* Write config data to the /dev/config device until either (1) all of
+       * the open file structures are utilized or until (2) CONFIGDATA
+       * reports an error (hopefully that the /dev/config device is full)
        */
 
 #ifndef CONFIG_EXAMPLES_CONFIGDATA_SILENT
       printf("\n=== FILLING %u =============================\n", i);
 #endif
-      (void)configdata_fillconfig();
+      configdata_fillconfig();
 #ifndef CONFIG_EXAMPLES_CONFIGDATA_SILENT
       printf("Filled /dev/config\n");
       printf("  Number of entries: %d\n", g_nentries);
@@ -789,9 +793,12 @@ int main(int argc, FAR char *argv[])
 #endif
     }
 
+#if 0
   /* Delete all files then show memory usage again */
 
-  //configdata_delallfiles();
+  configdata_delallfiles();
+#endif
+
   configdata_endmemusage();
   fflush(stdout);
   return 0;

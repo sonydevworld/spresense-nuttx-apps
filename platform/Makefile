@@ -33,15 +33,14 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 CONFIG_ARCH_BOARD ?= dummy
 
 # Directories
 
-GNUDIR      = gnu
 PLATFORMDIR = board
-DUMMYDIR    = $(APPDIR)$(DELIM)platform$(DELIM)dummy
+DUMMYDIR    = $(APPDIR)/platform/dummy
 
 ifeq ($(CONFIG_ARCH_BOARD_CUSTOM),y)
   LINKDIR   = $(DUMMYDIR)
@@ -51,14 +50,12 @@ else
 endif
 
 VPATH       += board
-ROOTDEPPATH += --obj-path bin
-ROOTDEPPATH += --obj-suffix $(OBJEXT)
-ROOTDEPPATH += --dep-path $(PLATFORMDIR)
-ROOTDEPPATH += --dep-path $(GNUDIR)
+DEPPATH += --obj-path bin
+DEPPATH += --obj-suffix $(OBJEXT)
+DEPPATH += --dep-path $(PLATFORMDIR)
 
 # Binaries
 
--include $(GNUDIR)$(DELIM)Make.defs
 -include $(PLATFORMDIR)$(DELIM)Make.defs
 
 # Build context setup
@@ -67,7 +64,6 @@ $(TOPDIR)$(DELIM).config:
 
 $(PLATFORMDIR): $(TOPDIR)$(DELIM).config
 	@echo "LN: platform$(DELIM)board to $(LINKDIR)"
-	$(Q) $(DIRUNLINK) $(PLATFORMDIR)
 	$(Q) $(DIRLINK) $(LINKDIR) $(PLATFORMDIR)
 
 dirlinks: $(PLATFORMDIR)

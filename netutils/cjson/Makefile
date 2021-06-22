@@ -35,7 +35,7 @@
 
 # Standard includes
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Set up build configuration and environment
 
@@ -46,7 +46,6 @@ CONFIG_NETUTILS_CJSON_VERSION ?= "1.7.10"
 CJSON_VERSION = $(patsubst "%",%,$(strip $(CONFIG_NETUTILS_CJSON_VERSION)))
 
 CJSON_TARBALL = v$(CJSON_VERSION).tar.gz
-WGET ?= wget
 
 CJSON_UNPACKNAME = cJSON-$(CJSON_VERSION)
 UNPACK ?= tar -zxf
@@ -56,19 +55,20 @@ CJSON_SRCDIR = $(CJSON_UNPACKNAME)
 
 APPS_INCDIR = $(APPDIR)$(DELIM)include$(DELIM)netutils
 
-CFLAGS += -I$(APPS_INCDIR) -DCJSON_INCLUDE_CONFIG_H
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(APPS_INCDIR)}
+CFLAGS += -DCJSON_INCLUDE_CONFIG_H
 
 CSRCS = $(CJSON_SRCDIR)$(DELIM)cJSON.c
 CSRCS += $(CJSON_SRCDIR)$(DELIM)cJSON_Utils.c
 
 $(CJSON_TARBALL):
 	@echo "Downloading: $(CJSON_TARBALL)"
-	$(Q) $(WGET) $(CONFIG_NETUTILS_CJSON_URL)/$(CJSON_TARBALL)
+	$(Q) curl -O -L $(CONFIG_NETUTILS_CJSON_URL)/$(CJSON_TARBALL)
 
 $(CJSON_UNPACKNAME): $(CJSON_TARBALL)
 	@echo "Unpacking: $(CJSON_TARBALL) -> $(CJSON_UNPACKNAME)"
 	$(Q) $(UNPACK) $(CJSON_TARBALL)
-	@touch $(CJSON_UNPACKNAME)
+	$(Q) touch $(CJSON_UNPACKNAME)
 
 $(CJSON_SRCDIR)$(DELIM)cJSON.h: $(CJSON_UNPACKNAME)
 
@@ -82,12 +82,8 @@ $(APPS_INCDIR)$(DELIM)cJSON_Utils.h: $(CJSON_SRCDIR)$(DELIM)cJSON_Utils.h
 
 context:: $(APPS_INCDIR)$(DELIM)cJSON.h $(APPS_INCDIR)$(DELIM)cJSON_Utils.h
 
-clean::
-	$(call DELDIR, build)
-
 distclean::
 	$(call DELDIR, $(CJSON_UNPACKNAME))
-	$(call DELFILE, .downloaded)
 	$(call DELFILE, $(CJSON_TARBALL))
 	$(call DELFILE, $(APPDIR)/include/netutils/cJSON.h)
 	$(call DELFILE, $(APPDIR)/include/netutils/cJSON_Utils.h)

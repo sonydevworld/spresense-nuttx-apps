@@ -173,15 +173,20 @@ static int test_socket_alloc(FAR struct daemon_priv_s *priv)
   return -1;
 }
 
-static FAR struct test_socket_s *test_socket_get(FAR struct daemon_priv_s *priv,
-                                                 int sockid)
+static FAR struct test_socket_s *test_socket_get(
+  FAR struct daemon_priv_s *priv,
+  int sockid)
 {
   if (sockid < TEST_SOCKET_SOCKID_BASE)
-    return NULL;
+    {
+      return NULL;
+    }
 
   sockid -= TEST_SOCKET_SOCKID_BASE;
   if (sockid >= ARRAY_SIZE(priv->test_sockets))
-    return NULL;
+    {
+      return NULL;
+    }
 
   return &priv->test_sockets[sockid];
 }
@@ -191,35 +196,44 @@ static int test_socket_free(FAR struct daemon_priv_s *priv, int sockid)
   FAR struct test_socket_s *tsock = test_socket_get(priv, sockid);
 
   if (!tsock)
-    return -EBADFD;
+    {
+      return -EBADFD;
+    }
 
   if (!tsock->opened)
-    return -EFAULT;
+    {
+      return -EFAULT;
+    }
 
   if (tsock->connected)
     {
       priv->sockets_connected--;
       tsock->connected = false;
     }
+
   if (tsock->blocked_connect)
     {
       priv->sockets_waiting_connect--;
       tsock->blocked_connect = false;
     }
+
   if (tsock->endp)
     {
       free(tsock->endp);
       usrsocktest_endp_malloc_cnt--;
       tsock->endp = NULL;
     }
+
   if (tsock->recv_avail_bytes == 0)
     {
       priv->sockets_recv_empty--;
     }
+
   if (tsock->connect_refused)
     {
       priv->sockets_not_connected_refused--;
     }
+
   if (tsock->disconnected)
     {
       priv->sockets_remote_disconnected--;
@@ -234,9 +248,10 @@ static int test_socket_free(FAR struct daemon_priv_s *priv, int sockid)
 static int tsock_send_event(int fd, FAR struct daemon_priv_s *priv,
                             FAR struct test_socket_s *tsock, int events)
 {
-  FAR struct usrsock_message_socket_event_s event = {};
   ssize_t wlen;
   int i;
+  FAR struct usrsock_message_socket_event_s event = {
+  };
 
   event.head.flags = USRSOCK_MESSAGE_FLAG_EVENT;
   event.head.msgid = USRSOCK_MESSAGE_SOCKET_EVENT;
@@ -248,20 +263,26 @@ static int tsock_send_event(int fd, FAR struct daemon_priv_s *priv,
     }
 
   if (i == ARRAY_SIZE(priv->test_sockets))
-    return -EINVAL;
+    {
+      return -EINVAL;
+    }
 
   event.usockid = i + TEST_SOCKET_SOCKID_BASE;
   event.events = events;
 
   wlen = write(fd, &event, sizeof(event));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(event))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   return OK;
 }
-
 
 static FAR void *find_endpoint(FAR struct daemon_priv_s *priv,
                                in_addr_t ipaddr)
@@ -280,7 +301,9 @@ static FAR void *find_endpoint(FAR struct daemon_priv_s *priv,
   assert(ok);
 
   if (endpaddr->sin_addr.s_addr == ipaddr)
-    return endpaddr;
+    {
+      return endpaddr;
+    }
 
   free(endpaddr);
   usrsocktest_endp_malloc_cnt--;
@@ -293,9 +316,13 @@ static bool endpoint_connect(FAR struct daemon_priv_s *priv, FAR void *endp,
   FAR struct sockaddr_in *endpaddr = endp;
 
   if (endpaddr->sin_port == port)
-    return true;
+    {
+      return true;
+    }
   else
-    return false;
+    {
+      return false;
+    }
 }
 
 static void get_endpoint_sockaddr(FAR void *endp,
@@ -316,10 +343,12 @@ read_req(int fd, FAR const struct usrsock_request_common_s *common_hdr,
   if (rlen < 0)
     {
       err = errno;
-      usrsocktest_dbg("Error reading %d bytes of request: ret=%d, errno=%d\n",
+      usrsocktest_dbg(
+          "Error reading %d bytes of request: ret=%d, errno=%d\n",
           reqsize - sizeof(*common_hdr), (int)rlen, errno);
       return -err;
     }
+
   if (rlen + sizeof(*common_hdr) != reqsize)
     {
       return -EMSGSIZE;
@@ -332,9 +361,10 @@ static int socket_request(int fd, FAR struct daemon_priv_s *priv,
                           FAR void *hdrbuf)
 {
   FAR struct usrsock_request_socket_s *req = hdrbuf;
-  struct usrsock_message_req_ack_s resp = {};
   int socketid;
   ssize_t wlen;
+  struct usrsock_message_req_ack_s resp = {
+  };
 
   /* Validate input. */
 
@@ -371,9 +401,14 @@ static int socket_request(int fd, FAR struct daemon_priv_s *priv,
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   return OK;
 }
@@ -382,9 +417,10 @@ static int close_request(int fd, FAR struct daemon_priv_s *priv,
                          FAR void *hdrbuf)
 {
   FAR struct usrsock_request_close_s *req = hdrbuf;
-  struct usrsock_message_req_ack_s resp = {};
   ssize_t wlen;
   int ret;
+  struct usrsock_message_req_ack_s resp = {
+  };
 
   /* Check if this socket exists. */
 
@@ -409,9 +445,14 @@ static int close_request(int fd, FAR struct daemon_priv_s *priv,
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (priv->conf->delay_all_responses)
     {
@@ -420,16 +461,22 @@ static int close_request(int fd, FAR struct daemon_priv_s *priv,
       pthread_mutex_lock(&daemon_mutex);
 
       /* Previous write was acknowledgment to request, informing that request
-       * is still in progress. Now write actual completion response. */
+       * is still in progress. Now write actual completion response.
+       */
 
       resp.result = ret;
       resp.head.flags &= ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
 
       wlen = write(fd, &resp, sizeof(resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   return OK;
@@ -441,9 +488,11 @@ static int connect_request(int fd, FAR struct daemon_priv_s *priv,
   FAR struct usrsock_request_connect_s *req = hdrbuf;
   struct sockaddr_in addr;
   FAR struct test_socket_s *tsock;
-  struct usrsock_message_req_ack_s resp = {};
-  ssize_t wlen, rlen;
+  ssize_t wlen;
+  ssize_t rlen;
   int ret = 0;
+  struct usrsock_message_req_ack_s resp = {
+  };
 
   DEBUGASSERT(priv);
   DEBUGASSERT(req);
@@ -513,6 +562,7 @@ static int connect_request(int fd, FAR struct daemon_priv_s *priv,
   ret = OK;
 
 prepare:
+
   /* Prepare response. */
 
   resp.xid = req->head.xid;
@@ -553,13 +603,19 @@ prepare:
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (priv->conf->endpoint_block_connect)
     {
-      tsock->pending_resp.head.flags &= ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
+      tsock->pending_resp.head.flags &=
+        ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
     }
   else
     {
@@ -571,8 +627,10 @@ prepare:
           usleep(50 * 1000);
           pthread_mutex_lock(&daemon_mutex);
 
-          /* Previous write was acknowledgment to request, informing that request
-           * is still in progress. Now write actual completion response. */
+          /* Previous write was acknowledgment to request, informing that
+           * request is still in progress. Now write actual completion
+           * response.
+           */
 
           resp.result = ret;
 
@@ -586,22 +644,34 @@ prepare:
 
           wlen = write(fd, &resp, sizeof(resp));
           if (wlen < 0)
-            return -errno;
+            {
+              return -errno;
+            }
+
           if (wlen != sizeof(resp))
-            return -ENOSPC;
+            {
+              return -ENOSPC;
+            }
         }
 
       events = 0;
       if (!tsock->block_send)
-        events |= USRSOCK_EVENT_SENDTO_READY;
+        {
+          events |= USRSOCK_EVENT_SENDTO_READY;
+        }
+
       if (tsock->recv_avail_bytes > 0)
-        events |= USRSOCK_EVENT_RECVFROM_AVAIL;
+        {
+          events |= USRSOCK_EVENT_RECVFROM_AVAIL;
+        }
 
       if (events)
         {
           wlen = tsock_send_event(fd, priv, tsock, events);
           if (wlen < 0)
-            return wlen;
+            {
+              return wlen;
+            }
         }
     }
 
@@ -613,11 +683,13 @@ static int sendto_request(int fd, FAR struct daemon_priv_s *priv,
 {
   FAR struct usrsock_request_sendto_s *req = hdrbuf;
   FAR struct test_socket_s *tsock;
-  struct usrsock_message_req_ack_s resp = {};
-  ssize_t wlen, rlen;
+  ssize_t wlen;
+  ssize_t rlen;
   int ret = 0;
   uint8_t sendbuf[16];
   int sendbuflen = 0;
+  struct usrsock_message_req_ack_s resp = {
+  };
 
   DEBUGASSERT(priv);
   DEBUGASSERT(req);
@@ -683,6 +755,7 @@ static int sendto_request(int fd, FAR struct daemon_priv_s *priv,
   ret = sendbuflen;
 
 prepare:
+
   /* Prepare response. */
 
   resp.xid = req->head.xid;
@@ -709,9 +782,14 @@ prepare:
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (priv->conf->delay_all_responses)
     {
@@ -720,7 +798,8 @@ prepare:
       pthread_mutex_lock(&daemon_mutex);
 
       /* Previous write was acknowledgment to request, informing that request
-       * is still in progress. Now write actual completion response. */
+       * is still in progress. Now write actual completion response.
+       */
 
       resp.result = ret;
 
@@ -733,9 +812,14 @@ prepare:
 
       wlen = write(fd, &resp, sizeof(resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   if (!tsock->block_send)
@@ -744,7 +828,9 @@ prepare:
 
       wlen = tsock_send_event(fd, priv, tsock, USRSOCK_EVENT_SENDTO_READY);
       if (wlen < 0)
-        return wlen;
+        {
+          return wlen;
+        }
     }
 
   return OK;
@@ -755,12 +841,13 @@ static int recvfrom_request(int fd, FAR struct daemon_priv_s *priv,
 {
   FAR struct usrsock_request_recvfrom_s *req = hdrbuf;
   FAR struct test_socket_s *tsock;
-  struct usrsock_message_datareq_ack_s resp = {};
   ssize_t wlen;
   size_t i;
   int ret = 0;
   size_t outbuflen;
   struct sockaddr_in endpointaddr;
+  struct usrsock_message_datareq_ack_s resp = {
+  };
 
   DEBUGASSERT(priv);
   DEBUGASSERT(req);
@@ -804,6 +891,7 @@ static int recvfrom_request(int fd, FAR struct daemon_priv_s *priv,
   ret = outbuflen;
 
 prepare:
+
   /* Prepare response. */
 
   resp.reqack.xid = req->head.xid;
@@ -821,16 +909,22 @@ prepare:
 
       wlen = write(fd, &resp, sizeof(resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
 
       pthread_mutex_unlock(&daemon_mutex);
       usleep(50 * 1000);
       pthread_mutex_lock(&daemon_mutex);
 
       /* Previous write was acknowledgment to request, informing that request
-       * is still in progress. Now write actual completion response. */
+       * is still in progress. Now write actual completion response.
+       */
 
       resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
       resp.reqack.head.flags &= ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
@@ -856,9 +950,14 @@ prepare:
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (resp.valuelen > 0)
     {
@@ -866,9 +965,14 @@ prepare:
 
       wlen = write(fd, &endpointaddr, resp.valuelen);
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != resp.valuelen)
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   if (resp.reqack.result > 0)
@@ -879,17 +983,29 @@ prepare:
         {
           char tmp = 'a' + i;
 
-          tsock->recv_avail_bytes--;
+          /* Check if MSG_PEEK flag is specified. */
+
+          if ((req->flags & MSG_PEEK) != MSG_PEEK)
+            {
+              tsock->recv_avail_bytes--;
+            }
 
           wlen = write(fd, &tmp, 1);
           if (wlen < 0)
-            return -errno;
+            {
+              return -errno;
+            }
+
           if (wlen != 1)
-            return -ENOSPC;
+            {
+              return -ENOSPC;
+            }
         }
 
       if (tsock->recv_avail_bytes == 0)
-        priv->sockets_recv_empty++;
+        {
+          priv->sockets_recv_empty++;
+        }
     }
 
   if (tsock->recv_avail_bytes > 0)
@@ -898,7 +1014,9 @@ prepare:
 
       wlen = tsock_send_event(fd, priv, tsock, USRSOCK_EVENT_RECVFROM_AVAIL);
       if (wlen < 0)
-        return wlen;
+        {
+          return wlen;
+        }
     }
 
   return OK;
@@ -909,10 +1027,12 @@ static int setsockopt_request(int fd, FAR struct daemon_priv_s *priv,
 {
   FAR struct usrsock_request_setsockopt_s *req = hdrbuf;
   FAR struct test_socket_s *tsock;
-  struct usrsock_message_req_ack_s resp = {};
-  ssize_t wlen, rlen;
+  ssize_t wlen;
+  ssize_t rlen;
   int ret = 0;
   int value;
+  struct usrsock_message_req_ack_s resp = {
+  };
 
   DEBUGASSERT(priv);
   DEBUGASSERT(req);
@@ -962,6 +1082,7 @@ static int setsockopt_request(int fd, FAR struct daemon_priv_s *priv,
   ret = OK;
 
 prepare:
+
   /* Prepare response. */
 
   resp.xid = req->head.xid;
@@ -983,9 +1104,14 @@ prepare:
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (priv->conf->delay_all_responses)
     {
@@ -994,16 +1120,22 @@ prepare:
       pthread_mutex_lock(&daemon_mutex);
 
       /* Previous write was acknowledgment to request, informing that request
-       * is still in progress. Now write actual completion response. */
+       * is still in progress. Now write actual completion response.
+       */
 
       resp.result = ret;
       resp.head.flags &= ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
 
       wlen = write(fd, &resp, sizeof(resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   return OK;
@@ -1014,10 +1146,11 @@ static int getsockopt_request(int fd, FAR struct daemon_priv_s *priv,
 {
   FAR struct usrsock_request_getsockopt_s *req = hdrbuf;
   FAR struct test_socket_s *tsock;
-  struct usrsock_message_datareq_ack_s resp = {};
   ssize_t wlen;
   int ret = 0;
   int value;
+  struct usrsock_message_datareq_ack_s resp = {
+  };
 
   DEBUGASSERT(priv);
   DEBUGASSERT(req);
@@ -1055,6 +1188,7 @@ static int getsockopt_request(int fd, FAR struct daemon_priv_s *priv,
   ret = OK;
 
 prepare:
+
   /* Prepare response. */
 
   resp.reqack.xid = req->head.xid;
@@ -1072,16 +1206,22 @@ prepare:
 
       wlen = write(fd, &resp, sizeof(resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
 
       pthread_mutex_unlock(&daemon_mutex);
       usleep(50 * 1000);
       pthread_mutex_lock(&daemon_mutex);
 
       /* Previous write was acknowledgment to request, informing that request
-       * is still in progress. Now write actual completion response. */
+       * is still in progress. Now write actual completion response.
+       */
 
       resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
       resp.reqack.head.flags &= ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
@@ -1102,9 +1242,14 @@ prepare:
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (resp.valuelen > 0)
     {
@@ -1112,9 +1257,14 @@ prepare:
 
       wlen = write(fd, &value, resp.valuelen);
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != resp.valuelen)
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   return OK;
@@ -1125,10 +1275,11 @@ static int getsockname_request(int fd, FAR struct daemon_priv_s *priv,
 {
   FAR struct usrsock_request_getsockname_s *req = hdrbuf;
   FAR struct test_socket_s *tsock;
-  struct usrsock_message_datareq_ack_s resp = {};
   ssize_t wlen;
   int ret = 0;
   struct sockaddr_in addr;
+  struct usrsock_message_datareq_ack_s resp = {
+  };
 
   DEBUGASSERT(priv);
   DEBUGASSERT(req);
@@ -1148,6 +1299,7 @@ static int getsockname_request(int fd, FAR struct daemon_priv_s *priv,
   ret = ret == 1 ? 0 : -EINVAL;
 
 prepare:
+
   /* Prepare response. */
 
   resp.reqack.xid = req->head.xid;
@@ -1165,16 +1317,22 @@ prepare:
 
       wlen = write(fd, &resp, sizeof(resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
 
       pthread_mutex_unlock(&daemon_mutex);
       usleep(50 * 1000);
       pthread_mutex_lock(&daemon_mutex);
 
       /* Previous write was acknowledgment to request, informing that request
-       * is still in progress. Now write actual completion response. */
+       * is still in progress. Now write actual completion response.
+       */
 
       resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
       resp.reqack.head.flags &= ~USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
@@ -1187,7 +1345,9 @@ prepare:
       resp.valuelen = sizeof(addr);
       resp.valuelen_nontrunc = sizeof(addr);
       if (resp.valuelen > req->max_addrlen)
-        resp.valuelen = req->max_addrlen;
+        {
+          resp.valuelen = req->max_addrlen;
+        }
     }
   else
     {
@@ -1199,9 +1359,14 @@ prepare:
 
   wlen = write(fd, &resp, sizeof(resp));
   if (wlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (wlen != sizeof(resp))
-    return -ENOSPC;
+    {
+      return -ENOSPC;
+    }
 
   if (resp.valuelen > 0)
     {
@@ -1209,9 +1374,14 @@ prepare:
 
       wlen = write(fd, &addr, resp.valuelen);
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != resp.valuelen)
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   return OK;
@@ -1223,58 +1393,73 @@ static int handle_usrsock_request(int fd, FAR struct daemon_priv_s *priv)
   {
     unsigned int hdrlen;
     int (CODE *fn)(int fd, FAR struct daemon_priv_s *priv, FAR void *req);
-  } handlers[USRSOCK_REQUEST__MAX] =
+  }
+
+  handlers[USRSOCK_REQUEST__MAX] =
     {
       [USRSOCK_REQUEST_SOCKET] =
         {
           sizeof(struct usrsock_request_socket_s),
           socket_request,
         },
+
       [USRSOCK_REQUEST_CLOSE] =
         {
           sizeof(struct usrsock_request_close_s),
           close_request,
         },
+
       [USRSOCK_REQUEST_CONNECT] =
         {
           sizeof(struct usrsock_request_connect_s),
           connect_request,
         },
+
       [USRSOCK_REQUEST_SENDTO] =
         {
           sizeof(struct usrsock_request_sendto_s),
           sendto_request,
         },
+
       [USRSOCK_REQUEST_RECVFROM] =
         {
           sizeof(struct usrsock_request_recvfrom_s),
           recvfrom_request,
         },
+
       [USRSOCK_REQUEST_SETSOCKOPT] =
         {
           sizeof(struct usrsock_request_setsockopt_s),
           setsockopt_request,
         },
+
       [USRSOCK_REQUEST_GETSOCKOPT] =
         {
           sizeof(struct usrsock_request_getsockopt_s),
           getsockopt_request,
         },
+
       [USRSOCK_REQUEST_GETSOCKNAME] =
         {
           sizeof(struct usrsock_request_getsockname_s),
           getsockname_request,
         },
     };
+
   uint8_t hdrbuf[16];
   FAR struct usrsock_request_common_s *common_hdr = (FAR void *)hdrbuf;
   ssize_t rlen;
 
   rlen = read(fd, common_hdr, sizeof(*common_hdr));
   if (rlen < 0)
-    return -errno;
+    {
+      return -errno;
+    }
+
   if (rlen != sizeof(*common_hdr))
-    return -EMSGSIZE;
+    {
+      return -EMSGSIZE;
+    }
 
   if (common_hdr->reqid >= USRSOCK_REQUEST__MAX ||
       !handlers[common_hdr->reqid].fn)
@@ -1285,9 +1470,12 @@ static int handle_usrsock_request(int fd, FAR struct daemon_priv_s *priv)
 
   assert(handlers[common_hdr->reqid].hdrlen < sizeof(hdrbuf));
 
-  rlen = read_req(fd, common_hdr, hdrbuf, handlers[common_hdr->reqid].hdrlen);
+  rlen = read_req(fd, common_hdr, hdrbuf,
+                  handlers[common_hdr->reqid].hdrlen);
   if (rlen < 0)
-    return rlen;
+    {
+      return rlen;
+    }
 
   return handlers[common_hdr->reqid].fn(fd, priv, hdrbuf);
 }
@@ -1303,7 +1491,9 @@ static int unblock_sendto(int fd, FAR struct daemon_priv_s *priv,
 
       ret = tsock_send_event(fd, priv, tsock, USRSOCK_EVENT_SENDTO_READY);
       if (ret < 0)
-        return ret;
+        {
+          return ret;
+        }
     }
 
   return OK;
@@ -1323,7 +1513,9 @@ static int reset_recv_avail(int fd, FAR struct daemon_priv_s *priv,
       ret = tsock_send_event(fd, priv, tsock,
                              USRSOCK_EVENT_RECVFROM_AVAIL);
       if (ret < 0)
-        return ret;
+        {
+          return ret;
+        }
     }
 
   return OK;
@@ -1344,13 +1536,16 @@ static int disconnect_connection(int fd, FAR struct daemon_priv_s *priv,
 
       ret = tsock_send_event(fd, priv, tsock, USRSOCK_EVENT_REMOTE_CLOSED);
       if (ret < 0)
-        return ret;
+        {
+          return ret;
+        }
     }
 
   return OK;
 }
 
-static int establish_blocked_connection(int fd, FAR struct daemon_priv_s *priv,
+static int establish_blocked_connection(int fd,
+                                        FAR struct daemon_priv_s *priv,
                                         FAR struct test_socket_s *tsock)
 {
   if (tsock->blocked_connect)
@@ -1372,21 +1567,33 @@ static int establish_blocked_connection(int fd, FAR struct daemon_priv_s *priv,
 
       wlen = write(fd, resp, sizeof(*resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(*resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
 
       events = 0;
       if (!tsock->block_send)
-        events |= USRSOCK_EVENT_SENDTO_READY;
+        {
+          events |= USRSOCK_EVENT_SENDTO_READY;
+        }
+
       if (tsock->recv_avail_bytes > 0)
-        events |= USRSOCK_EVENT_RECVFROM_AVAIL;
+        {
+          events |= USRSOCK_EVENT_RECVFROM_AVAIL;
+        }
 
       if (events)
         {
           wlen = tsock_send_event(fd, priv, tsock, events);
           if (wlen < 0)
-            return wlen;
+            {
+              return wlen;
+            }
         }
     }
 
@@ -1411,9 +1618,14 @@ static int fail_blocked_connection(int fd, FAR struct daemon_priv_s *priv,
 
       wlen = write(fd, resp, sizeof(*resp));
       if (wlen < 0)
-        return -errno;
+        {
+          return -errno;
+        }
+
       if (wlen != sizeof(*resp))
-        return -ENOSPC;
+        {
+          return -ENOSPC;
+        }
     }
 
   return OK;
@@ -1435,7 +1647,9 @@ static int for_each_connection(int fd, FAR struct daemon_priv_s *priv,
         {
           int ret = iter_fn(fd, priv, tsock);
           if (ret < 0)
-            return ret;
+            {
+              return ret;
+            }
         }
     }
 
@@ -1462,10 +1676,11 @@ static FAR void *usrsocktest_daemon(FAR void *param)
 
   do
     {
-      struct pollfd pfd[2] = {};
       int npfds = 0;
       int usrsock_pfdpos = -1;
       int pipe_pdfpos = -1;
+      struct pollfd pfd[2] = {
+      };
 
       stopped = false;
 
@@ -1478,6 +1693,7 @@ static FAR void *usrsocktest_daemon(FAR void *param)
           pfd[npfds].events = POLLIN;
           usrsock_pfdpos = npfds++;
         }
+
       pfd[npfds].fd = priv->pipefd[0];
       pfd[npfds].events = POLLIN;
       pipe_pdfpos = npfds++;
@@ -1487,6 +1703,7 @@ static FAR void *usrsocktest_daemon(FAR void *param)
       if (ret < 0)
         {
           /* Error? */
+
           ret = -errno;
           goto errout;
         }
@@ -1497,7 +1714,9 @@ static FAR void *usrsocktest_daemon(FAR void *param)
           ret = handle_usrsock_request(fd, priv);
           pthread_mutex_unlock(&daemon_mutex);
           if (ret < 0)
-            goto errout;
+            {
+              goto errout;
+            }
         }
 
       if (pipe_pdfpos >= 0 && (pfd[pipe_pdfpos].revents & POLLIN))
@@ -1539,12 +1758,15 @@ static FAR void *usrsocktest_daemon(FAR void *param)
                                             &reset_recv_avail);
                   break;
                 case 'K':
+
                   /* Kill usrsockdev */
+
                   if (fd >= 0)
                     {
                       close(fd);
                       fd = -1;
                     }
+
                   break;
                 case '*':
                   sem_post(&priv->wakewaitsem);
@@ -1554,7 +1776,9 @@ static FAR void *usrsocktest_daemon(FAR void *param)
               pthread_mutex_unlock(&daemon_mutex);
 
               if (ret < 0)
-                goto errout;
+                {
+                  goto errout;
+                }
             }
         }
 
@@ -1610,14 +1834,18 @@ static FAR void *delayed_cmd_thread(FAR void *priv)
   FAR struct delayed_cmd_s *cmd = priv;
 
   if (cmd->delay_msec)
-    sem_post(&cmd->startsem);
+    {
+      sem_post(&cmd->startsem);
+    }
 
   usleep(cmd->delay_msec * 1000);
 
-  (void)write(cmd->pipefd, &cmd->cmd, 1);
+  write(cmd->pipefd, &cmd->cmd, 1);
 
   if (!cmd->delay_msec)
-    sem_post(&cmd->startsem);
+    {
+      sem_post(&cmd->startsem);
+    }
 
   return NULL;
 }
@@ -1626,7 +1854,8 @@ static FAR void *delayed_cmd_thread(FAR void *priv)
  * Public Functions
  ****************************************************************************/
 
-int usrsocktest_daemon_start(FAR const struct usrsocktest_daemon_conf_s *conf)
+int usrsocktest_daemon_start(
+  FAR const struct usrsocktest_daemon_conf_s *conf)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
   pthread_attr_t attr;
@@ -1685,6 +1914,7 @@ errout_closepipe:
       close(priv->pipefd[0]);
       close(priv->pipefd[1]);
     }
+
 out:
   pthread_mutex_unlock(&daemon_mutex);
   usrsocktest_dbg("ret: %d\n", ret);
@@ -1694,7 +1924,8 @@ out:
 int usrsocktest_daemon_stop(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  FAR struct delayed_cmd_s *item, *next;
+  FAR struct delayed_cmd_s *item;
+  FAR struct delayed_cmd_s *next;
   FAR pthread_addr_t retval;
   char stopped;
   int ret;
@@ -1718,7 +1949,7 @@ int usrsocktest_daemon_stop(void)
       next = (void *)sq_next(&item->node);
 
       pthread_mutex_unlock(&daemon_mutex);
-      (void)pthread_join(item->tid, &retval);
+      pthread_join(item->tid, &retval);
       pthread_mutex_lock(&daemon_mutex);
       sq_rem(&item->node, &priv->delayed_cmd_threads);
       free(item);
@@ -1766,11 +1997,14 @@ out:
 int usrsocktest_daemon_get_num_active_sockets(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  int ret, err;
+  int ret;
+  int err;
 
   err = get_daemon_value(priv, &ret, &priv->sockets_active, sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1778,11 +2012,14 @@ int usrsocktest_daemon_get_num_active_sockets(void)
 int usrsocktest_daemon_get_num_connected_sockets(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  int ret, err;
+  int ret;
+  int err;
 
   err = get_daemon_value(priv, &ret, &priv->sockets_connected, sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1790,11 +2027,15 @@ int usrsocktest_daemon_get_num_connected_sockets(void)
 int usrsocktest_daemon_get_num_waiting_connect_sockets(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  int ret, err;
+  int ret;
+  int err;
 
-  err = get_daemon_value(priv, &ret, &priv->sockets_waiting_connect, sizeof(ret));
+  err = get_daemon_value(priv, &ret, &priv->sockets_waiting_connect,
+                         sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1802,11 +2043,14 @@ int usrsocktest_daemon_get_num_waiting_connect_sockets(void)
 int usrsocktest_daemon_get_num_recv_empty_sockets(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  int ret, err;
+  int ret;
+  int err;
 
   err = get_daemon_value(priv, &ret, &priv->sockets_recv_empty, sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1819,7 +2063,9 @@ ssize_t usrsocktest_daemon_get_send_bytes(void)
 
   err = get_daemon_value(priv, &ret, &priv->total_send_bytes, sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1832,7 +2078,9 @@ ssize_t usrsocktest_daemon_get_recv_bytes(void)
 
   err = get_daemon_value(priv, &ret, &priv->total_recv_bytes, sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1840,12 +2088,15 @@ ssize_t usrsocktest_daemon_get_recv_bytes(void)
 int usrsocktest_daemon_get_num_unreachable_sockets(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  int ret, err;
+  int ret;
+  int err;
 
   err = get_daemon_value(priv, &ret, &priv->sockets_not_connected_refused,
                          sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1853,12 +2104,15 @@ int usrsocktest_daemon_get_num_unreachable_sockets(void)
 int usrsocktest_daemon_get_num_remote_disconnected_sockets(void)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
-  int ret, err;
+  int ret;
+  int err;
 
   err = get_daemon_value(priv, &ret, &priv->sockets_remote_disconnected,
                          sizeof(ret));
   if (err < 0)
-    return err;
+    {
+      return err;
+    }
 
   return ret;
 }
@@ -1881,7 +2135,7 @@ int usrsocktest_daemon_pause_usrsock_handling(bool pause)
 
   priv->do_not_poll_usrsock = pause;
 
-  (void)write(priv->pipefd[1], &cmd, 1);
+  write(priv->pipefd[1], &cmd, 1);
   ret = OK;
 
   pthread_mutex_unlock(&daemon_mutex);
@@ -1891,7 +2145,8 @@ int usrsocktest_daemon_pause_usrsock_handling(bool pause)
   return ret;
 }
 
-bool usrsocktest_send_delayed_command(const char cmd, unsigned int delay_msec)
+bool usrsocktest_send_delayed_command(const char cmd,
+                                      unsigned int delay_msec)
 {
   FAR struct daemon_priv_s *priv = &g_ub_daemon;
   pthread_attr_t attr;
@@ -1916,7 +2171,7 @@ bool usrsocktest_send_delayed_command(const char cmd, unsigned int delay_msec)
   delayed_cmd->delay_msec = delay_msec;
   delayed_cmd->cmd = cmd;
   delayed_cmd->pipefd = priv->pipefd[1];
-  (void)sem_init(&delayed_cmd->startsem, 0, 0);
+  sem_init(&delayed_cmd->startsem, 0, 0);
 
   ret = pthread_attr_init(&attr);
   if (ret != OK)

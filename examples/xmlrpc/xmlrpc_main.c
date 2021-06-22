@@ -27,9 +27,9 @@
  *        derived from this software without specific prior
  *        written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY COGITO LLC AND CONTRIBUTERS 'AS IS'
+ * THIS SOFTWARE IS PROVIDED BY COGITO LLC AND CONTRIBUTORS 'AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
  * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL COGITO LLC
  * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
  * SPECIAL, EXEMPLARAY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
@@ -332,7 +332,7 @@ static int xmlrpc_netinit(void)
   if (handle)
     {
       struct dhcpc_state ds;
-      (void)dhcpc_request(handle, &ds);
+      dhcpc_request(handle, &ds);
       netlib_set_ipv4addr("eth0", &ds.ipaddr);
 
       if (ds.netmask.s_addr != 0)

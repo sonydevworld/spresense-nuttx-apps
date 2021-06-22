@@ -35,12 +35,11 @@
 
 # TOPDIR must be defined on the make command line
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 SRC = host.c
-BIN = host$(EXEEXT)
+BIN = host$(HOSTEXEEXT)
 
-DEFINES =
 ifeq ($(CONFIG_EXAMPLES_USBSERIAL_INONLY),y)
 DEFINES += -DCONFIG_EXAMPLES_USBSERIAL_INONLY=1
 endif

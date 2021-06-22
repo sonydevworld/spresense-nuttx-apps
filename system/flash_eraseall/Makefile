@@ -35,13 +35,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # flash_eraseall Application
 
 PROGNAME = flash_eraseall
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 1024
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_SYSTEM_FLASH_ERASEALL)
 
 MAINSRC = flash_eraseall_main.c

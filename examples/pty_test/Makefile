@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Hello, World! built-in application info
 
@@ -44,7 +44,6 @@ MODULE = $(CONFIG_EXAMPLES_PTYTEST)
 
 # PTY Test! Example
 
-CFLAGS += -I$(APPDIR)/include
 MAINSRC = pty_test.c
 
 include $(APPDIR)/Application.mk

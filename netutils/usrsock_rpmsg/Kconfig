@@ -1,0 +1,33 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config NETUTILS_USRSOCK_RPMSG
+	tristate "RPMSG usrsock"
+	default n
+	depends on NET && OPENAMP
+	---help---
+		Enable usrsock through rpmsg channel.
+
+if NETUTILS_USRSOCK_RPMSG
+
+config NETUTILS_USRSOCK_RPMSG_PRIORITY
+	int "usrsock task priority"
+	default 80
+	---help---
+		The priority for usrsock task.
+
+config NETUTILS_USRSOCK_RPMSG_STACKSIZE
+	int "usrsock task stack size"
+	default DEFAULT_TASK_STACKSIZE
+	---help---
+		The stack size allocated for the usrsock task.
+
+config NETUTILS_USRSOCK_NSOCK_DESCRIPTORS
+	int "the maximum number of socket descriptors for usrsock monitoring"
+	default 64
+	---help---
+		The maximum number of socket description for usrsosck monitoring.
+
+endif # NETUTILS_USRSOCK_RPMSG

@@ -42,6 +42,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <debug.h>
 #include <fcntl.h>
@@ -97,17 +98,16 @@ bool usrsocktest_test_failed = false;
 
 static void get_mallinfo(struct mallinfo *mem)
 {
-#ifdef CONFIG_CAN_PASS_STRUCTS
   *mem = mallinfo();
-#else
-  (void)mallinfo(mem);
-#endif
 }
 
 static void print_mallinfo(const struct mallinfo *mem, const char *title)
 {
   if (title)
-    printf("%s:\n", title);
+    {
+      printf("%s:\n", title);
+    }
+
   printf("       %11s%11s%11s%11s\n", "total", "used", "free", "largest");
   printf("Mem:   %11d%11d%11d%11d\n",
          mem->arena, mem->uordblks, mem->fordblks, mem->mxordblk);
@@ -145,7 +145,7 @@ static void run_tests(FAR const char *name, void (CODE *test_fn)(void))
 }
 
 /****************************************************************************
- * Name: runAllTests
+ * Name: run_all_tests
  *
  * Description:
  *   Sequentially runs all included test groups
@@ -161,25 +161,25 @@ static void run_tests(FAR const char *name, void (CODE *test_fn)(void))
  *
  ****************************************************************************/
 
-static void runAllTests(void)
+static void run_all_tests(void)
 {
-  RUN_TEST_GROUP(CharDev);
-  RUN_TEST_GROUP(NoDaemon);
-  RUN_TEST_GROUP(BasicDaemon);
-  RUN_TEST_GROUP(BasicConnect);
-  RUN_TEST_GROUP(BasicConnectDelay);
-  RUN_TEST_GROUP(NoBlockConnect);
-  RUN_TEST_GROUP(BasicSend);
-  RUN_TEST_GROUP(NoBlockSend);
-  RUN_TEST_GROUP(BlockSend);
-  RUN_TEST_GROUP(NoBlockRecv);
-  RUN_TEST_GROUP(BlockRecv);
-  RUN_TEST_GROUP(RemoteDisconnect);
-  RUN_TEST_GROUP(BasicSetSockOpt);
-  RUN_TEST_GROUP(BasicGetSockOpt);
-  RUN_TEST_GROUP(BasicGetSockName);
-  RUN_TEST_GROUP(WakeWithSignal);
-  RUN_TEST_GROUP(MultiThread);
+  RUN_TEST_GROUP(char_dev);
+  RUN_TEST_GROUP(no_daemon);
+  RUN_TEST_GROUP(basic_daemon);
+  RUN_TEST_GROUP(basic_connect);
+  RUN_TEST_GROUP(basic_connect_delay);
+  RUN_TEST_GROUP(no_block_connect);
+  RUN_TEST_GROUP(basic_send);
+  RUN_TEST_GROUP(no_block_send);
+  RUN_TEST_GROUP(block_send);
+  RUN_TEST_GROUP(no_block_recv);
+  RUN_TEST_GROUP(block_recv);
+  RUN_TEST_GROUP(remote_disconnect);
+  RUN_TEST_GROUP(basic_setsockopt);
+  RUN_TEST_GROUP(basic_getsockopt);
+  RUN_TEST_GROUP(basic_getsockname);
+  RUN_TEST_GROUP(wake_with_signal);
+  RUN_TEST_GROUP(multithread);
 }
 
 /****************************************************************************
@@ -248,7 +248,8 @@ bool usrsocktest_assert_print_buf(FAR const char *func,
 
 int main(int argc, FAR char *argv[])
 {
-  struct mallinfo mem_before, mem_after;
+  struct mallinfo mem_before;
+  struct mallinfo mem_after;
 
   memset(&overall, 0, sizeof(overall));
 
@@ -258,7 +259,7 @@ int main(int argc, FAR char *argv[])
 
   get_mallinfo(&mem_before);
 
-  runAllTests();
+  run_all_tests();
 
   printf("Unit-test groups done... OK:%d, FAILED:%d, TOTAL:%d\n",
          overall.ok, overall.failed, overall.ok + overall.failed);
@@ -277,4 +278,3 @@ int main(int argc, FAR char *argv[])
 
   return 0;
 }
-

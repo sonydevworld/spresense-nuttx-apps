@@ -33,13 +33,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # OBD2 application info
 
 PROGNAME = obd2
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_OBD2)
 
 # OBD2 Example

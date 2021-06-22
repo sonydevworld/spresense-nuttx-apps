@@ -6,11 +6,11 @@
 
 * Updated and verified the NxWidgets DOxygen documentation.  Contributed
   by Jose Pablo Carballo.
-* IBitmap, CRlePalettBitmap:  Extended class to support differnt LUTs
+* IBitmap, CRlePalettBitmap:  Extended class to support different LUTs
   for selected and non-selected images.
 * CImage: If selected, uses different LUTs based, different borders.
   CImage is now basically a button type.
-* CImage: Add logic to hightlight an CImage (using the selected LUT).
+* CImage: Add logic to highlight an CImage (using the selected LUT).
 * nxwm: The tiny NX window manager (NxWM) is being developed in this directory.
 * UnitTests/nxwm:  A unit test for the NX window manager.
 * CWidgetControl:  Add a semaphore to force clients to wait if the
@@ -20,7 +20,7 @@
   out in the 1.0 release but is verfied functional in 1.1.
 * CRlePalettBitmap: Fix an error in the text that determines if we
   need to "rewind" to the beginning of the image.
-* CRlePalettBitmap: Fixe a positioning problem.  It was actually losing
+* CRlePalettBitmap: Fix a positioning problem.  It was actually losing
   the last row of every image!
 * CNxWidget: Removed support for "shelving" widgets.  I will be removing
   some lesser used feature over time in order to reduce the NxWidgets
@@ -112,12 +112,12 @@
 
 1.2 2012-06-15 Gregory Nutt <gnutt@nuttx.org>
 
-* NXWidgets::CCallback: callback arguement is now type CCallback and not
+* NXWidgets::CCallback: callback argument is now type CCallback and not
   CWidgetControl;  Added a method to redirect keyboard contacts to either
   the widgets in the window (via CWidgetControl) or to an NxConsole (via
   nxcon_kbdin()).
 * NXWidgets::INxWindow, CBgWindow, CNxTkWindow, CNxToolbar, CNxWindow:
-  Now pass the CCallback intances as the callback argument instead of
+  Now pass the CCallback instances as the callback argument instead of
   the CWidgetControl instance.  New method redirectNxConsole() will
   support redirection of any window keyboard input to the NxConsole
   (via CCallback).
@@ -127,10 +127,10 @@
 * NxWM:CKeyboard:  Add a new class that implements a keyboard listener
   thread.  This thread reads from /dev/console and injects the keyboard
   input into NX.  NX will determine which window is at the top of the
-  heirarchy and re-direct the keyboard input to only that top window.
+  hierarchy and re-direct the keyboard input to only that top window.
   This solves an important problem with, for example, running multiple
   copies of the NxConsole:  On the copy of the NxConsole at the top of
-  the heirarchy should get the keyboard input.
+  the hierarchy should get the keyboard input.
 * UnitTests/nxwm/main.cxx: Now starts the keyboard thread if
   CONFIG_NXWM_KEYBOARD is defined.
 * NxWM::CTaskbar:  After drawing the task bar, need to raise the
@@ -226,7 +226,7 @@
 * NxWM::CScrollingPanel::scrollChildren(): Avoid unnecessary redraws in
   CScrollingPanel (contributed by Petteri Aimonen).
 * NxWM::CCycleButton:  Remove the separator from CCycleButton. It draws in
-  wrong place, and doesnt look very good in the correct place either.
+  wrong place, and doesn't look very good in the correct place either.
   (from Petteri Aimonen).
 * NxWidgets::CGraphicsPort: Many times we only want a constant background.
   In that case the old code fills the background, reads it back, renders
@@ -474,7 +474,7 @@
 * NxWidgets::CImage:  Should not attempt to draw the "empty" regions at the
   top and the bottom of the image box in greyscale (2014-7-17).
 * NxWM::CMediaPlayer:  Fix some state-related bugs introduced yesterday.
-  Improved state-related button displayes.  Now correctly catches and
+  Improved state-related button display.  Now correctly catches and
   handles file selection events (2014-7-17).
 * NxWidgets::CImage:  Cannot use NxWidgets::CGraphicsPort:drawBitmapGreyScale()
   because it does not respect transparent or background colors in its current
@@ -569,7 +569,7 @@
   incompatibility with versions of NuttX prior to 7.16 (2016-04-14).
 * UnitTests: Add Make.defs files to all UnitTests directories.  This is
   required by the current apps/Makefile.  Hmmm..  This means that no one
-  has built the NxWidgets packages in the last several realeases!
+  has built the NxWidgets packages in the last several releases!
   (2016-04-23).
 * UnitTests: Add some default definitions to handle the (unusual) case
   where 'make clean' is called with no .config or Make.defs file installed
@@ -587,7 +587,7 @@
 * Unittests:  All Makefiles must provided a (dummy) prefconfig target to be
   compatible with changes to the apps/ configuration system that will be
   be released in NuttX-7.17 (2016-06-29).
-* Changes to pre-processor include statments needed to handle reorganization
+* Changes to pre-processor include statements needed to handle reorganization
   of the apps/include directory  (2016-07-01).
 * Update include paths to adapt to changes made to apps/ include path logic
   (2016-07-22).
@@ -647,6 +647,5 @@
 * Fix a dependency in Kconfig:  CONFIG_NXWIDGET_SERVERINIT is definitely
   supported in the PROTECTED and KERNEL build modes (2018-01-18).
 
-After Nuttx-7.26, the NxWidgets repository was merged into the apps/
+After NuttX-7.26, the NxWidgets repository was merged into the apps/
 repository.  See the apps/ChangeLot.txt for changes since that time.
-

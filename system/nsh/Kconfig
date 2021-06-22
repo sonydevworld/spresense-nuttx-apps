@@ -14,12 +14,12 @@ config SYSTEM_NSH
 if SYSTEM_NSH
 
 config SYSTEM_NSH_PRIORITY
-	int "Nuttx shell thread priority"
+	int "NuttX shell thread priority"
 	default 100
 
 config SYSTEM_NSH_STACKSIZE
-	int "Nuttx shell stack size"
-	default 2048
+	int "NuttX shell stack size"
+	default DEFAULT_TASK_STACKSIZE
 
 config SYSTEM_NSH_SYMTAB
 	bool "Register symbol table"
@@ -75,16 +75,5 @@ config SYSTEM_NSH_PROGNAME
 	---help---
 		This is the name of the program that will be used when the NSH ELF
 		program is installed.
-
-config SYSTEM_NSH_CXXINITIALIZE
-	bool "C++ Initialization"
-	default n
-	depends on HAVE_CXX && HAVE_CXXINITIALIZE
-	---help---
-		If HAVE_CXX and HAVE_CXXINITIALIZE are slected, then this NSH
-		example can be configured to initialize C++ constructors when it
-		is started.  NSH does not use C++ and, by default, assumes that
-		constructors are initialized elsewhere.  However, you can force
-		NSH to initialize constructors by setting this option.
 
 endif

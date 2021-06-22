@@ -111,7 +111,7 @@ CIconMgr::~CIconMgr(void)
 
   if (m_eventq != (mqd_t)-1)
     {
-      (void)mq_close(m_eventq);
+      mq_close(m_eventq);
     }
 
   // Free the icon manager window
@@ -427,7 +427,7 @@ bool CIconMgr::event(FAR struct SEventMsg *eventmsg)
           // button array.  handleActionEvent() will be called in that
           // case.  false is not a failure.
 
-          (void)control->pollEvents();
+          control->pollEvents();
         }
         break;
 
@@ -563,7 +563,7 @@ bool CIconMgr::createIconManagerWindow(FAR const char *prefix)
     }
 
   // Get the height and width of the Icon manager window.  The width is
-  // determined by the typical string lenght the maximum character width,
+  // determined by the typical string length the maximum character width,
   // The height of one row is determined (mostly) by the maximum font
   // height
 
@@ -858,7 +858,7 @@ void CIconMgr::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
 
   if (m_buttons->isButtonClicked(column, row))
     {
-      // Now find the window assigned to this row x colum
+      // Now find the window assigned to this row x column
 
       for (FAR struct SWindowEntry *swin = m_head;
            swin != (FAR struct SWindowEntry *)0;
@@ -887,7 +887,7 @@ void CIconMgr::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
                 }
               else
                 {
-                  // Otherwise, raise the window to the top of the heirarchy
+                  // Otherwise, raise the window to the top of the hierarchy
 
                   msg.eventID = EVENT_WINDOW_RAISE;
                 }

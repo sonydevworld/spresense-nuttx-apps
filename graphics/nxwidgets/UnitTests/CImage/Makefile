@@ -33,7 +33,7 @@
 #
 #################################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # CImage unit test
 
@@ -42,7 +42,7 @@ MAINSRC = cimage_main.cxx
 
 PROGNAME = cimage
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_NXWIDGETS_UNITTEST_CIMAGE)
 
 include $(APPDIR)/Application.mk

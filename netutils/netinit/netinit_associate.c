@@ -41,6 +41,7 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include <nuttx/wireless/wireless.h>
 
@@ -59,29 +60,32 @@
 
 int netinit_associate(FAR const char *ifname)
 {
-  static const char ssid[]       = CONFIG_NETINIT_WAPI_SSID;
-  static const char passphrase[] = CONFIG_NETINIT_WAPI_PASSPHRASE;
-  struct wpa_wconfig_s wconfig;
-  int ret;
+  struct wpa_wconfig_s conf;
+  int ret = -EINVAL;
+  FAR void *load;
 
-  /* Set up the network configuration */
+  load = wapi_load_config(ifname, NULL, &conf);
+  if (!load)
+    {
+      conf.ifname      = ifname;
+      conf.sta_mode    = CONFIG_NETINIT_WAPI_STAMODE;
+      conf.auth_wpa    = CONFIG_NETINIT_WAPI_AUTHWPA;
+      conf.cipher_mode = CONFIG_NETINIT_WAPI_CIPHERMODE;
+      conf.alg         = CONFIG_NETINIT_WAPI_ALG;
+      conf.ssid        = CONFIG_NETINIT_WAPI_SSID;
+      conf.passphrase  = CONFIG_NETINIT_WAPI_PASSPHRASE;
+      conf.ssidlen     = strlen(conf.ssid);
+      conf.phraselen   = strlen(conf.passphrase);
+      conf.bssid       = NULL;
+    }
 
-  wconfig.sta_mode    = CONFIG_NETINIT_WAPI_STAMODE;
-  wconfig.auth_wpa    = CONFIG_NETINIT_WAPI_AUTHWPA;
-  wconfig.cipher_mode = CONFIG_NETINIT_WAPI_CIPHERMODE;
-  wconfig.alg         = CONFIG_NETINIT_WAPI_ALG;
-  wconfig.ifname      = ifname;
-  wconfig.ssid        = (FAR const uint8_t *)ssid;
-  wconfig.passphrase  = (FAR const uint8_t *)passphrase;
+  if (conf.ssidlen > 0)
+    {
+      ret = wpa_driver_wext_associate(&conf);
+    }
 
-  wconfig.ssidlen     = strlen(ssid);
-  wconfig.phraselen   = strlen(passphrase);
+  wapi_unload_config(load);
 
-  /* Associate */
-
-  sleep(2);
-  ret = wpa_driver_wext_associate(&wconfig);
-  sleep(2);
   return ret;
 }
 

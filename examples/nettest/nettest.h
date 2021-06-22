@@ -54,6 +54,8 @@
 #ifdef NETTEST_HOST
    /* HTONS/L macros are unique to uIP */
 
+#  undef HTONS
+#  undef HTONL
 #  define HTONS(a)       htons(a)
 #  define HTONL(a)       htonl(a)
 
@@ -92,9 +94,9 @@
  ****************************************************************************/
 
 #ifdef CONFIG_EXAMPLES_NETTEST_IPv6
-uint16_t g_nettestserver_ipv6[8];
+extern uint16_t g_nettestserver_ipv6[8];
 #else
-uint32_t g_nettestserver_ipv4;
+extern uint32_t g_nettestserver_ipv4;
 #endif
 
 /****************************************************************************

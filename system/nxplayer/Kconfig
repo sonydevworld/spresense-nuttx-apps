@@ -15,13 +15,13 @@ if SYSTEM_NXPLAYER
 
 config NXPLAYER_MAINTHREAD_STACKSIZE
 	int "NxPlayer main thread stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Stack size to use with the NxPlayer main thread.
 
 config NXPLAYER_PLAYTHREAD_STACKSIZE
 	int "NxPlayer thread stack size"
-	default 1500
+	default PTHREAD_STACK_DEFAULT
 	---help---
 		Stack size to use with the NxPlayer play thread.
 
@@ -127,5 +127,17 @@ config NXPLAYER_HTTP_STREAMING_SUPPORT
 	---help---
 		When enabled, this feature will add code to enable HTTP
 		audio streaming as well as local file playback.
+
+endif
+
+if NXPLAYER_HTTP_STREAMING_SUPPORT
+
+config NXPLAYER_HTTP_MAXHOSTNAME
+	int "Max host name in URL"
+	default 40
+
+config NXPLAYER_HTTP_MAXFILENAME
+	int "Max file name in URL"
+	default 100
 
 endif

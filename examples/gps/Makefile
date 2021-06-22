@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # GPS built-in application info
 
@@ -47,4 +47,3 @@ MODULE = $(CONFIG_EXAMPLES_GPS)
 MAINSRC = gps_main.c
 
 include $(APPDIR)/Application.mk
-

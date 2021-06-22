@@ -75,16 +75,6 @@
 #  warning You probably do not really want CONFIG_NSH_USBKBD, try CONFIG_TWM4NX_KEYBOARD_USBHOST
 #endif
 
-/* If Telnet is used and both IPv6 and IPv4 are enabled, then we need to
- * pick one.
- */
-
-#ifdef CONFIG_NET_IPv6
-#  define ADDR_FAMILY AF_INET6
-#else
-#  define ADDR_FAMILY AF_INET
-#endif
-
 /////////////////////////////////////////////////////////////////////////////
 // Private Types
 /////////////////////////////////////////////////////////////////////////////
@@ -358,7 +348,7 @@ void CNxTerm::stop(void)
       char devname[32];
       snprintf(devname, 32, "/dev/nxterm%d", m_minor);
 
-      (void)unlink(devname);
+      unlink(devname);
       m_NxTerm = 0;
     }
 }
@@ -415,35 +405,23 @@ int CNxTerm::nxterm(int argc, char *argv[])
   if (fd < 0)
     {
       twmerr("ERROR: Failed open the console device\n");
-      (void)unlink(devname);
+      unlink(devname);
       goto errout;
     }
 
   // Now re-direct stdout and stderr so that they use the NX console driver.
   // Notes: (1) stdin is retained (file descriptor 0, probably the the serial
   // console).  (2) Don't bother trying to put debug instrumentation in the
-  // following becaue it will end up in the NxTerm window.
+  // following because it will end up in the NxTerm window.
 
-  (void)std::fflush(stdout);
-  (void)std::fflush(stderr);
-
-#ifdef CONFIG_NXTERM_NXKBDIN
-  (void)std::fclose(stdin);
-#endif
-  (void)std::fclose(stdout);
-  (void)std::fclose(stderr);
+  std::fflush(stdout);
+  std::fflush(stderr);
 
 #ifdef CONFIG_NXTERM_NXKBDIN
-  (void)std::dup2(fd, 0);
+  std::dup2(fd, 0);
 #endif
-  (void)std::dup2(fd, 1);
-  (void)std::dup2(fd, 2);
-
-#ifdef CONFIG_NXTERM_NXKBDIN
-  (void)std::fdopen(0, "r");
-#endif
-  (void)std::fdopen(1, "w");
-  (void)std::fdopen(2, "w");
+  std::dup2(fd, 1);
+  std::dup2(fd, 2);
 
   // And we can close our original driver file descriptor
 
@@ -460,7 +438,7 @@ int CNxTerm::nxterm(int argc, char *argv[])
   // Run the NSH console
 
 #ifdef CONFIG_NSH_CONSOLE
-  (void)nsh_consolemain(argc, argv);
+  nsh_consolemain(argc, argv);
 #endif
 
   // We get here if the NSH console should exits.  nsh_consolemain() ALWAYS
@@ -521,7 +499,7 @@ void CNxTerm::redraw(void)
   // Get the size of the window
 
   struct nxgl_size_s windowSize;
-  (void)m_nxtermWindow->getWindowSize(&windowSize);
+  m_nxtermWindow->getWindowSize(&windowSize);
 
   // Redraw the entire NxTerm window
 
@@ -538,7 +516,7 @@ void CNxTerm::redraw(void)
   iocargs.cmd       = NXTERMIOC_NXTERM_REDRAW;
   iocargs.arg       = (uintptr_t)&redraw;
 
-  (void)boardctl(BOARDIOC_NXTERM_IOCTL, (uintptr_t)&iocargs);
+  boardctl(BOARDIOC_NXTERM_IOCTL, (uintptr_t)&iocargs);
 }
 
 /**
@@ -552,7 +530,7 @@ void CNxTerm::resize(void)
   // Get the size of the window
 
   resize.handle     = m_NxTerm;
-  (void)m_nxtermWindow->getWindowSize(&resize.size);
+  m_nxtermWindow->getWindowSize(&resize.size);
 
   // Inform NxTerm of the new size
 
@@ -560,7 +538,7 @@ void CNxTerm::resize(void)
   iocargs.cmd       = NXTERMIOC_NXTERM_RESIZE;
   iocargs.arg       = (uintptr_t)&resize;
 
-  (void)boardctl(BOARDIOC_NXTERM_IOCTL, (uintptr_t)&iocargs);
+  boardctl(BOARDIOC_NXTERM_IOCTL, (uintptr_t)&iocargs);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -617,7 +595,7 @@ bool CNxTermFactory::nshlibInitialize(void)
   // Telnet daemon.
 
 #ifdef CONFIG_NSH_TELNET
-  int ret = nsh_telnetstart(ADDR_FAMILY);
+  int ret = nsh_telnetstart(AF_UNSPEC);
   if (ret < 0)
     {
       // The daemon is NOT running!

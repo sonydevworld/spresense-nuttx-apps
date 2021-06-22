@@ -33,25 +33,17 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 -include $(SDKDIR)/Make.defs
 
 # sixaxis built-in application info
 
-CONFIG_EXAMPLES_SIXAXIS_PRIORITY ?= SCHED_PRIORITY_DEFAULT
-CONFIG_EXAMPLES_SIXAXIS_STACKSIZE ?= 2048
-
-APPNAME = bmi160
+PROGNAME = $(CONFIG_EXAMPLES_SIXAXIS_PROGNAME)
 PRIORITY = $(CONFIG_EXAMPLES_SIXAXIS_PRIORITY)
 STACKSIZE = $(CONFIG_EXAMPLES_SIXAXIS_STACKSIZE)
 
 # sixaxis Example
 
-ASRCS =
-CSRCS =
 MAINSRC = sixaxis_main.c
-
-CONFIG_EXAMPLES_SIXAXIS_PROGNAME ?= sixaxis$(EXEEXT)
-PROGNAME = $(CONFIG_EXAMPLES_SIXAXIS_PROGNAME)
 
 include $(APPDIR)/Application.mk

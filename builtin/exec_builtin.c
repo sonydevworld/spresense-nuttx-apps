@@ -138,9 +138,9 @@ int exec_builtin(FAR const char *appname, FAR char * const *argv,
       goto errout_with_actions;
     }
 
-   /* If robin robin scheduling is enabled, then set the scheduling policy
-    * of the new task to SCHED_RR before it has a chance to run.
-    */
+  /* If robin robin scheduling is enabled, then set the scheduling policy
+   * of the new task to SCHED_RR before it has a chance to run.
+   */
 
 #if CONFIG_RR_INTERVAL > 0
   ret = posix_spawnattr_setschedpolicy(&attr, SCHED_RR);
@@ -182,17 +182,12 @@ int exec_builtin(FAR const char *appname, FAR char * const *argv,
     }
 
 #ifdef CONFIG_LIBC_EXECFUNCS
-  /* A NULL entry point implies that the task is a loadable application */
+  /* Load and execute the application. */
 
-  if (builtin->main == NULL)
-    {
-      /* Load and execute the application. */
+  ret = posix_spawn(&pid, builtin->name, &file_actions, &attr,
+                    (argv) ? &argv[1] : (FAR char * const *)NULL, NULL);
 
-      ret = posix_spawn(&pid, builtin->name, &file_actions,
-                        &attr, (argv) ? &argv[1] : (FAR char * const *)NULL,
-                        NULL);
-    }
-  else
+  if (ret != 0 && builtin->main != NULL)
 #endif
     {
       /* Start the built-in */
@@ -217,17 +212,17 @@ int exec_builtin(FAR const char *appname, FAR char * const *argv,
    * be set appropriately).
    */
 
-  (void)posix_spawn_file_actions_destroy(&file_actions);
-  (void)posix_spawnattr_destroy(&attr);
+  posix_spawn_file_actions_destroy(&file_actions);
+  posix_spawnattr_destroy(&attr);
   return pid;
 
 errout_with_actions:
-  (void)posix_spawn_file_actions_destroy(&file_actions);
+  posix_spawn_file_actions_destroy(&file_actions);
 
 errout_with_attrs:
-  (void)posix_spawnattr_destroy(&attr);
+  posix_spawnattr_destroy(&attr);
 
 errout_with_errno:
-  set_errno(ret);
+  errno = ret;
   return ERROR;
 }

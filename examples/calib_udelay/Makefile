@@ -33,13 +33,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # built-in application info
 
 PROGNAME  = calib_udelay
 PRIORITY  = 100
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE    = $(CONFIG_EXAMPLES_CALIB_UDELAY)
 
 # Udelay calibration tool

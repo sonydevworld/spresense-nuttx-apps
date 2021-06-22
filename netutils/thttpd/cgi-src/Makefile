@@ -33,9 +33,9 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-CFLAGS		+= ${shell $(INCDIR) $(INCDIROPT) "$(CC)" "$(APPDIR)/netutils/thttpd" "$(APPDIR)/netutils/thttpd/cgi-src"}
+CFLAGS		+= ${shell $(INCDIR) "$(CC)" "$(APPDIR)$(DELIM)netutils$(DELIM)thttpd"}
 CGIBINDIR	= $(APPDIR)/netutils/thttpd/cgi-bin
 CLEANFILES	= *.o redirect ssi phf
 
@@ -132,4 +132,3 @@ clean:
 	$(call CLEAN)
 
 distclean: clean
-

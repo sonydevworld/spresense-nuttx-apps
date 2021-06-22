@@ -62,7 +62,7 @@ namespace NxWM
 {
   /**
    * The CTouchscreen class provides the the calibration window and obtains
-   * callibration data.
+   * calibration data.
    */
 
   class CTouchscreen
@@ -212,7 +212,7 @@ namespace NxWM
      * This function is not re-entrant:  There may be only one thread waiting for
      * raw touchscreen data.
      *
-     * @return True if the raw touchscreen data was sucessfully obtained
+     * @return True if the raw touchscreen data was successfully obtained
      */
 
     bool waitRawTouchData(struct touch_sample_s *touch);

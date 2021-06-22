@@ -33,134 +33,24 @@
 #
 ############################################################################
 
+include $(TOPDIR)/.config
+include $(TOPDIR)/tools/Config.mk
+-include $(TOPDIR)/scripts/Config.mk
 include $(TOPDIR)/scripts/Make.defs
-
-# Control build verbosity
-#
-#   V=1,2: Enable echo of commands
-#   V=2:   Enable bug/verbose options in tools and scripts
-
-ifeq ($(V),1)
-export Q :=
-else
-ifeq ($(V),2)
-export Q :=
-else
-export Q := @
-endif
-endif
-
-# Some defaults just to prohibit some bad behavior if for some reason they
-# are not defined
-
-OBJEXT ?= .o
-LIBEXT ?= .a
-
-# Common default definitions
-#
-#   PREPROCESS - Default macro to run the C pre-processor
-#   COMPILE    - Default macro to compile one C file
-#   COMPILEXX  - Default macro to compile one C++ file
-#   ASSEMBLE   - Default macro to assemble one assembly language file
-
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	$(Q) $(CPP) $(CPPFLAGS) $($(strip $1)_CPPFLAGS) $1 -o $2
-endef
-
-define COMPILE
-	@echo "CC: $1"
-	$(Q) $(CC) -c $(CFLAGS) $($(strip $1)_CFLAGS) $1 -o $2
-endef
-
-define COMPILEXX
-	@echo "CXX: $1"
-	$(Q) $(CXX) -c $(CXXFLAGS) $($(strip $1)_CXXFLAGS) $1 -o $2
-endef
-
-define ASSEMBLE
-	@echo "AS: $1"
-	$(Q) $(CC) -c $(AFLAGS) $($(strip $1)_AFLAGS) $1 -o $2
-endef
-
-# Environment-specific definitions
-#
-#   DELIM    - Environment-specific file path separator
-#   ARCHIVE  - Add a list of files to an archive
-#   DELFILE  - Delete one file
-#   DELDIR   - Delete one directory
-#   MOVEFILE - Move one file
-#   CLEAN    - Default clean target
-
-ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-
-DELIM = $(strip \)
-
-define ARCHIVE
-	@echo AR: $2
-	$(Q) $(AR) $1 $(2)
-endef
-
-define DELFILE
-	$(Q) if exist $1 (del /f /q $1)
-endef
-
-define DELDIR
-  $(Q) if exist $(1) (rmdir /q /s $(1))
-endef
-
-define MOVEFILE
-	$(Q) if exist $1 (move /Y $1 $2)
-endef
-
-define CLEAN
-	$(Q) if exist *$(OBJEXT) (del /f /q *$(OBJEXT))
-	$(Q) if exist *$(LIBEXT) (del /f /q *$(LIBEXT))
-	$(Q) if exist *~ (del /f /q *~)
-	$(Q) if exist (del /f /q  .*.swp)
-endef
-
-else
-
-DELIM = $(strip /)
-
-define ARCHIVE
-	@echo "AR: $2"
-	$(Q) $(AR) $1 $(2) || { echo "$(AR) $1 FAILED!" ; exit 1 ; }
-endef
-
-define DELFILE
-	$(Q) rm -f $1
-endef
-
-define DELDIR
-  $(Q) rm -rf $(1)
-endef
-
-define MOVEFILE
-	$(Q) mv -f $1 $2
-endef
-
-define CLEAN
-	$(Q) rm -f *$(OBJEXT) *$(LIBEXT) *~ .*.swp
-endef
-
-endif
 
 # Tool related definitions
 # Compiler
 
-ifeq ($(WINTOOL),y)
-  # Windows-native toolchains
-  ARCHINCLUDES = -I. -isystem "${shell cygpath -w $(TOPDIR)$(DELIM)include}"
-  ARCHXXINCLUDES = -I. -isystem "${shell cygpath -w $(TOPDIR)$(DELIM)include}" -isystem "${shell cygpath -w $(TOPDIR)$(DELIM)include$(DELIM)cxx}"
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
   ARCHCRT0OBJ = "${shell cygpath -w $(TOPDIR)$(DELIM)startup$(DELIM)crt0$(OBJEXT)}"
 else
-  # Linux/Cygwin-native toolchain
-  ARCHINCLUDES = -I. -isystem $(TOPDIR)$(DELIM)include
-  ARCHXXINCLUDES = -I. -isystem $(TOPDIR)$(DELIM)include -isystem $(TOPDIR)$(DELIM)include$(DELIM)cxx
   ARCHCRT0OBJ = $(TOPDIR)$(DELIM)startup$(DELIM)crt0$(OBJEXT)
 endif
+
+ARCHINCLUDES += ${shell $(INCDIR) -s "$(CC)" $(TOPDIR)$(DELIM)include}
+
+ARCHXXINCLUDES += ${shell $(INCDIR) -s "$(CC)" $(TOPDIR)$(DELIM)include}
+ARCHXXINCLUDES += ${shell $(INCDIR) -s "$(CC)" $(TOPDIR)$(DELIM)include$(DELIM)cxx}
 
 ARCHCFLAGS += -fno-common -pipe
 ARCHCXXFLAGS += -fno-common -pipe
@@ -168,8 +58,16 @@ ARCHCXXFLAGS += -fno-common -pipe
 CFLAGS = $(ARCHCFLAGS) $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRADEFINES)
 CPICFLAGS = $(ARCHPICFLAGS) $(CFLAGS)
 
-CXXFLAGS = $(ARCHCXXFLAGS) $(ARCHWARNINGSXX) $(ARCHOPTIMIZATION) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRADEFINES)
+CXXFLAGS = $(ARCHCXXFLAGS) $(ARCHWARNINGSXX) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRADEFINES)
 CXXPICFLAGS = $(ARCHPICFLAGS) $(CXXFLAGS)
+
+ifeq ($(LDSTARTGROUP),)
+LDSTARTGROUP = --start-group
+endif
+
+ifeq ($(LDENDGROUP),)
+LDENDGROUP   = --end-group
+endif
 
 # ELF module definitions
 
@@ -183,20 +81,18 @@ AFLAGS = $(CFLAGS) -D__ASSEMBLY__
 
 # Linker
 
-ifeq ($(WINTOOL),y)
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
   # Windows-native toolchains
   LDLIBPATH = -L "${shell cygpath -w $(APPDIR)}" -L "${shell cygpath -w $(TOPDIR)$(DELIM)libs}"
 else
   # Linux/Cygwin-native toolchain
-  LDLIBPATH = -L $(APPDIR) -L $(TOPDIR)$(DELIM)libs
+  LDLIBPATH = -L $(TOPDIR)$(DELIM)libs
 endif
-
-LDLIBS = -lapps -lnuttx
 
 # Try to get the path to libgcc.a.  Of course, this only works for GCC
 # toolchains.
 
-LIBGCC = "${shell "$(CC)" $(ARCHCPUFLAGS) -print-libgcc-file-name 2>/dev/null}"
+LIBGCC = ${shell "$(CC)" $(ARCHCPUFLAGS) -print-file-name=libgcc.a}
 ifneq ($(LIBGCC),)
   LDLIBPATH += -L "${shell dirname $(LIBGCC)}"
   LDLIBS += -lgcc
@@ -205,7 +101,7 @@ endif
 # ELF module definitions
 
 LDELFFLAGS = -r -e _start -Bstatic
-ifeq ($(WINTOOL),y)
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
   LDELFFLAGS += -T "${shell cygpath -w $(TOPDIR)/scripts/gnu-elf.ld}"
 else
   LDELFFLAGS += -T $(TOPDIR)/scripts/gnu-elf.ld

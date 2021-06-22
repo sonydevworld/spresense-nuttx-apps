@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # USB CDC/ACM serial mass storage add-on
 
@@ -41,7 +41,7 @@ MAINSRC = cdcacm_main.c
 
 PROGNAME = sercon serdis
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_SYSTEM_CDCACM)
 
 include $(APPDIR)/Application.mk

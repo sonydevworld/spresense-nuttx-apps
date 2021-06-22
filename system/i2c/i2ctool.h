@@ -61,7 +61,7 @@
  *                             (default 0).
  * CONFIG_I2CTOOL_MAXBUS     - Largest bus index supported by the hardware
  *                             (default 3)
- * CONFIG_I2CTOOL_MINADDR    - Minium device address (default: 0x03)
+ * CONFIG_I2CTOOL_MINADDR    - Minimum device address (default: 0x03)
  * CONFIG_I2CTOOL_MAXADDR    - Largest device address (default: 0x77)
  * CONFIG_I2CTOOL_MAXREGADDR - Largest register address (default: 0xff)
  * CONFIG_I2CTOOL_DEFFREQ    - Default frequency (default: 4000000)
@@ -127,11 +127,7 @@
 
 /* Output is via printf but can be changed using this macro */
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-# define i2c_output(v, ...) printf(v, ##__VA_ARGS__)
-#else
 # define i2c_output         printf
-#endif
 
 /****************************************************************************
  * Public Types
@@ -146,7 +142,7 @@ struct i2ctool_s
   uint8_t  regaddr;    /* [-r regaddr] is the I2C device register address */
   uint8_t  width;      /* [-w width] is the data width (8 or 16) */
   bool     start;      /* [-s|n], send|don't send start between command and data */
-  bool     autoincr;   /* [-i|j], Auto increment|don't increment regaddr on repititions */
+  bool     autoincr;   /* [-i|j], Auto increment|don't increment regaddr on repetitions */
   bool     hasregindx; /* true with the use of -r */
   uint32_t freq;       /* [-f freq] I2C frequency */
 
@@ -202,6 +198,10 @@ int i2ccmd_dump(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv);
 int i2ccmd_set(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv);
 int i2ccmd_verf(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv);
 
+#ifdef CONFIG_I2C_RESET
+int i2ccmd_reset(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv);
+#endif
+
 /* I2C access functions */
 
 int i2ctool_get(FAR struct i2ctool_s *i2ctool, int fd, uint8_t regaddr,
@@ -219,5 +219,9 @@ FAR char *i2cdev_path(int bus);
 bool i2cdev_exists(int bus);
 int i2cdev_open(int bus);
 int i2cdev_transfer(int fd, FAR struct i2c_msg_s *msgv, int msgc);
+
+#ifdef CONFIG_I2C_RESET
+int i2cdev_reset(int fd);
+#endif
 
 #endif /* __APPS_SYSTEM_I2C_I2CTOOLS_H */

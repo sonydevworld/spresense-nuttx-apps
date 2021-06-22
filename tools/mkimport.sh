@@ -95,6 +95,7 @@ fi
 
 WD=${PWD}
 IMPORTDIR=${WD}/import
+BUILTINDIR=${WD}/builtin
 DARCHDIR=${IMPORTDIR}/arch
 DINCDIR=${IMPORTDIR}/include
 DLIBDIR=${IMPORTDIR}/libs
@@ -113,18 +114,18 @@ rm -rf ${DALLDIRS}
 mkdir ${TMPDIR} || \
 	{ echo "ERROR: Failed to create ${TMPDIR}"; exit 1; }
 
+if [ "X${TGZ}" == "Xy" ]; then
+	tar zxf ${EXPORT} -C ${TMPDIR} || \
+		{ echo "ERROR: tar zxf ${EXPORT} failed"; exit 1; }
+else
+	unzip ${EXPORT} -d ${TMPDIR} || \
+		{ echo "ERROR: unzip ${EXPORT} failed"; exit 1; }
+fi
+
 # Unpack the export package into the temporary directory
 
 cd ${TMPDIR} || \
 	{ echo "ERROR: Failed to cd to ${TMPDIR}"; exit 1; }
-
-if [ "X${TGZ}" == "Xy" ]; then
-	tar zxf ${EXPORT} || \
-		{ echo "ERROR: tar zxf ${EXPORT} failed"; exit 1; }
-else
-	unzip ${EXPORT} || \
-		{ echo "ERROR: unzip ${EXPORT} failed"; exit 1; }
-fi
 
 EXPORTDIR=`ls`
 
@@ -144,6 +145,7 @@ SLIBDIR=${EXPORTDIR}/libs
 SSCRIPTSDIR=${EXPORTDIR}/scripts
 SSTARTDIR=${EXPORTDIR}/startup
 STOOLSDIR=${EXPORTDIR}/tools
+REGISTERSDIR=${EXPORTDIR}/registry
 
 unset SALLDIRS
 if [ -d ${SARCHDIR} ]; then
@@ -169,6 +171,9 @@ fi
 
 mv ${SALLDIRS} ${IMPORTDIR}/. || \
 	{ echo "ERROR: Failed to move ${SALLDIRS} to ${IMPORTDIR}"; exit 1; }
+
+cp -rf ${REGISTERSDIR} ${BUILTINDIR}/. || \
+	{ echo "ERROR: Failed to move ${REGISTERSDIR} to ${BUILTINDIR}"; exit 1; }
 
 # Move the .config file in place in the import directory
 

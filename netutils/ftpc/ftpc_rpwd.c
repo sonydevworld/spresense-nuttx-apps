@@ -48,33 +48,13 @@
 #include "ftpc_internal.h"
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
  * Name: ftpc_rpwd
  *
- * Descripton:
+ * Description:
  *   Returns the current working directory on the remote server.
  *
  ****************************************************************************/
@@ -90,7 +70,7 @@ FAR char *ftpc_rpwd(SESSION handle)
 
   /* Send the PWD command */
 
-  (void)ftpc_cmd(session, "PWD");
+  ftpc_cmd(session, "PWD");
 
   /* Response is like: 257 "/home/gnutt" (from vsftpd).
    *
@@ -103,6 +83,7 @@ FAR char *ftpc_rpwd(SESSION handle)
       nwarn("WARNING: Opening quote not found\n");
       return NULL;
     }
+
   start++;
 
   end = strchr(start, '\"');
@@ -133,7 +114,7 @@ FAR char *ftpc_rpwd(SESSION handle)
   memcpy(pwd, start, len);
   pwd[len] = '\0';
 
-  /* Remove any trailing slashes that the server may have added */
+  /* Remove any trailing slash that the server may have added */
 
   ftpc_stripslash(pwd);
 

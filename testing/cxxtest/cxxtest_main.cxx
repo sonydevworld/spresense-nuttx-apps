@@ -47,22 +47,7 @@
 #include <stdexcept>
 #include <cassert>
 
-#include <nuttx/init.h>
-
-#include "platform/cxxinitialize.h"
-
 using namespace std;
-
-//***************************************************************************
-// Definitions
-//***************************************************************************
-// Configuration ************************************************************
-// C++ initialization requires CXX initializer support
-
-#if !defined(CONFIG_HAVE_CXX) || !defined(CONFIG_HAVE_CXXINITIALIZE)
-#  warning Support for static initializers is NOT enabled
-#  undef CONFIG_TESTING_CXXTEST_CXXINITIALIZE
-#endif
 
 //***************************************************************************
 // Private Classes
@@ -71,7 +56,8 @@ using namespace std;
 class Base
 {
 public:
-  virtual void printBase(void) {};
+  virtual void printBase(void) {}
+  virtual ~Base() {}
 };
 
 class Extend : public Base
@@ -219,7 +205,7 @@ static void test_rtti(void)
 // Name: test_exception
 //***************************************************************************/
 
-#ifdef CONFIG_UCLIBCXX_EXCEPTION
+#ifdef CONFIG_CXX_EXCEPTION
 static void test_exception(void)
 {
   std::cout << "test exception==========================" << std::endl;
@@ -247,22 +233,14 @@ extern "C"
 {
   int main(int argc, char *argv[])
   {
-    // If C++ initialization for static constructors is supported, then do
-    // that first
-
-#ifdef CONFIG_TESTING_CXXTEST_CXXINITIALIZE
-    up_cxxinitialize();
-#endif
-
     test_ofstream();
     test_iostream();
     test_stl();
     test_rtti();
-#ifdef CONFIG_UCLIBCXX_EXCEPTION
+#ifdef CONFIG_CXX_EXCEPTION
     test_exception();
 #endif
 
     return 0;
   }
 }
-

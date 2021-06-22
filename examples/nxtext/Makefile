@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # NuttX NX Graphics Example.
 
@@ -44,7 +44,7 @@ MAINSRC = nxtext_main.c
 
 PROGNAME = nxtext
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_NXTEXT)
 
 include $(APPDIR)/Application.mk

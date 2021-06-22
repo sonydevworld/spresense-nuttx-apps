@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/lvgdemo/lvgldemo.c
+ * apps/examples/lvgldemo/lvgldemo.c
  *
  *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -41,19 +41,20 @@
 
 #include <sys/boardctl.h>
 #include <unistd.h>
+#include <stddef.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <pthread.h>
 #include <time.h>
+#include <debug.h>
 
-#include <graphics/lvgl.h>
+#include <lvgl/lvgl.h>
 
 #include "fbdev.h"
+#include "lcddev.h"
+
+#ifdef CONFIG_INPUT
 #include "tp.h"
 #include "tp_cal.h"
-#include "demo.h"
-#include "lv_test_theme_1.h"
-#include "lv_test_theme_2.h"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -61,8 +62,10 @@
 
 /* Should we perform board-specific driver initialization?  There are two
  * ways that board initialization can occur:  1) automatically via
- * board_late_initialize() during bootup if CONFIG_BOARD_LATE_INITIALIZE, or 2)
- * via a call to boardctl() if the interface is enabled (CONFIG_LIB_BOARDCTL=y).
+ * board_late_initialize() during bootupif CONFIG_BOARD_LATE_INITIALIZE
+ * or 2).
+ * via a call to boardctl() if the interface is enabled
+ * (CONFIG_LIB_BOARDCTL=y).
  * If this task is running as an NSH built-in application, then that
  * initialization has probably already been performed otherwise we do it
  * here.
@@ -74,57 +77,46 @@
 #  define NEED_BOARDINIT 1
 #endif
 
+#define DISPLAY_BUFFER_SIZE (CONFIG_LV_HOR_RES * \
+                              CONFIG_EXAMPLES_LVGLDEMO_BUFF_SIZE)
+
+/****************************************************************************
+ * Public Functions Prototypes
+ ****************************************************************************/
+
+void lv_demo_benchmark(void);
+void lv_demo_printer(void);
+void lv_demo_stress(void);
+void lv_demo_widgets(void);
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: tick_func
+ * Name: monitor_cb
  *
  * Description:
- *   Calls lv_tick_inc(...) every 5ms.
- *
- * Input Parameters:
- *   data
- *
- * Returned Value:
- *   NULL
+ *   Monitoring callback from lvgl every time the screen is flushed.
  *
  ****************************************************************************/
 
-static FAR void *tick_func(void *data)
+static void monitor_cb(lv_disp_drv_t * disp_drv, uint32_t time, uint32_t px)
 {
-  static long last_ms;
-  long    ms;
-  struct timespec spec;
-
-  while (1)
-    {
-      long diff;
-
-      /* Calculate how much time elapsed */
-
-      clock_gettime(CLOCK_REALTIME, &spec);
-      ms = (long)spec.tv_nsec / 1000000;
-      diff = ms - last_ms;
-
-      /* Handle overflow */
-
-      if (diff < 0)
-        {
-          diff = 1000 + diff;
-        }
-
-      lv_tick_inc(diff);
-      usleep(5000);
-
-      last_ms = ms;
-    }
-
-  /* Never will reach here */
-
-  return NULL;
+  ginfo("%" PRIu32 " px refreshed in %" PRIu32 " ms\n", px, time);
 }
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static lv_color_t buffer1[DISPLAY_BUFFER_SIZE];
+
+#ifdef CONFIG_EXAMPLES_LVGLDEMO_DOUBLE_BUFFERING
+static lv_color_t buffer2[DISPLAY_BUFFER_SIZE];
+#else
+# define buffer2 NULL
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -146,38 +138,72 @@ static FAR void *tick_func(void *data)
 int main(int argc, FAR char *argv[])
 {
   lv_disp_drv_t disp_drv;
-  pthread_t tick_thread;
+  lv_disp_buf_t disp_buf;
+
+#ifndef CONFIG_EXAMPLES_LVGLDEMO_CALIBRATE
+  lv_point_t p[4];
+
+  /* top left */
+
+  p[0].x = 0;
+  p[0].y = 0;
+
+  /* top right */
+
+  p[1].x = LV_HOR_RES;
+  p[1].y = 0;
+
+  /* bottom left */
+
+  p[2].x = 0;
+  p[2].y = LV_VER_RES;
+
+  /* bottom right */
+
+  p[3].x = LV_HOR_RES;
+  p[3].y = LV_VER_RES;
+#endif
 
 #ifdef NEED_BOARDINIT
   /* Perform board-specific driver initialization */
 
-  (void)boardctl(BOARDIOC_INIT, 0);
+  boardctl(BOARDIOC_INIT, 0);
 
 #ifdef CONFIG_BOARDCTL_FINALINIT
   /* Perform architecture-specific final-initialization (if configured) */
 
-  (void)boardctl(BOARDIOC_FINALINIT, 0);
+  boardctl(BOARDIOC_FINALINIT, 0);
 #endif
 #endif
 
-  /* LittlevGL initialization */
+  /* LVGL initialization */
 
   lv_init();
 
+  /* Basic LVGL display driver initialization */
+
+  lv_disp_buf_init(&disp_buf, buffer1, buffer2, DISPLAY_BUFFER_SIZE);
+  lv_disp_drv_init(&disp_drv);
+  disp_drv.buffer = &disp_buf;
+  disp_drv.monitor_cb = monitor_cb;
+
   /* Display interface initialization */
 
-  fbdev_init();
+  if (fbdev_init(&disp_drv) != EXIT_SUCCESS)
+    {
+      /* Failed to use framebuffer falling back to lcd driver */
 
-  /* Basic LittlevGL display driver initialization */
+      if (lcddev_init(&disp_drv) != EXIT_SUCCESS)
+        {
+          /* No possible drivers left, fail */
 
-  lv_disp_drv_init(&disp_drv);
-  disp_drv.disp_flush = fbdev_flush;
+          return EXIT_FAILURE;
+        }
+    }
+
   lv_disp_drv_register(&disp_drv);
 
-  /* Tick interface initialization */
-
-  pthread_create(&tick_thread, NULL, tick_func, NULL);
-
+#ifdef CONFIG_INPUT
   /* Touchpad Initialization */
 
   tp_init();
@@ -189,50 +215,31 @@ int main(int argc, FAR char *argv[])
    * mouse position and state.
    */
 
-  indev_drv.read = tp_read;
+  indev_drv.read_cb = tp_read;
   lv_indev_drv_register(&indev_drv);
-
-  /* Demo initialization */
-
-#if defined(CONFIG_EXAMPLES_LVGLDEMO_SIMPLE)
-
-  demo_create();
-
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1)
-
-  lv_theme_t *theme = NULL;
-
-#if   defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_DEFAULT)
-  theme = lv_theme_default_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_ALIEN)
-  theme = lv_theme_alien_init(EXAMPLES_LVGLDEMO_THEME_1_HUE,   NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_NIGHT)
-  theme = lv_theme_night_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_MONO)
-  theme = lv_theme_mono_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_MATERIAL)
-  theme = lv_theme_material_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_ZEN)
-  theme = lv_theme_zen_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_NEMO)
-  theme = lv_theme_nemo_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#else
-#  error "No theme selected for this application"
 #endif
 
- lv_test_theme_1(theme);
-
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_2)
-  lv_test_theme_2();
-#else
-#  error "No LVGL demo selected"
+#if defined(CONFIG_EXAMPLES_LVGLDEMO_BENCHMARK)
+  lv_demo_benchmark();
+#elif defined(CONFIG_EXAMPLES_LVGLDEMO_PRINTER)
+  lv_demo_printer();
+#elif defined(CONFIG_EXAMPLES_LVGLDEMO_STRESS)
+  lv_demo_stress();
+#elif defined(CONFIG_EXAMPLES_LVGLDEMO_WIDGETS)
+  lv_demo_widgets();
 #endif
 
+#ifdef CONFIG_INPUT
   /* Start TP calibration */
 
+#ifdef CONFIG_EXAMPLES_LVGLDEMO_CALIBRATE
   tp_cal_create();
+#else
+  tp_set_cal_values(p, p + 1, p + 2, p + 3);
+#endif
+#endif
 
-  /* Handle LittlevGL tasks */
+  /* Handle LVGL tasks */
 
   while (1)
     {

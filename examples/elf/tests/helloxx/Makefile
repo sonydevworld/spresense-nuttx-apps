@@ -33,16 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-OBJEXT ?= .o
-DELIM ?= /
-
-ifeq ($(WINTOOL),y)
-NUTTXLIB = "${shell cygpath -w $(TOPDIR)$(DELIM)staging}"
-else
-NUTTXLIB = "$(TOPDIR)$(DELIM)staging"
-endif
+include $(APPDIR)/Make.defs
 
 ifeq ($(CONFIG_EXAMPLES_ELF_SYSCALL),y)
 LDELFFLAGS += -Bstatic
@@ -55,11 +46,7 @@ endif
 endif
 
 ifeq ($(CONFIG_EXAMPLES_ELF_LIBC),y)
-ifeq ($(CONFIG_BUILD_PROTECTED),y)
-LDLIBS += -luc
-else
 LDLIBS += -lc
-endif
 endif
 
 ifeq ($(CONFIG_EXAMPLES_ELF_SYSCALL),y)
@@ -67,15 +54,19 @@ LDLIBS += -lproxies
 endif
 
 BIN1 = hello++1
+ALL_BIN = $(FSIMG_DIR)/$(BIN1)
 BIN2 = hello++2
-ifeq ($(CONFIG_BINFMT_CONSTRUCTORS),y)
+ALL_BIN += $(FSIMG_DIR)/$(BIN2)
+ifeq ($(CONFIG_HAVE_CXXINITIALIZE),y)
 BIN3 = hello++3
-ifeq ($(CONFIG_EXAMPLES_ELF_UCLIBCXX),y)
+ALL_BIN += $(FSIMG_DIR)/$(BIN3)
+ifeq ($(CONFIG_EXAMPLES_ELF_CXX),y)
 BIN4 = hello++4
+ALL_BIN += $(FSIMG_DIR)/$(BIN4)
 BIN5 = hello++5
+ALL_BIN += $(FSIMG_DIR)/$(BIN5)
 endif
 endif
-ALL_BIN = $(BIN1) $(BIN2) $(BIN3) $(BIN4) $(BIN5)
 
 SRCS1 = $(BIN1).c
 OBJS1 = $(SRCS1:.c=$(OBJEXT))
@@ -83,10 +74,10 @@ OBJS1 = $(SRCS1:.c=$(OBJEXT))
 SRCS2 = $(BIN2).c
 OBJS2 = $(SRCS2:.c=$(OBJEXT))
 
-ifeq ($(CONFIG_BINFMT_CONSTRUCTORS),y)
+ifeq ($(CONFIG_HAVE_CXXINITIALIZE),y)
 SRCS3 = $(BIN3).c
 OBJS3 = $(SRCS3:.c=$(OBJEXT))
-ifeq ($(CONFIG_EXAMPLES_ELF_UCLIBCXX),y)
+ifeq ($(CONFIG_EXAMPLES_ELF_CXX),y)
 SRCS4 = $(BIN4).c
 OBJS4 = $(SRCS4:.c=$(OBJEXT))
 SRCS5 = $(BIN5).c
@@ -101,9 +92,9 @@ LDLIBSTDC_STUBS_DIR	= $(TOPDIR)/libxx
 LDLIBSTDC_STUBS_LIB	= $(LDLIBSTDC_STUBS_DIR)/liblibxx.a
 
 all: $(BIN1) $(BIN2) $(BIN3) $(BIN4) $(BIN5)
-.PHONY: clean install
+.PHONY: all clean install
 
-$(OBJS): %$(OBJEXT): %.cpp
+$(OBJS): %$(OBJEXT): %.cxx
 	@echo "CC: $<"
 	$(Q) $(CXX) -c $(CXXELFFLAGS) $< -o $@
 
@@ -128,7 +119,7 @@ $(BIN2): $(OBJS2)
 
 # BIN3 is equivalent to BIN2 except that is uses static initializers
 
-ifeq ($(CONFIG_BINFMT_CONSTRUCTORS),y)
+ifeq ($(CONFIG_HAVE_CXXINITIALIZE),y)
 $(BIN3): $(OBJS3)
 	@echo "LD: $<"
 	$(Q) $(LD) $(LDELFFLAGS) $(LDLIBPATH) -o $@ $(ARCHCRT0OBJ) $^ $(LDLIBS)
@@ -137,7 +128,7 @@ $(BIN3): $(OBJS3)
 #
 # NOTE:  libstdc++ is not available for NuttX as of this writing
 #
-ifeq ($(CONFIG_EXAMPLES_ELF_UCLIBCXX),y)
+ifeq ($(CONFIG_EXAMPLES_ELF_CXX),y)
 $(BIN4): $(OBJS4)
 	@echo "LD: $<"
 	$(Q) $(LD) $(LDELFFLAGS) $(LDLIBPATH) -o $@ $(ARCHCRT0OBJ) $^ $(LDLIBS)
@@ -147,6 +138,47 @@ $(BIN5): $(OBJS5)
 endif
 endif
 
+$(FSIMG_DIR)/$(BIN1): $(BIN1)
+	$(Q) mkdir -p $(FSIMG_DIR)
+	$(Q) install $(BIN1) $(FSIMG_DIR)/$(BIN1)
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(FSIMG_DIR)/$(BIN1)
+endif
+
+$(FSIMG_DIR)/$(BIN2): $(BIN2)
+	$(Q) mkdir -p $(FSIMG_DIR)
+	$(Q) install $(BIN2) $(FSIMG_DIR)/$(BIN2)
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(FSIMG_DIR)/$(BIN2)
+endif
+
+ifeq ($(CONFIG_HAVE_CXXINITIALIZE),y)
+$(FSIMG_DIR)/$(BIN3): $(BIN3)
+	$(Q) mkdir -p $(FSIMG_DIR)
+	$(Q) install $(BIN3) $(FSIMG_DIR)/$(BIN3)
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(FSIMG_DIR)/$(BIN3)
+endif
+
+ifeq ($(CONFIG_EXAMPLES_ELF_CXX),y)
+$(FSIMG_DIR)/$(BIN4): $(BIN4)
+	$(Q) mkdir -p $(FSIMG_DIR)
+	$(Q) install $(BIN4) $(FSIMG_DIR)/$(BIN4)
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(FSIMG_DIR)/$(BIN4)
+endif
+
+$(FSIMG_DIR)/$(BIN5): $(BIN5)
+	$(Q) mkdir -p $(FSIMG_DIR)
+	$(Q) install $(BIN5) $(FSIMG_DIR)/$(BIN5)
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(FSIMG_DIR)/$(BIN5)
+endif
+endif
+endif
+
+install: $(ALL_BIN)
+
 clean:
 	$(call DELFILE, $(BIN1))
 	$(call DELFILE, $(BIN2))
@@ -154,15 +186,3 @@ clean:
 	$(call DELFILE, $(BIN4))
 	$(call DELFILE, $(BIN5))
 	$(call CLEAN)
-
-install: $(ALL_BIN)
-	$(Q) mkdir -p $(FSIMG_DIR)
-	$(Q) install $(BIN1) $(FSIMG_DIR)/$(BIN1)
-	$(Q) install $(BIN2) $(FSIMG_DIR)/$(BIN2)
-ifeq ($(CONFIG_BINFMT_CONSTRUCTORS),y)
-	$(Q) install $(BIN3) $(FSIMG_DIR)/$(BIN3)
-ifeq ($(CONFIG_EXAMPLES_ELF_UCLIBCXX),y)
-	$(Q) install $(BIN4) $(FSIMG_DIR)/$(BIN4)
-	$(Q) install $(BIN5) $(FSIMG_DIR)/$(BIN5)
-endif
-endif

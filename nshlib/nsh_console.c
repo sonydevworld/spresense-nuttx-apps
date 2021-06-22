@@ -1,7 +1,8 @@
 /****************************************************************************
  * apps/nshlib/nsh_console.c
  *
- *   Copyright (C) 2007-2009, 2011-2013, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2013, 2015 Gregory Nutt.
+ *   All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +58,7 @@
  * Private Types
  ****************************************************************************/
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 struct serialsave_s
 {
   int    cn_errfd;     /* Re-directed error output file descriptor */
@@ -130,7 +131,7 @@ static int nsh_openifnotopen(struct console_stdio_s *pstate)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 static void nsh_closeifnotclosed(struct console_stdio_s *pstate)
 {
   if (pstate->cn_outstream == OUTSTREAM(pstate))
@@ -180,9 +181,9 @@ static ssize_t nsh_consolewrite(FAR struct nsh_vtbl_s *vtbl,
    */
 
   if (nsh_openifnotopen(pstate) != 0)
-   {
-     return (ssize_t)ERROR;
-   }
+    {
+      return ERROR;
+    }
 
   /* Write the data to the output stream */
 
@@ -221,9 +222,9 @@ static int nsh_consoleoutput(FAR struct nsh_vtbl_s *vtbl,
    */
 
   if (nsh_openifnotopen(pstate) != 0)
-   {
-     return ERROR;
-   }
+    {
+      return ERROR;
+    }
 
   va_start(ap, fmt);
   ret = vfprintf(pstate->cn_outstream, fmt, ap);
@@ -253,9 +254,9 @@ static int nsh_erroroutput(FAR struct nsh_vtbl_s *vtbl,
    */
 
   if (nsh_openifnotopen(pstate) != 0)
-   {
-     return ERROR;
-   }
+    {
+      return ERROR;
+    }
 
   va_start(ap, fmt);
   ret = vfprintf(pstate->cn_errstream, fmt, ap);
@@ -313,7 +314,7 @@ static void nsh_consolerelease(FAR struct nsh_vtbl_s *vtbl)
   /* Close the console stream */
 
 #ifdef CONFIG_NSH_ALTCONDEV
-  (void)fclose(pstate->cn_constream);
+  fclose(pstate->cn_constream);
 #endif
 
 #ifdef CONFIG_NSH_VARS
@@ -476,32 +477,9 @@ FAR struct console_stdio_s *nsh_newconsole(void)
       pstate->cn_vtbl.np.np_flags = NSH_NP_SET_OPTIONS_INIT;
 #endif
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
       pstate->cn_vtbl.redirect    = nsh_consoleredirect;
       pstate->cn_vtbl.undirect    = nsh_consoleundirect;
-
-#if 0
-      /* (Re-) open the console input device */
-
-#ifdef CONFIG_NSH_ALTCONDEV
-      pstate->cn_confd            = open(CONFIG_NSH_ALTSTDIN, O_RDWR);
-      if (pstate->cn_confd < 0)
-        {
-          free(pstate);
-          return NULL;
-        }
-
-      /* Create a standard C stream on the console device */
-
-      pstate->cn_constream = fdopen(pstate->cn_confd, "r+");
-      if (!pstate->cn_constream)
-        {
-          close(pstate->cn_confd);
-          free(pstate);
-          return NULL;
-        }
-#endif
-#endif /* if 0 */
 
       /* Initialize the error stream */
 

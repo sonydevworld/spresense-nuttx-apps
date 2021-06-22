@@ -347,8 +347,8 @@ void CKeypadTest::showKeypad(CKeypad *keypad)
 }
 
 // Perform a simulated mouse click on a button in the array.  This method injects
-// the mouse click through the NX heirarchy just as would real mouse
-// hardward.
+// the mouse click through the NX hierarchy just as would real mouse
+// hardware.
 
 void CKeypadTest::click(CKeypad *keypad, int column, int row)
 {
@@ -362,14 +362,14 @@ void CKeypadTest::click(CKeypad *keypad, int column, int row)
 
   NXHANDLE handle = getServer();
 
-  // The the coorinates of the center of the button
+  // The the coordinates of the center of the button
 
   nxgl_coord_t buttonX = keypad->getX() + column * m_buttonWidth  + (m_buttonWidth  >> 1);
   nxgl_coord_t buttonY = keypad->getY() +    row * m_buttonHeight + (m_buttonHeight >> 1);
 
   // Then inject the mouse click
 
-  (void)nx_mousein(handle, buttonX, buttonY, NX_MOUSE_LEFTBUTTON);
+  nx_mousein(handle, buttonX, buttonY, NX_MOUSE_LEFTBUTTON);
 }
 
 // The counterpart to click.  This simulates a button release through
@@ -387,7 +387,7 @@ void CKeypadTest::release(CKeypad *keypad, int column, int row)
 
   NXHANDLE handle = getServer();
 
-  // The the coorinates of the center of the button
+  // The the coordinates of the center of the button
 
   nxgl_coord_t buttonX = keypad->getX() +
                          column * m_buttonWidth +
@@ -398,7 +398,7 @@ void CKeypadTest::release(CKeypad *keypad, int column, int row)
 
   // Then inject the mouse release
 
-  (void)nx_mousein(handle, buttonX, buttonY, NX_MOUSE_NOBUTTONS);
+  nx_mousein(handle, buttonX, buttonY, NX_MOUSE_NOBUTTONS);
 }
 
 // Widget events are normally handled in a modal loop.
@@ -455,4 +455,3 @@ void CKeypadTest::reverseAlignment(void)
         }
     }
 }
-

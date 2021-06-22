@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Hello, World! Example
 
@@ -43,8 +43,7 @@ MAINSRC = ajoy_main.c
 
 PROGNAME = ajoy
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_AJOYSTICK)
 
 include $(APPDIR)/Application.mk
-

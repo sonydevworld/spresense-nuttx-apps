@@ -87,18 +87,19 @@ static int ftpc_sendbinary(FAR struct ftpc_session_s *session,
 
   /* Loop until the entire file is sent */
 
-  for (;;)
+  for (; ; )
     {
       /* Read data from the file */
 
-      nread = fread(session->buffer, sizeof(char), CONFIG_FTP_BUFSIZE, linstream);
+      nread = fread(session->buffer, sizeof(char), CONFIG_FTP_BUFSIZE,
+                    linstream);
       if (nread <= 0)
         {
           /* nread == 0 is just EOF */
 
           if (nread < 0)
             {
-              (void)ftpc_xfrabort(session, linstream);
+              ftpc_xfrabort(session, linstream);
               return ERROR;
             }
 
@@ -112,9 +113,9 @@ static int ftpc_sendbinary(FAR struct ftpc_session_s *session,
       nwritten = fwrite(session->buffer, sizeof(char), nread, routstream);
       if (nwritten != nread)
         {
-          (void)ftpc_xfrabort(session, routstream);
+          ftpc_xfrabort(session, routstream);
 
-          /* Return failue */
+          /* Return failure */
 
           return ERROR;
         }
@@ -149,7 +150,7 @@ static int ftpc_sendtext(FAR struct ftpc_session_s *session,
         {
           if (fputc('\r', routstream) == EOF)
             {
-              (void)ftpc_xfrabort(session, routstream);
+              ftpc_xfrabort(session, routstream);
               ret = ERROR;
               break;
             }
@@ -163,7 +164,7 @@ static int ftpc_sendtext(FAR struct ftpc_session_s *session,
 
       if (fputc(ch, routstream) == EOF)
         {
-          (void)ftpc_xfrabort(session, routstream);
+          ftpc_xfrabort(session, routstream);
           ret = ERROR;
           break;
         }
@@ -271,13 +272,14 @@ static int ftpc_sendfile(struct ftpc_session_s *session, const char *path,
               {
                 if (*str == '\'')
                   {
-                    rname = strndup(str+1, len-3);
+                    rname = strndup(str + 1, len - 3);
                   }
                 else
                   {
-                    rname = strndup(str, len-1);
+                    rname = strndup(str, len - 1);
                     ninfo("Unique filename is: %s\n",  rname);
                   }
+
                 free(rname);
               }
           }
@@ -400,7 +402,7 @@ int ftp_putfile(SESSION handle, const char *lname, const char *rname,
   abslpath = ftpc_abslpath(session, lname);
   if (!abslpath)
     {
-      nwarn("WARNING: ftpc_abslpath(%s) failed: %d\n", errno);
+      nwarn("WARNING: ftpc_abslpath(%s) failed: %d\n", lname, errno);
       goto errout;
     }
 
@@ -409,7 +411,7 @@ int ftp_putfile(SESSION handle, const char *lname, const char *rname,
   ret = stat(abslpath, &statbuf);
   if (ret != OK)
     {
-      nwarn("WARNING: stat(%s) failed: %d\n", errno);
+      nwarn("WARNING: stat(%s) failed: %d\n", abslpath, errno);
       goto errout_with_abspath;
     }
 

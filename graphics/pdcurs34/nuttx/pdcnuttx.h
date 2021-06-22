@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 #ifndef __APPS_GRAPHICS_PDCURS34_NUTTX_PDCNUTTX_H
-#define __APPS_GRAPHICS_PDCURS34_NUTTX_PDCNUTTX_H 1
+#define __APPS_GRAPHICS_PDCURS34_NUTTX_PDCNUTTX_H
 
 /****************************************************************************
  * Included Files
@@ -233,7 +233,7 @@ typedef uint16_t pdc_color_t;
 typedef uint32_t pdc_color_t;
 #endif
 
-/* This structure provides the overall state of the frambuffer device */
+/* This structure provides the overall state of the framebuffer device */
 
 struct pdc_fbstate_s
 {

@@ -99,7 +99,6 @@ eMBErrorCode eMBRTUInit(uint8_t ucSlaveAddress, uint8_t ucPort,
   eMBErrorCode eStatus = MB_ENOERR;
   uint32_t usTimerT35_50us;
 
-  (void)ucSlaveAddress;
   ENTER_CRITICAL_SECTION();
 
   /* Modbus RTU uses 8 Databits. */
@@ -125,7 +124,7 @@ eMBErrorCode eMBRTUInit(uint8_t ucSlaveAddress, uint8_t ucPort,
            * ChTimeValue = Ticks_per_1s / (Baudrate / 11)
            *             = 11 * Ticks_per_1s / Baudrate
            *             = 220000 / Baudrate
-           * The reload for t3.5 is 1.5 times this value and similary
+           * The reload for t3.5 is 1.5 times this value and similarly
            * for t3.5.
            */
 
@@ -180,7 +179,7 @@ eMBErrorCode eMBRTUReceive(uint8_t *pucRcvAddress, uint8_t **pucFrame,
   if ((usRcvBufferPos >= MB_SER_PDU_SIZE_MIN) &&
       (usMBCRC16((uint8_t *) ucRTUBuf, usRcvBufferPos) == 0))
     {
-      /* Save the address field. All frames are passed to the upper layed
+      /* Save the address field. All frames are passed to the upper laid
        * and the decision if a frame is used is done there.
        */
 
@@ -258,7 +257,7 @@ bool xMBRTUReceiveFSM(void)
 
   /* Always read the character. */
 
-  (void)xMBPortSerialGetByte((int8_t *) & ucByte);
+  xMBPortSerialGetByte((int8_t *) & ucByte);
 
   switch (eRcvState)
     {

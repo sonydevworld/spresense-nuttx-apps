@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # u-blox modem tool
 
@@ -41,7 +41,7 @@ MAINSRC = ubloxmodem_main.c
 
 PROGNAME = ubloxmodem
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_SYSTEM_UBLOXMODEM)
 
 include $(APPDIR)/Application.mk

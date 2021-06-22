@@ -63,7 +63,7 @@ static const char *g_config_dev = "/dev/config";
 
 static void cfgdatacmd_help(void)
 {
-  printf("\nUsage: cfgdata <cmd> [argumens]\n");
+  printf("\nUsage: cfgdata <cmd> [arguments]\n");
   printf("Where <cmd> is one of:\n\n");
   printf("  all:   show all config entries\n");
   printf("  print: display a specific config entry\n");
@@ -109,7 +109,7 @@ static int cfgdatacmd_idtok(int startpos, char *token)
     {
       /* Error in format */
 
-      printf("Expected config identifer in 'id,instance' format\n");
+      printf("Expected config identifier in 'id,instance' format\n");
       return 0;
     }
 
@@ -248,7 +248,6 @@ static void cfgdatacmd_parse_byte_array(struct config_data_s *cfg,
 
 static void cfgdatacmd_set(int argc, char *argv[])
 {
-  int                   x;
   int                   ret;
   int                   fd;
   struct config_data_s  cfg;
@@ -259,9 +258,10 @@ static void cfgdatacmd_set(int argc, char *argv[])
   /* Copy the name to the cfg struct */
 
   strncpy(cfg.name, argv[2], CONFIG_MTD_CONFIG_NAME_LEN);
-  (void) x;
 
 #else
+  int                   x;
+
   /* Parse the id and instance */
 
   cfg.id = atoi(argv[2]);
@@ -380,7 +380,6 @@ static void cfgdatacmd_set(int argc, char *argv[])
 
 static void cfgdatacmd_unset(int argc, char *argv[])
 {
-  int                   x;
   int                   ret;
   int                   fd;
   struct config_data_s  cfg;
@@ -389,9 +388,10 @@ static void cfgdatacmd_unset(int argc, char *argv[])
   /* Copy the name to the cfg struct */
 
   strncpy(cfg.name, argv[2], CONFIG_MTD_CONFIG_NAME_LEN);
-  (void) x;
 
 #else
+  int                   x;
+
   /* Parse the id and instance */
 
   cfg.id = atoi(argv[2]);
@@ -444,7 +444,7 @@ static void cfgdatacmd_unset(int argc, char *argv[])
 static void cfgdatacmd_print(int argc, char *argv[])
 {
   struct config_data_s  cfg;
-  int                   x, ret;
+  int                   ret;
   int                   fd;
   bool                  isstring;
 
@@ -453,15 +453,16 @@ static void cfgdatacmd_print(int argc, char *argv[])
   /* Copy the name to the cfg struct */
 
   strncpy(cfg.name, argv[2], CONFIG_MTD_CONFIG_NAME_LEN);
-  (void)x;
 
 #else
+  int                   x;
+
   /* Parse the id and instance */
 
   cfg.id = atoi(argv[2]);
 
   /* Advance past ',' to instance number */
- 
+
   x = cfgdatacmd_idtok(0, argv[2]);
   if (x == 0)
     {

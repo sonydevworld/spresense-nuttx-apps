@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # hexed Application
 
@@ -46,9 +46,9 @@ CSRCS   = bfile.c cmdargs.c hexcopy.c hexdump.c hexenter.c hexhelp.c
 CSRCS  += hexinsert.c hexmove.c hexremove.c hexword.c
 MAINSRC = hexed.c
 
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" include}
+CFLAGS += ${shell $(INCDIR) "$(CC)" include}
 
 VPATH += :src
-ROOTDEPPATH += --dep-path src
+DEPPATH += --dep-path src
 
 include $(APPDIR)/Application.mk

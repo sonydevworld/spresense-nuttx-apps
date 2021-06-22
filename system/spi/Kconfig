@@ -26,7 +26,7 @@ config SPITOOL_PRIORITY
 
 config SPITOOL_STACKSIZE
 	int "Stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 
 config SPITOOL_MINBUS
 	int "Minimum bus number"
@@ -46,6 +46,16 @@ config SPITOOL_DEFFREQ
 	---help---
 		Default SPI frequency (default: 4000000)
 
+config SPITOOL_DEFCMD
+	int "CMD/DATA select"
+	default 0
+	range 0 1
+	depends on SPI_CMDDATA
+	---help---
+		Send in command or data mode
+		0 = Data mode
+		1 = Command mode
+
 config SPITOOL_DEFMODE
 	int "SPI mode"
 	default 0
@@ -55,7 +65,7 @@ config SPITOOL_DEFMODE
 		1 = CPOL=0, CHPHA=1
 		2 = CPOL=1, CHPHA=0
 		3 = CPOL=1, CHPHA=1
-		
+
 config SPITOOL_DEFWIDTH
 	int "SPI Bit width"
 	default 8

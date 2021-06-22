@@ -52,7 +52,6 @@
  ****************************************************************************/
 
 FAR struct bfile_s *g_hexfile = NULL;
-int g_wordsize;
 
 /****************************************************************************
  * Private Data
@@ -335,7 +334,7 @@ int runargs(void)
 
   if (quit != CMD_QUIT)
     {
-      /* All other commands require a filename arguement */
+      /* All other commands require a filename argument */
 
       if (g_hexfile == NULL)
         {

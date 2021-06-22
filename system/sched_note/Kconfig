@@ -6,7 +6,7 @@
 config SYSTEM_NOTE
 	tristate "Scheduler monitor"
 	default n
-	depends on DRIVER_NOTE
+	depends on DRIVER_NOTERAM
 	---help---
 		Enable the schedler instrumentation monitor
 
@@ -25,7 +25,7 @@ config SYSTEM_NOTE_PRIORITY
 
 config SYSTEM_NOTE_STACKSIZE
 	int "Note daemon stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 
 config SYSTEM_NOTE_BUFFERSIZE
 	int "Note daemon I/O buffer size"

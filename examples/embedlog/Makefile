@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # embedlog example built-in application info
 
@@ -45,6 +45,5 @@ MODULE = $(CONFIG_EXAMPLES_EMBEDLOG)
 # embedlog Example
 
 MAINSRC = embedlog_main.c
-CFLAGS += -I$(APPDIR)/include/system
 
 include $(APPDIR)/Application.mk

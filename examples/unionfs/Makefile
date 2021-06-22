@@ -33,13 +33,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # UNIONFS built-in application info
 
 PROGNAME = unionfs
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_UNIONFS)
 
 # UNIONFS File System Example
@@ -72,5 +72,7 @@ context:: romfs_atestdir.h romfs_btestdir.h
 distclean::
 	$(call DELFILE, atestdir.img)
 	$(call DELFILE, btestdir.img)
+	$(call DELFILE, romfs_atestdir.h)
+	$(call DELFILE, romfs_btestdir.h)
 
 include $(APPDIR)/Application.mk

@@ -9,7 +9,7 @@ config SYSTEM_NTPC
 	select NETUTILS_NTPCLIENT
 	depends on NET_UDP
 	---help---
-		Enble the NTP client 'start' and 'stop' commands
+		Enable the NTP client 'start' and 'stop' commands
 
 
 if SYSTEM_NTPC
@@ -20,6 +20,6 @@ config SYSTEM_NTPC_PRIORITY
 
 config SYSTEM_NTPC_STACKSIZE
 	int "NTPC stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 
 endif

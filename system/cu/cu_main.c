@@ -61,8 +61,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifndef SIGKILL
-#  define SIGKILL 9
+#ifndef CONFIG_SIG_INT
+#  define SIGINT 10
+#else
+#  define SIGINT CONFIG_SIG_INT
 #endif
 
 /****************************************************************************
@@ -81,6 +83,11 @@ enum parity_mode
  ****************************************************************************/
 
 static struct cu_globals_s g_cu;
+#ifdef CONFIG_SERIAL_TERMIOS
+static int fd_std_tty;
+static struct termios g_tio_std;
+static struct termios g_tio_dev;
+#endif
 
 /****************************************************************************
  * Public Data
@@ -129,56 +136,15 @@ static void sigint(int sig)
   exit(0);
 }
 
-static int enable_crlf_conversion(int fd)
-{
 #ifdef CONFIG_SERIAL_TERMIOS
+static int set_termios(int fd, int rate, enum parity_mode parity,
+                       int rtscts, int nocrlf)
+{
   int rc = 0;
   int ret;
   struct termios tio;
 
-  /* enable \n -> \r\n conversion during write */
-
-  ret = tcgetattr(fd, &tio);
-  if (ret)
-    {
-      fprintf(stderr, "en_crlf_conv: ERROR during tcgetattr(): %d\n", errno);
-      rc = -1;
-    }
-
-  tio.c_oflag = OPOST | ONLCR;
-  ret = tcsetattr(fd, TCSANOW, &tio);
-  if (ret)
-    {
-      fprintf(stderr, "en_crlf_conv: ERROR during tcsetattr(): %d\n", errno);
-      rc = -1;
-    }
-
-  return rc;
-#else
-  return -1;
-#endif
-}
-
-static int set_baudrate(int fd, int rate, enum parity_mode parity, int rtscts)
-{
-#ifdef CONFIG_SERIAL_TERMIOS
-  int rc = 0;
-  int ret;
-  struct termios tio;
-
-  /* enable \n -> \r\n conversion during write */
-
-  ret = tcgetattr(fd, &tio);
-  if (ret)
-    {
-      fprintf(stderr, "set_baudrate: ERROR during tcgetattr(): %d\n", errno);
-      rc = -1;
-    }
-
-  if (rate != 0)
-    {
-      cfsetspeed(&tio, rate);
-    }
+  tio = g_tio_dev;
 
   switch (parity)
     {
@@ -194,40 +160,94 @@ static int set_baudrate(int fd, int rate, enum parity_mode parity, int rtscts)
         break;
     }
 
+  /* set baudrate */
+
+  if (rate != 0)
+    {
+      cfsetspeed(&tio, rate);
+    }
+
   if (rtscts)
     {
       tio.c_cflag |= CRTS_IFLOW | CCTS_OFLOW;
     }
 
+  tio.c_oflag = OPOST;
+
+  /* enable or disable \n -> \r\n conversion during write */
+
+  if (nocrlf == 0)
+    {
+      tio.c_oflag |= ONLCR;
+    }
+
   ret = tcsetattr(fd, TCSANOW, &tio);
   if (ret)
     {
-      fprintf(stderr, "set_baudrate: ERROR during tcsetattr(): %d\n", errno);
+      fprintf(stderr, "set_termios: ERROR during tcsetattr(): %d\n", errno);
       rc = -1;
+      goto errout;
     }
 
+  /* for tty stdout force enable or disable \n -> \r\n conversion */
+
+  if (fd_std_tty >= 0)
+  {
+    tio = g_tio_std;
+    if (nocrlf == 0)
+      {
+        tio.c_oflag |= ONLCR;
+      }
+    else
+      {
+        tio.c_oflag &= ~ONLCR;
+      }
+
+    ret = tcsetattr(fd_std_tty, TCSANOW, &tio);
+    if (ret)
+      {
+        fprintf(stderr, "set_termios: ERROR during tcsetattr(): %d\n",
+                errno);
+        rc = -1;
+      }
+  }
+
+errout:
   return rc;
-#else
-  if (rate == 0)
+}
+
+static int retrieve_termios(int fd)
+{
+  tcsetattr(fd, TCSANOW, &g_tio_dev);
+  if (fd_std_tty >= 0)
     {
-      return 0;
+      tcsetattr(fd_std_tty, TCSANOW, &g_tio_std);
     }
 
-  return -1;
-#endif
+  return 0;
 }
+#endif
 
 static void print_help(void)
 {
   printf("Usage: cu [options]\n"
          " -l: Use named device (default %s)\n"
+#ifdef CONFIG_SERIAL_TERMIOS
          " -e: Set even parity\n"
          " -o: Set odd parity\n"
          " -s: Use given speed (default %d)\n"
          " -r: Disable RTS/CTS flow control (default: on)\n"
+         " -c: Disable lf -> crlf conversion (default: off)\n"
+#endif
+         " -f: Enable endless mode without escape sequence (default: off)\n"
          " -?: This help\n",
+#ifdef CONFIG_SERIAL_TERMIOS
          CONFIG_SYSTEM_CUTERM_DEFAULT_DEVICE,
-         CONFIG_SYSTEM_CUTERM_DEFAULT_BAUD);
+         CONFIG_SYSTEM_CUTERM_DEFAULT_BAUD
+#else
+         CONFIG_SYSTEM_CUTERM_DEFAULT_DEVICE
+#endif
+        );
 }
 
 static void print_escape_help(void)
@@ -271,14 +291,19 @@ int main(int argc, FAR char *argv[])
   pthread_attr_t attr;
   struct sigaction sa;
   FAR char *devname = CONFIG_SYSTEM_CUTERM_DEFAULT_DEVICE;
+#ifdef CONFIG_SERIAL_TERMIOS
   int baudrate = CONFIG_SYSTEM_CUTERM_DEFAULT_BAUD;
   enum parity_mode parity = PARITY_NONE;
   int rtscts = 1;
+  int nocrlf = 0;
+#endif
+  int nobreak = 0;
   int option;
   int ret;
   int bcmd;
   int start_of_line = 1;
   int exitval = EXIT_FAILURE;
+  bool badarg = false;
 
   /* Initialize global data */
 
@@ -288,10 +313,10 @@ int main(int argc, FAR char *argv[])
 
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = sigint;
-  sigaction(SIGKILL, &sa, NULL);
+  sigaction(SIGINT, &sa, NULL);
 
   optind = 0;   /* global that needs to be reset in FLAT mode */
-  while ((option = getopt(argc, argv, "l:s:ehor?")) != ERROR)
+  while ((option = getopt(argc, argv, "l:s:cefhor?")) != ERROR)
     {
       switch (option)
         {
@@ -299,30 +324,49 @@ int main(int argc, FAR char *argv[])
             devname = optarg;
             break;
 
+#ifdef CONFIG_SERIAL_TERMIOS
           case 's':
             baudrate = atoi(optarg);
             break;
 
           case 'e':
-            parity = PARITY_ODD;
+            parity = PARITY_EVEN;
             break;
 
           case 'o':
-            parity = PARITY_EVEN;
+            parity = PARITY_ODD;
             break;
 
           case 'r':
             rtscts = 0;
             break;
 
+          case 'c':
+            nocrlf = 1;
+            break;
+#endif
+
+          case 'f':
+            nobreak = 1;
+            break;
+
           case 'h':
           case '?':
             print_help();
-            return EXIT_SUCCESS;
+            badarg = true;
+            exitval = EXIT_SUCCESS;
+            break;
 
           default:
-            return EXIT_FAILURE;
+            badarg = true;
+            exitval = EXIT_FAILURE;
+            break;
         }
+    }
+
+  if (badarg)
+    {
+      return exitval;
     }
 
   /* Open the serial device for writing */
@@ -335,11 +379,50 @@ int main(int argc, FAR char *argv[])
       goto errout_with_devinit;
     }
 
-  enable_crlf_conversion(g_cu.outfd);
-  set_baudrate(g_cu.outfd, baudrate, parity, rtscts);
+#ifdef CONFIG_SERIAL_TERMIOS
+  /* remember serial device termios attributes */
 
-  /* Open the serial device for reading.  Since we are already connected, this
-   * should not fail.
+  ret = tcgetattr(g_cu.outfd, &g_tio_dev);
+  if (ret)
+    {
+      fprintf(stderr, "cu_main: ERROR during tcgetattr(): %d\n", errno);
+      goto errout_with_outfd;
+    }
+
+  /* remember std termios attributes if it is a tty. Try to select
+   * right descriptor that is used to refer to tty
+   */
+
+  if (isatty(fileno(stderr)))
+    {
+      fd_std_tty = fileno(stderr);
+    }
+  else if (isatty(fileno(stdout)))
+    {
+      fd_std_tty = fileno(stdout);
+    }
+  else if (isatty(fileno(stdin)))
+    {
+      fd_std_tty = fileno(stdin);
+    }
+  else
+    {
+      fd_std_tty = -1;
+    }
+
+  if (fd_std_tty >= 0)
+    {
+      tcgetattr(fd_std_tty, &g_tio_std);
+    }
+
+  if (set_termios(g_cu.outfd, baudrate, parity, rtscts, nocrlf) != 0)
+    {
+      goto errout_with_outfd_retrieve;
+    }
+#endif
+
+  /* Open the serial device for reading.  Since we are already connected,
+   * this should not fail.
    */
 
   g_cu.infd = open(devname, O_RDONLY);
@@ -365,6 +448,7 @@ int main(int argc, FAR char *argv[])
 
   ret = pthread_create(&g_cu.listener, &attr,
                        cu_listener, (pthread_addr_t)0);
+  pthread_attr_destroy(&attr);
   if (ret != 0)
     {
       fprintf(stderr, "cu_main: Error in thread creation: %d\n", ret);
@@ -377,8 +461,14 @@ int main(int argc, FAR char *argv[])
     {
       int ch = getc(stdin);
 
-      if (ch <= 0)
+      if (ch < 0)
         {
+          continue;
+        }
+
+      if (nobreak == 1)
+        {
+          write(g_cu.outfd, &ch, 1);
           continue;
         }
 
@@ -423,13 +513,16 @@ int main(int argc, FAR char *argv[])
     }
 
   pthread_cancel(g_cu.listener);
-  pthread_attr_destroy(&attr);
   exitval = EXIT_SUCCESS;
 
   /* Error exits */
 
 errout_with_fds:
   close(g_cu.infd);
+#ifdef CONFIG_SERIAL_TERMIOS
+errout_with_outfd_retrieve:
+  retrieve_termios(g_cu.outfd);
+#endif
 errout_with_outfd:
   close(g_cu.outfd);
 errout_with_devinit:

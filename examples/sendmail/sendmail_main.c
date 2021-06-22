@@ -1,7 +1,7 @@
 /****************************************************************************
  * examples/sendmail/sendmail_maini.c
  *
- *   Copyright (C) 2009, 2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2009, 2011, 2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,19 +57,27 @@
  ****************************************************************************/
 
 #ifndef CONFIG_EXAMPLES_SENDMAIL_RECIPIENT
-#  error "You must provice CONFIG_EXAMPLES_SENDMAIL_RECIPIENT"
+#  error "You must provide CONFIG_EXAMPLES_SENDMAIL_RECIPIENT"
 #endif
 
 #ifndef CONFIG_EXAMPLES_SENDMAIL_IPADDR
-#  error "You must provice CONFIG_EXAMPLES_SENDMAIL_IPADDR"
+#  error "You must provide CONFIG_EXAMPLES_SENDMAIL_IPADDR"
 #endif
 
 #ifndef CONFIG_EXAMPLES_SENDMAIL_DRIPADDR
-#  error "You must provice CONFIG_EXAMPLES_SENDMAIL_DRIPADDR"
+#  error "You must provide CONFIG_EXAMPLES_SENDMAIL_DRIPADDR"
+#endif
+
+#ifndef CONFIG_EXAMPLES_SENDMAIL_SERVERADDR
+#  error "You must provide CONFIG_EXAMPLES_SENDMAIL_SERVERADDR"
+#endif
+
+#ifndef CONFIG_EXAMPLES_SENDMAIL_PORT
+#  error "You must provide CONFIG_EXAMPLES_SENDMAIL_PORT"
 #endif
 
 #ifndef CONFIG_EXAMPLES_SENDMAIL_NETMASK
-#  error "You must provice CONFIG_EXAMPLES_SENDMAIL_NETMASK"
+#  error "You must provide CONFIG_EXAMPLES_SENDMAIL_NETMASK"
 #endif
 
 #ifndef CONFIG_EXAMPLES_SENDMAIL_SENDER
@@ -88,15 +96,10 @@
  * Private Data
  ****************************************************************************/
 
-static const char g_host_name[] = "localhost";
 static const char g_recipient[] = CONFIG_EXAMPLES_SENDMAIL_RECIPIENT;
 static const char g_sender[]    = CONFIG_EXAMPLES_SENDMAIL_SENDER;
 static const char g_subject[]   = CONFIG_EXAMPLES_SENDMAIL_SUBJECT;
 static const char g_msg_body[]  = CONFIG_EXAMPLES_SENDMAIL_BODY "\r\n";
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
@@ -109,6 +112,7 @@ static const char g_msg_body[]  = CONFIG_EXAMPLES_SENDMAIL_BODY "\r\n";
 int main(int argc, FAR char *argv[])
 {
   struct in_addr addr;
+  in_port_t port;
 #if defined(CONFIG_EXAMPLES_SENDMAIL_NOMAC)
   uint8_t mac[IFHWADDRLEN];
 #endif
@@ -119,7 +123,7 @@ int main(int argc, FAR char *argv[])
   printf("sendmail: Subject: %s\n", g_subject);
   printf("sendmail: Body: %s\n", g_msg_body);
 
-/* Many embedded network interfaces must have a software assigned MAC */
+  /* Many embedded network interfaces must have a software assigned MAC */
 
 #ifdef CONFIG_EXAMPLES_SENDMAIL_NOMAC
   mac[0] = 0x00;
@@ -154,11 +158,12 @@ int main(int argc, FAR char *argv[])
 
   /* Then send the mail */
 
-  net_ipaddr(addr.s_addr, 127, 0, 0, 1);
+  addr.s_addr = HTONL(CONFIG_EXAMPLES_SENDMAIL_SERVERADDR);
+  port = HTONS(CONFIG_EXAMPLES_SENDMAIL_PORT);
   handle = smtp_open();
   if (handle)
     {
-      smtp_configure(handle, g_host_name, &addr.s_addr);
+      smtp_configure(handle, CONFIG_LIB_HOSTNAME, &addr.s_addr, &port);
       smtp_send(handle, g_recipient, NULL, g_sender, g_subject,
                 g_msg_body, strlen(g_msg_body));
       smtp_close(handle);

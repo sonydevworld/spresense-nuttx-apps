@@ -315,8 +315,8 @@ namespace NXWidgets
     }
 
     /**
-     * Check if geomtry data is available.  If not, [re-]request the
-     * geomtry data and wait for it to become valid.
+     * Check if geometry data is available.  If not, [re-]request the
+     * geometry data and wait for it to become valid.
      * CAREFUL:  This assumes that if we already have geometry data, then
      * it is valid.  This might not be true if the size position was
      * recently changed.
@@ -411,7 +411,7 @@ namespace NXWidgets
      * This method normally called externally... either periodically
      * or when a window event is detected.  If CONFIG_NXWIDGET_EVENTWAIT
      * is defined, then external logic want call waitWindow event and
-     * when awakened, they chould call this function.  As an example:
+     * when awakened, they should call this function.  As an example:
      *
      *   for (;;)
      *     {
@@ -547,7 +547,11 @@ namespace NXWidgets
 
     inline bool doubleClick(void)
     {
+#ifdef CONFIG_NX_XYINPUT
       return (bool)m_xyinput.doubleClick;
+#else
+      return false;
+#endif
     }
 
     /**
@@ -817,4 +821,3 @@ namespace NXWidgets
 #endif // __cplusplus
 
 #endif // __APPS_INCLUDE_GRAPHICS_NXWIDGETS_CWIDGETCONTROLT_HXX
-

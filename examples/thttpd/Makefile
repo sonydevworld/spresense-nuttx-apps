@@ -33,10 +33,11 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # THTTPD Web Server Example
 
+CSRCS = romfs.c
 MAINSRC = thttpd_main.c
 
 CONTENT_MAKE = $(MAKE) -C content
@@ -44,25 +45,35 @@ ifeq ($(CONFIG_THTTPD_BINFS),y)
   CONTENT_MAKE += -f Makefile.binfs
 else
   CONTENT_MAKE += -f Makefile.nxflat
+  CSRCS += symtab.c
 endif
 
 PROGNAME = thttp
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_THTTPD)
+
+VPATH += content
+DEPPATH += --dep-path content
+
+content/romfs.c: build
+ifeq ($(CONFIG_THTTPD_NXFLAT),y)
+content/symtab.c: build
+endif
+
+.PHONY: build
+build:
+	+$(Q) $(CONTENT_MAKE) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
 
 # Common build
 
-all::
-
 context::
-	@$(CONTENT_MAKE) context TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
-
-depend::
-	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
-	@$(CONTENT_MAKE) depend TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+	+$(Q) $(CONTENT_MAKE) context TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
 
 clean::
-	@$(CONTENT_MAKE) clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+	+$(Q) $(CONTENT_MAKE) clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+
+distclean::
+	+$(Q) $(CONTENT_MAKE) distclean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
 
 include $(APPDIR)/Application.mk

@@ -1146,7 +1146,7 @@ bool CWindow::createToolbarButtons(uint8_t flags)
     }
 
   // Create the title bar windows
-  // Set up the toolbar horizonal spacing
+  // Set up the toolbar horizontal spacing
 
   m_tbRightX = winsize.w;
   m_tbLeftX  = 0;
@@ -1856,7 +1856,7 @@ void CWindow::cleanup(void)
 
   if (m_eventq != (mqd_t)-1)
     {
-      (void)mq_close(m_eventq);
+      mq_close(m_eventq);
       m_eventq = (mqd_t)-1;
     }
 
