@@ -229,8 +229,8 @@ void CButtonArrayTest::showButton(CButtonArray *buttonArray)
 }
 
 // Perform a simulated mouse click on a button in the array.  This method injects
-// the mouse click through the NX heirarchy just as would real mouse
-// hardward.
+// the mouse click through the NX hierarchy just as would real mouse
+// hardware.
 
 void CButtonArrayTest::click(CButtonArray *buttonArray, int column, int row)
 {
@@ -244,7 +244,7 @@ void CButtonArrayTest::click(CButtonArray *buttonArray, int column, int row)
 
   NXHANDLE handle = getServer();
 
-  // The the coorinates of the center of the button
+  // The the coordinates of the center of the button
 
   nxgl_coord_t buttonX = buttonArray->getX() +
                          column * BUTTONARRAY_BUTTONWIDTH +
@@ -255,7 +255,7 @@ void CButtonArrayTest::click(CButtonArray *buttonArray, int column, int row)
 
   // Then inject the mouse click
 
-  (void)nx_mousein(handle, buttonX, buttonY, NX_MOUSE_LEFTBUTTON);
+  nx_mousein(handle, buttonX, buttonY, NX_MOUSE_LEFTBUTTON);
 }
 
 // The counterpart to click.  This simulates a button release through
@@ -273,7 +273,7 @@ void CButtonArrayTest::release(CButtonArray *buttonArray, int column, int row)
 
   NXHANDLE handle = getServer();
 
-  // The the coorinates of the center of the button
+  // The the coordinates of the center of the button
 
   nxgl_coord_t buttonX = buttonArray->getX() +
                          column * BUTTONARRAY_BUTTONWIDTH +
@@ -284,7 +284,7 @@ void CButtonArrayTest::release(CButtonArray *buttonArray, int column, int row)
 
   // Then inject the mouse release
 
-  (void)nx_mousein(handle, buttonX, buttonY, NX_MOUSE_NOBUTTONS);
+  nx_mousein(handle, buttonX, buttonY, NX_MOUSE_NOBUTTONS);
 }
 
 // Widget events are normally handled in a modal loop.
@@ -298,4 +298,3 @@ void CButtonArrayTest::poll(CButtonArray *button)
 
   m_widgetControl->pollEvents(button);
 }
-

@@ -33,9 +33,8 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-WGET = wget
 UNPACK = unzip
 PACKEXT = .zip
 
@@ -48,13 +47,14 @@ LIBCANARD_DRVDIR = $(LIBCANARD_SRCDIR)$(DELIM)drivers$(DELIM)nuttx
 
 APPS_INCDIR = $(APPDIR)$(DELIM)include$(DELIM)canutils
 
-CFLAGS += -std=c99 -I$(APPS_INCDIR) -DCANARD_ASSERT=DEBUGASSERT
+CFLAGS += -std=c99 -DCANARD_ASSERT=DEBUGASSERT
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(APPS_INCDIR)}
 
 CSRCS = $(LIBCANARD_SRCDIR)$(DELIM)canard.c $(LIBCANARD_DRVDIR)$(DELIM)canard_nuttx.c
 
 $(LIBCANARD_PACKNAME):
 	@echo "Downloading: $@"
-	$(Q) $(WGET) -O $@ $(LIBCANARD_URL)$(DELIM)$(LIBCANARD_VERSION)$(PACKEXT)
+	$(Q) curl -o $@ -L $(LIBCANARD_URL)$(DELIM)$(LIBCANARD_VERSION)$(PACKEXT)
 
 $(LIBCANARD_UNPACKNAME): $(LIBCANARD_PACKNAME)
 	@echo "Unpacking: $< -> $@"

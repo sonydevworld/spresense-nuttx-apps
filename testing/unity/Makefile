@@ -35,7 +35,7 @@
 
 # Standard includes
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Set up build configuration and environment
 
@@ -46,7 +46,6 @@ CONFIG_TESTING_UNITY_VERSION ?= "2.4.3"
 UNITY_VERSION = $(patsubst "%",%,$(strip $(CONFIG_TESTING_UNITY_VERSION)))
 
 UNITY_TARBALL = v$(UNITY_VERSION).tar.gz
-WGET ?= wget
 
 UNITY_UNPACKNAME = Unity-$(UNITY_VERSION)
 UNPACK ?= tar -zxf
@@ -56,18 +55,19 @@ UNITY_SRCDIR = $(UNITY_UNPACKNAME)$(DELIM)src
 
 APPS_INCDIR = $(APPDIR)$(DELIM)include$(DELIM)testing
 
-CFLAGS += -I$(APPS_INCDIR) -DUNITY_INCLUDE_CONFIG_H
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(APPS_INCDIR)}
+CFLAGS += -DUNITY_INCLUDE_CONFIG_H
 
 CSRCS = $(UNITY_SRCDIR)$(DELIM)unity.c
 
 $(UNITY_TARBALL):
 	@echo "Downloading: $(UNITY_TARBALL)"
-	$(Q) $(WGET) $(CONFIG_TESTING_UNITY_URL)/$(UNITY_TARBALL)
+	$(Q) curl -L -O $(CONFIG_TESTING_UNITY_URL)/$(UNITY_TARBALL)
 
 $(UNITY_UNPACKNAME): $(UNITY_TARBALL)
 	@echo "Unpacking: $(UNITY_TARBALL) -> $(UNITY_UNPACKNAME)"
 	$(Q) $(UNPACK) $(UNITY_TARBALL)
-	@touch $(UNITY_UNPACKNAME)
+	$(Q) touch $(UNITY_UNPACKNAME)
 
 $(UNITY_SRCDIR)$(DELIM)unity.h: $(UNITY_UNPACKNAME)
 
@@ -81,12 +81,8 @@ $(APPS_INCDIR)$(DELIM)unity_internals.h: $(UNITY_SRCDIR)$(DELIM)unity_internals.
 
 context:: $(APPS_INCDIR)$(DELIM)unity.h $(APPS_INCDIR)$(DELIM)unity_internals.h
 
-clean::
-	$(call DELDIR, build)
-
 distclean::
 	$(call DELDIR, $(UNITY_UNPACKNAME))
-	$(call DELFILE, .downloaded)
 	$(call DELFILE, $(UNITY_TARBALL))
 	$(call DELFILE, $(APPDIR)/include/testing/unity.h)
 	$(call DELFILE, $(APPDIR)/include/testing/unity_internals.h)

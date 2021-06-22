@@ -67,12 +67,6 @@
 #  include <nuttx/net/net.h>
 #endif
 
-#include "content/romfs.h"
-
-#ifdef CONFIG_THTTPD_NXFLAT
-#  include "content/symtab.h"
-#endif
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -116,13 +110,13 @@
 /* Ethernet specific configuration */
 
 #ifdef CONFIG_NET_ETHERNET
-   /* Use the standard Ethernet device name */
+/* Use the standard Ethernet device name */
 
 #  define NET_DEVNAME "eth0"
 
 #else
 
-   /* No Ethernet -> No MAC address operations */
+/* No Ethernet -> No MAC address operations */
 
 #  undef CONFIG_EXAMPLES_THTTPD_NOMAC
 #endif
@@ -131,7 +125,7 @@
 
 #ifdef CONFIG_NET_SLIP
 
-   /* TTY device to use */
+/* TTY device to use */
 
 #  ifndef CONFIG_NET_SLIPTTY
 #    define CONFIG_NET_SLIPTTY "/dev/ttyS1"
@@ -183,6 +177,18 @@ int                         g_thttpdnsymbols;
 #endif
 
 /****************************************************************************
+ * Symbols from Auto-Generated Code
+ ****************************************************************************/
+
+extern const unsigned char romfs_img[];
+extern const unsigned int romfs_img_len;
+
+#ifdef CONFIG_THTTPD_NXFLAT
+extern const struct symtab_s g_thttpd_exports[];
+extern const int g_thttpd_nexports;
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -210,7 +216,7 @@ int main(int argc, FAR char *argv[])
     }
 #endif
 
-/* Many embedded network interfaces must have a software assigned MAC */
+  /* Many embedded network interfaces must have a software assigned MAC */
 
 #ifdef CONFIG_EXAMPLES_THTTPD_NOMAC
   printf("Assigning MAC\n");
@@ -250,7 +256,8 @@ int main(int argc, FAR char *argv[])
 
   printf("Registering romdisk\n");
 
-  ret = romdisk_register(0, (uint8_t*)romfs_img, NSECTORS(romfs_img_len), SECTORSIZE);
+  ret = romdisk_register(0, (uint8_t *)romfs_img, NSECTORS(romfs_img_len),
+                         SECTORSIZE);
   if (ret < 0)
     {
       printf("ERROR: romdisk_register failed: %d\n", ret);
@@ -277,26 +284,30 @@ int main(int argc, FAR char *argv[])
   ret = mount(NULL, BINFS_MOUNTPT, "binfs", MS_RDONLY, NULL);
   if (ret < 0)
     {
-      printf("ERROR: mount(NULL,%s,binfs) failed: %d\n", BINFS_MOUNTPT, errno);
+      printf("ERROR: mount(NULL,%s,binfs) failed: %d\n",
+             BINFS_MOUNTPT, errno);
     }
 
   /* Now create and mount the union file system */
 
   printf("Creating UNIONFS filesystem at %s\n", UNIONFS_MOUNTPT);
 
-  ret = unionfs_mount(ROMFS_MOUNTPT, ROMFS_PREFIX, BINFS_MOUNTPT, BINFS_PREFIX,
-                      UNIONFS_MOUNTPT);
+  ret = unionfs_mount(ROMFS_MOUNTPT, ROMFS_PREFIX, BINFS_MOUNTPT,
+                      BINFS_PREFIX, UNIONFS_MOUNTPT);
   if (ret < 0)
     {
-      printf("ERROR: Failed to create the union file system at %s: %d\n", UNIONFS_MOUNTPT, ret);
+      printf("ERROR: Failed to create the union file system at %s: %d\n",
+             UNIONFS_MOUNTPT, ret);
     }
 #endif
 
-  /* Start THTTPD.  At present, symbol table info is passed via global variables */
+  /* Start THTTPD.  At present, symbol table info is passed via
+   * global variables.
+   */
 
 #ifdef CONFIG_THTTPD_NXFLAT
   g_thttpdsymtab   = g_thttpd_exports;
-  g_thttpdnsymbols = NEXPORTS;
+  g_thttpdnsymbols = g_thttpd_nexports;
 #endif
 
   printf("Starting THTTPD\n");

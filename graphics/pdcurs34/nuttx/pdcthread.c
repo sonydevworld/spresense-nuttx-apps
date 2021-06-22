@@ -47,8 +47,8 @@
 #include "graphics/curses.h"
 
 /* We are including a private header here because we want the scheduler
- * PIDHASH macros and don't want to copy them manually, just in case they 
- * change in the future.  Not sure this is a good design practice, but 
+ * PIDHASH macros and don't want to copy them manually, just in case they
+ * change in the future.  Not sure this is a good design practice, but
  * at least it will track any changes to the PIDHASH macro.
  */
 
@@ -159,7 +159,7 @@ static FAR struct pdc_context_s *PDC_ctx_new(void)
       ctx->next = g_pdc_ctx_head;
       g_pdc_ctx_head = ctx;
     }
-#endif  /* CONFIG_PDCURSES_MULTITHREAD_HASH */
+#endif /* CONFIG_PDCURSES_MULTITHREAD_HASH */
 
   return ctx;
 }
@@ -172,8 +172,8 @@ static FAR struct pdc_context_s *PDC_ctx_new(void)
  * Name: PDC_ctx
  *
  * Description:
- *   Added pdcurses interface called from many functions to eliminate 
- *   global and static function variable usage.  This function retuns a
+ *   Added pdcurses interface called from many functions to eliminate
+ *   global and static function variable usage.  This function returns a
  *   task specific context / struct pointer to those variables instead,
  *   allowing the pdcurses routines to be used by multiple tasks in a
  *   FLAT build.
@@ -265,7 +265,7 @@ FAR struct pdc_context_s * PDC_ctx(void)
  * Name: PDC_ctx_free
  *
  * Description:
- *   Free the PDC_ctx context associated with the current PID (and remove 
+ *   Free the PDC_ctx context associated with the current PID (and remove
  *   it from the linked list).
  *
  ****************************************************************************/
@@ -347,5 +347,5 @@ void PDC_ctx_free(void)
   free(ctx->panel_ctx);
   free(ctx->term_ctx);
   free(ctx);
-#endif  /* CONFIG_PDCURSES_MULTITHREAD_HASH */
+#endif /* CONFIG_PDCURSES_MULTITHREAD_HASH */
 }

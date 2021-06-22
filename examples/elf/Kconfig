@@ -94,17 +94,6 @@ config EXAMPLES_ELF_DEVPATH
 		file system containing the ELF executables to be tested.  Default:
 		"/dev/ram0" for ROMFS, "/dev/mmcsd0" for the external file system.
 
-config EXAMPLES_ELF_NOSTRIP
-	bool "Do not strip debug symbols"
-	default n
-	depends on DEBUG_SYMBOLS
-	---help---
-		By default, if debug symbols are enabled (via CONFIG_DEBUG_SYMBOLS), then the
-		ELF executables will also retain debug symbols in the resulting ELF binaries.
-		Select this option if you do not want that behavior, this option will permit
-		debug symbols in the base code but will strip debug symbols out of the ELF
-		binaries for a smaller ROM file system image.
-
 config EXAMPLES_ELF_SYSCALL
 	bool "Link with SYSCALL library"
 	default n
@@ -131,24 +120,13 @@ config EXAMPLES_ELF_LIBC
 		program greatly increasing the total code size.  This option is
 		primarily intended only for testing.
 
-config EXAMPLES_ELF_CXXINITIALIZE
-	bool "C++ Initialization"
-	default y
-	depends on HAVE_CXX && HAVE_CXXINITIALIZE
-	---help---
-		By default, if CONFIG_HAVE_CXX and CONFIG_HAVE_CXXINITIALIZE are
-		defined, then this example will call the NuttX function to
-		initialize static C++ constructors.  This option may be disabled,
-		however, if that static initialization was performed elsewhere.
-
-config EXAMPLES_ELF_UCLIBCXX
-	bool "uClibc++ is installed"
+config EXAMPLES_ELF_CXX
+	bool "uClibc++/libcxx is installed"
 	default n
-	depends on UCLIBCXX
+	depends on UCLIBCXX || LIBCXX
 	---help---
-		By default, uClibc++ is not installed and configured. If the
+		By default, uClibc++/libcxx is not installed and configured. If the
 		user installs and configures the C++ standard library, this
 		example will compile the demos using it.
 
 endif
-

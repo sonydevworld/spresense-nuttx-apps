@@ -52,26 +52,18 @@
  ****************************************************************************/
 
 #ifdef EXAMPLES_UDP_HOST
-   /* HTONS/L macros are unique to uIP-based networks */
+/* HTONS/L macros are unique to NuttX */
 
-#  ifdef CONFIG_ENDIAN_BIG
-#    define HTONS(ns) (ns)
-#    define HTONL(nl) (nl)
-#  else
-#    define HTONS(ns) \
-       (unsigned short) \
-         (((((unsigned short)(ns)) & 0x00ff) << 8) | \
-         ((((unsigned short)(ns)) >> 8) & 0x00ff))
-#      define HTONL(nl) \
-       (unsigned long) \
-         (((((unsigned long)(nl)) & 0x000000ffUL) << 24) | \
-         ((((unsigned long)(nl)) & 0x0000ff00UL) <<  8) | \
-         ((((unsigned long)(nl)) & 0x00ff0000UL) >>  8) | \
-         ((((unsigned long)(nl)) & 0xff000000UL) >> 24))
-#  endif
+#  undef HTONS
+#  undef HTONL
+#  define HTONS(ns) htons(ns)
+#  define HTONL(nl) htonl(nl)
 
-#  define NTOHS(hs) HTONS(hs)
-#  define NTOHL(hl) HTONL(hl)
+#  undef NTOHS
+#  undef NTOHL
+#  define NTOHS(hs) ntohs(hs)
+#  define NTOHL(hl) ntohl(hl)
+
 #  define FAR
 #endif
 
@@ -99,9 +91,9 @@
  ****************************************************************************/
 
 #ifdef CONFIG_EXAMPLES_UDP_IPv6
-uint16_t g_udpserver_ipv6[8];
+extern uint16_t g_udpserver_ipv6[8];
 #else
-uint32_t g_udpserver_ipv4;
+extern uint32_t g_udpserver_ipv4;
 #endif
 
 /****************************************************************************

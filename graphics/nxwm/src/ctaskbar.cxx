@@ -70,7 +70,7 @@ using namespace NxWM;
 CTaskbar::CTaskbar(void)
 {
   m_taskbar     = (NXWidgets::CNxWindow *)0;
-  m_background  = (NXWidgets::CNxWindow *)0;
+  m_background  = (NXWidgets::CBgWindow *)0;
   m_backImage   = (NXWidgets::CImage    *)0;
   m_topApp      = (IApplication         *)0;
   m_started     = false;
@@ -163,7 +163,7 @@ void CTaskbar::disconnect(void)
       // Then delete the background
 
       delete m_background;
-      m_background = (NXWidgets::CNxWindow *)0;
+      m_background = (NXWidgets::CBgWindow *)0;
     }
 
   // Delete the background image
@@ -286,7 +286,7 @@ bool CTaskbar::startWindowManager(void)
           if (!app->run())
             {
               // Call stopApplication on a failure to start.  This will call
-              // app->stop() (which is probably not necesary for the application
+              // app->stop() (which is probably not necessary for the application
               //  but it should be prepared/ to handle it).  stopApplication()
               // will also removed the icon image from the list and delete it.
 
@@ -542,7 +542,7 @@ bool CTaskbar::startApplication(IApplication *app, bool minimized)
       if (!app->run())
         {
           // Call stopApplication on a failure to start.  This will call
-          // app->stop() (which is probably not necesary for the application
+          // app->stop() (which is probably not necessary for the application
           //  but it should be prepared/ to handle it).  stopApplication()
           // will also removed the icon image from the list and delete it.
 
@@ -972,9 +972,27 @@ bool CTaskbar::createTaskbarWindow(void)
 
 bool CTaskbar::createBackgroundWindow(void)
 {
+  CWindowMessenger *control = new CWindowMessenger((NXWidgets::CWidgetStyle *)NULL);
+
   // Create a raw window to present the background image
 
-  m_background = openRawWindow();
+  NXWidgets::CBgWindow *background = getBgWindow(control);
+  if (!background)
+    {
+      delete control;
+      return false;
+    }
+
+  // Open (and initialize) the BG window
+
+  bool success = background->open();
+  if (!success)
+    {
+      delete background;
+      return false;
+    }
+
+  m_background = background;
   if (!m_background)
     {
       return false;
@@ -1164,7 +1182,7 @@ bool CTaskbar::redrawTaskbarWindow(void)
 
           // Set the position of the icon bitmap
 
-          (void)image->moveTo(iconPos.x, iconPos.y);
+          image->moveTo(iconPos.x, iconPos.y);
 
           // Then re-draw the icon at the new position
 
@@ -1206,7 +1224,7 @@ bool CTaskbar::redrawTaskbarWindow(void)
 }
 
 /**
- * Redraw the window at the top of the heirarchy.
+ * Redraw the window at the top of the hierarchy.
  *
  * @return true on success
  */
@@ -1342,7 +1360,7 @@ bool CTaskbar::redrawApplicationWindow(IApplication *app)
 
   m_backImage->disableDrawing();
 
-  // Raise to top application to the top of the NX window heirarchy
+  // Raise to top application to the top of the NX window hierarchy
 
   raiseTopApplication();
 
@@ -1427,7 +1445,7 @@ void CTaskbar::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
               // Maximize the application by moving its window to the top of
               // the hierarchy and re-drawing it.
 
-              (void)maximizeApplication(app);
+              maximizeApplication(app);
             }
 
           // No, it is not minimized.  Is it already the top application?
@@ -1436,7 +1454,7 @@ void CTaskbar::handleActionEvent(const NXWidgets::CWidgetEventArgs &e)
             {
               /* Move window to the top of the hierarchy and re-draw it. */
 
-              (void)topApplication(app);
+              topApplication(app);
             }
 
           // Then break out of the loop

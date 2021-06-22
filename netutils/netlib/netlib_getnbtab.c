@@ -44,7 +44,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <errno.h>
 
 #include <netpacket/netlink.h>
 
@@ -61,7 +60,7 @@
 struct netlib_sendto_request_s
 {
   struct nlmsghdr hdr;
-  struct ndmsg msg;
+  struct rtgenmsg gen;
 };
 
 struct netlib_recvfrom_response_s
@@ -143,10 +142,10 @@ ssize_t netlib_get_nbtable(FAR struct neighbor_entry_s *nbtab,
   addr.nl_family = AF_NETLINK;
   addr.nl_pad    = 0;
   addr.nl_pid    = pid;
-  addr.nl_groups = RTM_GETNEIGH;
+  addr.nl_groups = 0;
 
   ret = bind(fd, (FAR const struct sockaddr *)&addr,
-             sizeof( struct sockaddr_nl));
+             sizeof(struct sockaddr_nl));
   if (ret < 0)
     {
       int errcode = errno;
@@ -160,12 +159,12 @@ ssize_t netlib_get_nbtable(FAR struct neighbor_entry_s *nbtab,
   thiseq = ++seqno;
 
   memset(&req, 0, sizeof(req));
-  req.hdr.nlmsg_len   = NLMSG_LENGTH(sizeof(struct ndmsg));
-  req.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT | NLM_F_REQUEST;
-  req.hdr.nlmsg_seq   = thiseq;
-  req.hdr.nlmsg_type  = RTM_GETNEIGH;
-  req.hdr.nlmsg_pid   = pid;
-  req.msg.ndm_family  = AF_INET6;
+  req.hdr.nlmsg_len    = NLMSG_LENGTH(sizeof(struct rtgenmsg));
+  req.hdr.nlmsg_flags  = NLM_F_REQUEST | NLM_F_DUMP;
+  req.hdr.nlmsg_seq    = thiseq;
+  req.hdr.nlmsg_type   = RTM_GETNEIGH;
+  req.hdr.nlmsg_pid    = pid;
+  req.gen.rtgen_family = AF_INET6;
 
   nsent = send(fd, &req, req.hdr.nlmsg_len, 0);
   if (nsent < 0)
@@ -197,17 +196,17 @@ ssize_t netlib_get_nbtable(FAR struct neighbor_entry_s *nbtab,
       goto errout_with_socket;
     }
 
-   /* The sequence number in the response should match the sequence
-    * number in the request (since we created the socket, this should
-    * always be true).
-    */
+  /* The sequence number in the response should match the sequence
+   * number in the request (since we created the socket, this should
+   * always be true).
+   */
 
-   if (resp->hdr.nlmsg_seq != thiseq)
-     {
+  if (resp->hdr.nlmsg_seq != thiseq)
+    {
       fprintf(stderr, "ERROR: Bad sequence number in response\n");
       ret = -EIO;
       goto errout_with_socket;
-     }
+    }
 
   /* Copy the Neighbor table data to the caller's buffer */
 

@@ -63,20 +63,6 @@
  * Pre-Processor Definitions
  ********************************************************************************************/
 
-/* We want debug output from this file if either audio or graphics debug is enabled. */
-
-#if !defined(CONFIG_DEBUG_AUDIO) && !defined(CONFIG_DEBUG_GRAPHICS)
-#  undef gerr
-#  undef _info
-#  ifdef CONFIG_CPP_HAVE_VARARGS
-#    define gerr(x...)
-#    define _info(x...)
-#  else
-#    define gerr  (void)
-#    define _info (void)
-#  endif
-#endif
-
 #define AUDIO_NSUBSAMPLES 4
 
 /********************************************************************************************
@@ -526,7 +512,7 @@ void CMediaPlayer::setGeometry(void)
 
   // Get the size of the window
 
-  (void)window->getSize(&m_windowSize);
+  window->getSize(&m_windowSize);
 }
 
 /**
@@ -618,7 +604,7 @@ inline bool CMediaPlayer::showMediaFiles(const char *mediaPath)
 
   // Close the directory
 
-  (void)closedir(dirp);
+  closedir(dirp);
 
   // Sort the file names in alphabetical order
 
@@ -814,7 +800,7 @@ bool CMediaPlayer::createPlayer(void)
 
   // Show the media files that are available for playing
 
-  (void)showMediaFiles(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH);
+  showMediaFiles(CONFIG_NXWM_MEDIAPLAYER_MEDIAPATH);
 
   // Control image widths.
   // Image widths will depend on if the images will be bordered or not
@@ -897,7 +883,7 @@ bool CMediaPlayer::createPlayer(void)
 
   m_play->addWidgetEventHandler(this);
 
-  // Create the Pause image (at the same position ans size as the Play image)
+  // Create the Pause image (at the same position and size as the Play image)
 
   m_pause = new NXWidgets::
       CImage(control, playControlX, controlTop, playControlW, controlH,
@@ -1034,7 +1020,7 @@ bool CMediaPlayer::createPlayer(void)
   nxgl_coord_t motionH = (nxgl_coord_t)(m_font->getHeight());
 
   // Horizontal position: aligned with the right size of volume slider
-  // Vertical postion: same as the motion controls
+  // Vertical position: same as the motion controls
 
   m_speed = new NXWidgets::CLabel(control,
                                   volumeControlX + volumeControlW - motionW,
@@ -1536,7 +1522,7 @@ void CMediaPlayer::updateMotionIndicator(void)
       // Set the new speed string
 
       char buffer[8];
-      (void)std::snprintf(buffer, 8, "%dX", g_motionSteps[m_subSample]);
+      std::snprintf(buffer, 8, "%dX", g_motionSteps[m_subSample]);
 
       NXWidgets::CNxString speed(buffer);
       m_speed->setText(speed);

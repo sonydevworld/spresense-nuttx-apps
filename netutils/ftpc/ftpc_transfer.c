@@ -57,22 +57,6 @@
 #include "ftpc_internal.h"
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -82,21 +66,21 @@
  * Description:
  *   Enter passive mode using EPSV command.
  *
- *   In active mode FTP the client connects from a random port (N>1023) to the
- *   FTP server's command port, port 21. Then, the client starts listening to
- *   port N+1 and sends the FTP command PORT N+1 to the FTP server. The server
- *   will then connect back to the client's specified data port from its local
- *   data port, which is port 20. In passive mode FTP the client initiates
- *   both connections to the server, solving the problem of firewalls filtering
- *   the incoming data port connection to the client from the server. When
- *   opening an FTP connection, the client opens two random ports locally
- *   (N>1023 and N+1). The first port contacts the server on port 21, but
- *   instead of then issuing a PORT command and allowing the server to connect
- *   back to its data port, the client will issue the PASV command. The result
- *   of this is that the server then opens a random unprivileged port (P >
- *   1023) and sends the PORT P command back to the client. The client then
- *   initiates the connection from port N+1 to port P on the server to transfer
- *   data.
+ *   In active mode FTP the client connects from a random port (N>1023) to
+ *   the FTP server's command port, port 21. Then the client starts listening
+ *   to port N+1 and sends the FTP command PORT N+1 to the FTP server. The
+ *   server will then connect back to the client's specified data port from
+ *   its local data port, which is port 20. In passive mode FTP the client
+ *   initiates both connections to the server, solving the problem of
+ *   firewalls filtering the incoming data port connection to the client from
+ *   the server. When opening an FTP connection, the client opens two random
+ *   ports locally (N>1023 and N+1). The first port contacts the server on
+ *   port 21, but instead of then issuing a PORT command and allowing the
+ *   server to connect back to its data port, the client will issue the PASV
+ *   command. The result of this is that the server then opens a random
+ *   unprivileged port (P > 1023) and sends the PORT P command back to the
+ *   client. The client then initiates the connection from port N+1 to port
+ *   P on the server to transfer data.
  *
  ****************************************************************************/
 
@@ -133,13 +117,14 @@ static int ftp_cmd_epsv(FAR struct ftpc_session_s *session,
           return ERROR;
         }
     }
+
   ptr++;
 
   /* The response is then just the port number. None of the other fields
    * are supplied.
    */
 
-  nscan = sscanf(ptr, "|||%u|", &tmp);
+  nscan = sscanf(ptr, "|||%hu|", &tmp);
   if (nscan != 1)
     {
       nwarn("WARNING: Error parsing EPSV reply: '%s'\n", session->reply);
@@ -170,21 +155,21 @@ static int ftp_cmd_epsv(FAR struct ftpc_session_s *session,
  * Description:
  *   Enter passive mode using PASV command.
  *
- *   In active mode FTP the client connects from a random port (N>1023) to the
- *   FTP server's command port, port 21. Then, the client starts listening to
- *   port N+1 and sends the FTP command PORT N+1 to the FTP server. The server
- *   will then connect back to the client's specified data port from its local
- *   data port, which is port 20. In passive mode FTP the client initiates
- *   both connections to the server, solving the problem of firewalls filtering
- *   the incoming data port connection to the client from the server. When
- *   opening an FTP connection, the client opens two random ports locally
- *   (N>1023 and N+1). The first port contacts the server on port 21, but
- *   instead of then issuing a PORT command and allowing the server to connect
- *   back to its data port, the client will issue the PASV command. The result
+ *   In active mode FTP the client connects from a random port (N>1023) to
+ *   the FTP server's command port, port 21. Then the client starts listening
+ *   to port N+1 and sends the FTP command PORT N+1 to the FTP server. The
+ *   server will then connect back to the client's specified data port from
+ *   its local data port, which is port 20. In passive mode FTP the client
+ *   initiates both connections to the server, solving the problem of
+ *   firewalls filtering the incoming data port connection to the client from
+ *   the server. When opening an FTP connection, the client opens two random
+ *   ports locally (N>1023 and N+1). The first port contacts the server on
+ *   port 21, but instead of then issuing a PORT command and allowing the
+ *   server to connect back to its data port, the client will issue the PASV
  *   of this is that the server then opens a random unprivileged port (P >
- *   1023) and sends the PORT P command back to the client. The client then
- *   initiates the connection from port N+1 to port P on the server to transfer
- *   data.
+ *   command. The result 1023) and sends the PORT P command back to the
+ *   client. The client then initiates the connection from port N+1 to port P
+ *   on the server to transfer data.
  *
  ****************************************************************************/
 
@@ -247,12 +232,15 @@ static int ftp_cmd_pasv(FAR struct ftpc_session_s *session,
  ****************************************************************************/
 
 static FAR char *ftpc_abspath(FAR struct ftpc_session_s *session,
-                              FAR const char *relpath, FAR const char *homedir,
+                              FAR const char *relpath,
+                              FAR const char *homedir,
                               FAR const char *curdir)
 {
   FAR char *ptr = NULL;
 
-  /* If no relative path was provide, then use the current working directory */
+  /* If no relative path was provide,
+   * then use the current working directory
+   */
 
   if (!relpath)
     {
@@ -274,7 +262,7 @@ static FAR char *ftpc_abspath(FAR struct ftpc_session_s *session,
 
       else if (relpath[1] == '/')
         {
-          (void)asprintf(&ptr, "%s%s", homedir, &relpath[1]);
+          asprintf(&ptr, "%s%s", homedir, &relpath[1]);
         }
 
       /* Hmmm... this pretty much guaranteed to fail */
@@ -291,7 +279,7 @@ static FAR char *ftpc_abspath(FAR struct ftpc_session_s *session,
 
   else if (strncmp(relpath, "./", 2) == 0)
     {
-      (void)asprintf(&ptr, "%s%s", curdir, relpath+1);
+      asprintf(&ptr, "%s%s", curdir, relpath + 1);
     }
 
   /* Check for an absolute path */
@@ -305,7 +293,7 @@ static FAR char *ftpc_abspath(FAR struct ftpc_session_s *session,
 
   else
     {
-      (void)asprintf(&ptr, "%s/%s", curdir, relpath);
+      asprintf(&ptr, "%s/%s", curdir, relpath);
     }
 
   return ptr;
@@ -358,14 +346,14 @@ int ftpc_xfrinit(FAR struct ftpc_session_s *session)
       /* Does this host support the PASV command */
 
       if (!FTPC_HAS_PASV(session))
-      {
-        nerr("ERROR: Host doesn't support passive mode\n");
-        goto errout_with_data;
-      }
+        {
+          nerr("ERROR: Host doesn't support passive mode\n");
+          goto errout_with_data;
+        }
 
       /* Configure the address to be the server address. If EPSV is used, the
-       * port will be populated by parsing the reply of the EPSV command. If the
-       * PASV command is used, the address and port will be overwritten.
+       * port will be populated by parsing the reply of the EPSV command. If
+       * the PASV command is used, the address and port will be overwritten.
        */
 
       memcpy(&addr, &session->server, sizeof(union ftpc_sockaddr_u));
@@ -409,9 +397,11 @@ int ftpc_xfrinit(FAR struct ftpc_session_s *session)
           nerr("ERROR: ftpc_sockinit() failed: %d\n", errno);
           goto errout;
         }
-      /* Use the server IP address to find the network interface, and subsequent
-       * local IP address used to establish the active connection. We must send
-       * the IP and port to the server so that it knows how to connect.
+
+      /* Use the server IP address to find the network interface, and
+       * subsequent local IP address used to establish the active
+       * connection. We must send the IP and port to the server so that
+       * it knows how to connect.
        */
 
 #ifdef CONFIG_NET_IPv6
@@ -431,7 +421,7 @@ int ftpc_xfrinit(FAR struct ftpc_session_s *session)
       if (session->server.sa.sa_family == AF_INET)
         {
           ret = netlib_ipv4adaptor(session->server.in4.sin_addr.s_addr,
-                                   &session->dacceptor.laddr.in4.sin_addr.s_addr);
+                  &session->dacceptor.laddr.in4.sin_addr.s_addr);
           if (ret < 0)
             {
               nerr("ERROR: netlib_ipv4adaptor() failed: %d\n", ret);
@@ -462,7 +452,8 @@ int ftpc_xfrinit(FAR struct ftpc_session_s *session)
 #ifdef CONFIG_NET_IPv6
       if (session->dacceptor.laddr.sa.sa_family == AF_INET6)
         {
-          if (!inet_ntop(AF_INET6, &session->dacceptor.laddr.in6.sin6_addr, ipstr, 48))
+          if (!inet_ntop(AF_INET6, &session->dacceptor.laddr.in6.sin6_addr,
+                         ipstr, 48))
             {
               nerr("ERROR: inet_ntop failed: %d\n", errno);
               goto errout_with_data;
@@ -476,7 +467,8 @@ int ftpc_xfrinit(FAR struct ftpc_session_s *session)
 #ifdef CONFIG_NET_IPv4
       if (session->dacceptor.laddr.sa.sa_family == AF_INET)
         {
-          if (!inet_ntop(AF_INET, &session->dacceptor.laddr.in4.sin_addr, ipstr, 48))
+          if (!inet_ntop(AF_INET, &session->dacceptor.laddr.in4.sin_addr,
+                         ipstr, 48))
             {
               nerr("ERROR: inet_ntop failed: %d\n", errno);
               goto errout_with_data;
@@ -495,6 +487,7 @@ int ftpc_xfrinit(FAR struct ftpc_session_s *session)
           goto errout_with_data;
         }
     }
+
   return OK;
 
 errout_with_data:
@@ -535,8 +528,8 @@ int ftpc_xfrmode(struct ftpc_session_s *session, uint8_t xfrmode)
   DEBUGASSERT(xfrmode != FTPC_XFRMODE_UNKNOWN);
   if (session->xfrmode != xfrmode)
     {
-      /* Send the TYPE request to control the binary flag.  Parameters for the
-       * TYPE request include:
+      /* Send the TYPE request to control the binary flag.
+       * Parameters for the TYPE request include:
        *
        *  A: Turn the binary flag off.
        *  A N: Turn the binary flag off.
@@ -546,8 +539,13 @@ int ftpc_xfrmode(struct ftpc_session_s *session, uint8_t xfrmode)
        *  The server accepts the TYPE request with code 200.
        */
 
-      ret = ftpc_cmd(session, "TYPE %c", xfrmode == FTPC_XFRMODE_ASCII ? 'A' : 'I');
-      UNUSED(ret);
+      ret = ftpc_cmd(session, "TYPE %c",
+                     xfrmode == FTPC_XFRMODE_ASCII ? 'A' : 'I');
+      if (ret < 0)
+        {
+          return ERROR;
+        }
+
       session->xfrmode = xfrmode;
     }
 
@@ -580,13 +578,14 @@ int ftpc_xfrabort(FAR struct ftpc_session_s *session, FAR FILE *stream)
   fds.events = POLLIN;
   ret        = poll(&fds, 1, 0);
   if (ret > 0)
-  {
-    /* Read data from command channel */
+    {
+      /* Read data from command channel */
 
-    ninfo("Flush cmd channel data\n");
-    while (stream && fread(session->buffer, 1, CONFIG_FTP_BUFSIZE, stream) > 0);
-    return OK;
-  }
+      ninfo("Flush cmd channel data\n");
+      while (stream &&
+             fread(session->buffer, 1, CONFIG_FTP_BUFSIZE, stream) > 0);
+      return OK;
+    }
 
   FTPC_SET_INTERRUPT(session);
 
@@ -602,13 +601,14 @@ int ftpc_xfrabort(FAR struct ftpc_session_s *session, FAR FILE *stream)
 
   /* Read remaining bytes from connection */
 
-  while (stream && fread(session->buffer, 1, CONFIG_FTP_BUFSIZE, stream) > 0);
+  while (stream &&
+         fread(session->buffer, 1, CONFIG_FTP_BUFSIZE, stream) > 0);
 
   /* Get the ABORt reply */
 
   fptc_getreply(session);
 
-  /* Expected replys are: "226 Closing data connection" or
+  /* Expected replies are: "226 Closing data connection" or
    * "426 Connection closed; transfer aborted"
    */
 
@@ -622,14 +622,14 @@ int ftpc_xfrabort(FAR struct ftpc_session_s *session, FAR FILE *stream)
 
       fptc_getreply(session);
 
-     /* Expected replys are:  or "225 Data connection open; no transfer in progress"
-      * "226 Closing data connection"
-      */
+      /* Expected replies are:  "226 Closing data connection" or
+       * "225 Data connection open; no transfer in progress"
+       */
 
-     if (session->code != 226 && session->code != 225)
-       {
-         ninfo("Expected 225 or 226 reply\n");
-       }
+      if (session->code != 226 && session->code != 225)
+        {
+          ninfo("Expected 225 or 226 reply\n");
+        }
     }
 
   return ERROR;
@@ -647,12 +647,12 @@ int ftpc_xfrabort(FAR struct ftpc_session_s *session, FAR FILE *stream)
  *
  ****************************************************************************/
 
-void ftpc_timeout(int argc, uint32_t arg1, ...)
+void ftpc_timeout(wdparm_t arg)
 {
-  FAR struct ftpc_session_s *session = (FAR struct ftpc_session_s *)arg1;
+  FAR struct ftpc_session_s *session = (FAR struct ftpc_session_s *)arg;
 
   nerr("ERROR: Timeout!\n");
-  DEBUGASSERT(argc == 1 && session);
+  DEBUGASSERT(session);
   kill(session->pid, CONFIG_FTP_SIGNAL);
 }
 
@@ -689,5 +689,3 @@ FAR char *ftpc_abslpath(FAR struct ftpc_session_s *session,
   ninfo("%s -> %s\n", relpath, abslpath);
   return abslpath;
 }
-
-

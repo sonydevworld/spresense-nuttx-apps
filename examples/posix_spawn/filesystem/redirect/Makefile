@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 BIN = redirect
 
@@ -41,7 +41,7 @@ SRCS = $(BIN).c
 OBJS = $(SRCS:.c=.o)
 
 all: $(BIN)
-.PHONY: clean install
+.PHONY: all clean install
 
 $(OBJS): %.o: %.c
 	@echo "CC: $<"
@@ -51,12 +51,13 @@ $(BIN): $(OBJS)
 	@echo "LD: $<"
 	$(Q) $(LD) $(LDELFFLAGS) -o $@ $^
 
+$(ROMFS_DIR)/$(BIN): $(BIN)
+	$(Q) mkdir -p $(ROMFS_DIR)
+	$(Q) install -m 0755 $(BIN) $(ROMFS_DIR)/$(BIN)
+
+install: $(ROMFS_DIR)/$(BIN)
+
 clean:
 	$(call DELFILE, $(BIN))
 	$(call DELFILE, *.dSYM)
 	$(call CLEAN)
-
-install:
-
-	$(Q) mkdir -p $(ROMFS_DIR)
-	$(Q) install -m 0755 $(BIN) $(ROMFS_DIR)/$(BIN)

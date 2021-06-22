@@ -52,6 +52,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Method access macros */
 
 #define nsh_clone(v)           (v)->clone(v)
@@ -70,14 +71,15 @@
 # define nsh_output            vtbl->output
 #endif
 
-/* Size of info to be saved in call to nsh_redirect */
-/* See struct serialsave_s in nsh_console.c */
+/* Size of info to be saved in call to nsh_redirect
+ * See struct serialsave_s in nsh_console.c
+ */
 
 #define SAVE_SIZE (2 * sizeof(int) + 2 * sizeof(FILE*))
 
 /* Are we using the NuttX console for I/O?  Or some other character device? */
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 #  ifdef CONFIG_NSH_ALTCONDEV
 
 #    if !defined(CONFIG_NSH_ALTSTDIN) && !defined(CONFIG_NSH_ALTSTDOUT) && \
@@ -107,6 +109,7 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* This describes a generic console front-end */
 
 struct nsh_vtbl_s
@@ -129,10 +132,10 @@ struct nsh_vtbl_s
   FAR char *(*linebuffer)(FAR struct nsh_vtbl_s *vtbl);
   void (*redirect)(FAR struct nsh_vtbl_s *vtbl, int fd, FAR uint8_t *save);
   void (*undirect)(FAR struct nsh_vtbl_s *vtbl, FAR uint8_t *save);
-  void (*exit)(FAR struct nsh_vtbl_s *vtbl, int exitstatus) noreturn_function;
+  void (*exit)(FAR struct nsh_vtbl_s *vtbl, int status) noreturn_function;
 
 #ifdef NSH_HAVE_IOBUFFER
-/* Common buffer for file I/O. */
+  /* Common buffer for file I/O. */
 
   char iobuffer[IOBUFFERSIZE];
 #endif
@@ -154,7 +157,7 @@ struct console_stdio_s
 
   /* NSH input/output streams */
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 #ifdef CONFIG_NSH_ALTCONDEV
   int    cn_confd;     /* Console I/O file descriptor */
 #endif

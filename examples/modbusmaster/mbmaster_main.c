@@ -50,6 +50,10 @@
 
 /* modbus master port */
 
+#ifndef CONFIG_SERIAL_TERMIOS
+#  error "CONFIG_SERIAL_TERMIOS is needed by modbus example"
+#endif
+
 #ifdef CONFIG_EXAMPLES_MODBUSMASTER_PORT
 #  define MBMASTER_PORT CONFIG_EXAMPLES_MODBUSMASTER_PORT
 #else
@@ -169,11 +173,11 @@ static inline void mbmaster_deinitialize(void)
 {
   /* Disable modbus stack */
 
-  (void)eMBMasterDisable();
+  eMBMasterDisable();
 
   /* Release hardware resources */
 
-  (void)eMBMasterClose();
+  eMBMasterClose();
 }
 
 /****************************************************************************

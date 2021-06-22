@@ -78,7 +78,7 @@ namespace Twm4Nx
 
   struct SWindow
   {
-    FAR struct SWindow *flink;             /**< Foward link tonext window */
+    FAR struct SWindow *flink;             /**< Forward link tonext window */
     FAR struct SWindow *blink;             /**< Backward link to previous window */
     FAR struct SWindowEntry *wentry;       /**< Icon manager list entry (for list removal) */
     FAR CWindow *cwin;                     /**< Window object payload */
@@ -120,7 +120,7 @@ namespace Twm4Nx
       /**
        * There is no custom event handler.  We use the common event handler.
        *
-       * @return.  null is always returned in this impementation.
+       * @return.  null is always returned in this implementation.
        */
 
       inline FAR CTwm4NxEvent *getEventHandler(void)
@@ -309,4 +309,4 @@ namespace Twm4Nx
   };
 }
 
-#endif  // __APPS_INCLUDE_GRAPHICS_TWM4NX_CWINDOWFACTORY_HXX
+#endif // __APPS_INCLUDE_GRAPHICS_TWM4NX_CWINDOWFACTORY_HXX

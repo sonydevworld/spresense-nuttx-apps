@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Basic TCP networking test
 
@@ -94,10 +94,10 @@ ifneq ($(CONFIG_EXAMPLES_NETTEST_LOOPBACK),y)
   HOST_SRCS = nettest_host.c
   ifeq ($(CONFIG_EXAMPLES_NETTEST_SERVER),y)
     HOST_SRCS += nettest_client.c
-    HOST_BIN = tcpclient$(EXEEXT)
+    HOST_BIN = tcpclient$(HOSTEXEEXT)
   else
     HOST_SRCS += nettest_server.c
-    HOST_BIN = tcpserver$(EXEEXT)
+    HOST_BIN = tcpserver$(HOSTEXEEXT)
   endif
 
   HOSTOBJEXT ?= hobj
@@ -119,7 +119,9 @@ config.h: $(TOPDIR)/include/nuttx/config.h
 ifneq ($(CONFIG_EXAMPLES_NETTEST_TARGET2),y)
 ifneq ($(CONFIG_EXAMPLES_NETTEST_LOOPBACK),y)
 
-$(HOST_BIN): config.h $(HOST_OBJS)
+$(HOST_OBJS): config.h
+
+$(HOST_BIN): $(HOST_OBJS)
 	@echo "LD:  $@"
 	$(Q) $(HOSTCC) $(HOSTLDFLAGS) $(HOST_OBJS) -o $@
 

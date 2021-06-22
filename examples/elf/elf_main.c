@@ -1,35 +1,20 @@
 /****************************************************************************
  * examples/elf/elf_main.c
  *
- *   Copyright (C) 2012, 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -45,6 +30,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
@@ -54,18 +40,6 @@
 #include <nuttx/symtab.h>
 #include <nuttx/drivers/ramdisk.h>
 #include <nuttx/binfmt/binfmt.h>
-
-#include "platform/cxxinitialize.h"
-
-#if defined(CONFIG_EXAMPLES_ELF_ROMFS)
-#  include "tests/romfs.h"
-#elif defined(CONFIG_EXAMPLES_ELF_CROMFS)
-#  include "tests/cromfs.h"
-#elif !defined(CONFIG_EXAMPLES_ELF_EXTERN)
-#  error "No file system selected"
-#endif
-
-#include "tests/dirlist.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -107,41 +81,28 @@
 
 #  define MOUNTPT      "/mnt/cromfs"
 
-#elif defined(CONFIG_EXAMPLES_ELF_EXTERN)
+#elif defined(CONFIG_EXAMPLES_ELF_EXTERN) && defined(CONFIG_EXAMPLES_ELF_FSMOUNT)
 /* Describe the external file system */
 
 #  define MOUNTPT      "/mnt/" CONFIG_EXAMPLES_ELF_FSTYPE
 
 #else
-#  error "No file system selected"
+#  undef MOUNTPT
 #endif
 
-/* If CONFIG_DEBUG_FEATURES is enabled, use info/err instead of printf so that the
- * output will be synchronous with the debug output.
+/* If CONFIG_DEBUG_FEATURES is enabled, use info/err instead of printf so
+ * that the output will be synchronous with the debug output.
  */
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  ifdef CONFIG_DEBUG_INFO
-#    define message(format, ...)  syslog(LOG_INFO, format, ##__VA_ARGS__)
-#  else
-#    define message(format, ...)  printf(format, ##__VA_ARGS__)
-#  endif
-#  ifdef CONFIG_DEBUG_ERROR
-#    define errmsg(format, ...)   syslog(LOG_ERR, format, ##__VA_ARGS__)
-#  else
-#    define errmsg(format, ...)   fprintf(stderr, format, ##__VA_ARGS__)
-#  endif
+#ifdef CONFIG_DEBUG_INFO
+#  define message               _info
 #else
-#  ifdef CONFIG_DEBUG_INFO
-#    define message               _info
-#  else
-#    define message               printf
-#  endif
-#  ifdef CONFIG_DEBUG_ERROR
-#    define errmsg                _err
-#  else
-#    define errmsg                printf
-#  endif
+#  define message               printf
+#endif
+#ifdef CONFIG_DEBUG_ERROR
+#  define errmsg                _err
+#else
+#  define errmsg                printf
 #endif
 
 /****************************************************************************
@@ -152,7 +113,8 @@ static unsigned int g_mminitial;  /* Initial memory usage */
 static unsigned int g_mmstep;     /* Memory Usage at beginning of test step */
 
 static const char delimiter[] =
-  "****************************************************************************";
+  "**************************************"
+  "**************************************";
 
 #ifndef CONFIG_LIB_ENVPATH
 static char fullpath[128];
@@ -161,6 +123,15 @@ static char fullpath[128];
 /****************************************************************************
  * Symbols from Auto-Generated Code
  ****************************************************************************/
+
+#if defined(CONFIG_EXAMPLES_ELF_ROMFS) || defined(CONFIG_EXAMPLES_ELF_CROMFS)
+extern const unsigned char romfs_img[];
+extern const unsigned int romfs_img_len;
+#elif !defined(CONFIG_EXAMPLES_ELF_EXTERN)
+#  error "No file system selected"
+#endif
+
+extern const char *dirlist[];
 
 extern const struct symtab_s g_elf_exports[];
 extern const int g_elf_nexports;
@@ -179,17 +150,14 @@ static void mm_update(FAR unsigned int *previous, FAR const char *msg)
 
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   mmcurrent = mallinfo();
-#else
-  (void)mallinfo(&mmcurrent);
-#endif
 
   /* Show the change from the previous time */
 
   printf("\nMemory Usage %s:\n", msg);
   printf("  Before: %8u After: %8u Change: %8d\n",
-         *previous, mmcurrent.uordblks, (int)mmcurrent.uordblks - (int)*previous);
+         *previous, mmcurrent.uordblks,
+         (int)mmcurrent.uordblks - (int)*previous);
 
   /* Set up for the next test */
 
@@ -204,11 +172,7 @@ static void mm_initmonitor(void)
 {
   struct mallinfo mmcurrent;
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   mmcurrent = mallinfo();
-#else
-  (void)mallinfo(&mmcurrent);
-#endif
 
   g_mminitial = mmcurrent.uordblks;
   g_mmstep    = mmcurrent.uordblks;
@@ -241,12 +205,6 @@ int main(int argc, FAR char *argv[])
   FAR char *args[1];
   int ret;
   int i;
-
-#if defined(CONFIG_EXAMPLES_ELF_CXXINITIALIZE)
-  /* Call all C++ static constructors */
-
-  up_cxxinitialize();
-#endif
 
   /* Initialize the memory monitor */
 
@@ -283,10 +241,11 @@ int main(int argc, FAR char *argv[])
   message("Mounting ROMFS filesystem at target=%s with source=%s\n",
          MOUNTPT, CONFIG_EXAMPLES_ELF_DEVPATH);
 
-  ret = mount(CONFIG_EXAMPLES_ELF_DEVPATH, MOUNTPT, "romfs", MS_RDONLY, NULL);
+  ret = mount(CONFIG_EXAMPLES_ELF_DEVPATH, MOUNTPT, "romfs",
+              MS_RDONLY, NULL);
   if (ret < 0)
     {
-      errmsg("ERROR: mount(%s,%s,romfs) failed: %s\n",
+      errmsg("ERROR: mount(%s,%s,romfs) failed: %d\n",
              CONFIG_EXAMPLES_ELF_DEVPATH, MOUNTPT, errno);
     }
 
@@ -345,7 +304,7 @@ int main(int argc, FAR char *argv[])
               CONFIG_EXAMPLES_ELF_FSTYPE, MS_RDONLY, NULL);
   if (ret < 0)
     {
-      errmsg("ERROR: mount(%s, %s, %s) failed: %d\n",\
+      errmsg("ERROR: mount(%s, %s, %s) failed: %d\n",
              CONFIG_EXAMPLES_ELF_DEVPATH, CONFIG_EXAMPLES_ELF_FSTYPE,
              MOUNTPT, errno);
     }
@@ -356,13 +315,12 @@ int main(int argc, FAR char *argv[])
 
   mm_update(&g_mmstep, "after mount");
 
-#if defined(CONFIG_LIB_ENVPATH) && !defined(CONFIG_PATH_INITIAL)
-  /* Does the system support the PATH variable?  Has the PATH variable
-   * already been set?  If YES and NO, then set the PATH variable to
-   * the ROMFS mountpoint.
+#if defined(CONFIG_LIB_ENVPATH) && defined(MOUNTPT)
+  /* Does the system support the PATH variable?
+   * If YES, then set the PATH variable to the ROMFS mountpoint.
    */
 
-  (void)setenv("PATH", MOUNTPT, 1);
+  setenv("PATH", MOUNTPT, 1);
 #endif
 
   /* Now exercise every program in the ROMFS file system */

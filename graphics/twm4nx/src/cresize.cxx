@@ -119,7 +119,7 @@ CResize::~CResize(void)
 
   if (m_eventq != (mqd_t)-1)
     {
-      (void)mq_close(m_eventq);
+      mq_close(m_eventq);
       m_eventq = (mqd_t)-1;
     }
 
@@ -438,7 +438,7 @@ void CResize::updateSizeLabel(FAR struct nxgl_size_s &windowSize)
     }
 
   FAR char *str;
-  (void)asprintf(&str, " %4d x %-4d ", windowSize.w, windowSize.h);
+  asprintf(&str, " %4d x %-4d ", windowSize.w, windowSize.h);
   if (str == (FAR char *)0)
     {
       twmerr("ERROR: Failed to get size string\n");
@@ -690,7 +690,7 @@ bool CResize::updateSize(FAR struct SEventMsg *eventmsg)
 
 bool CResize::pauseResize(FAR struct SEventMsg *eventmsg)
 {
-  // m_paused should have already been set asychronously
+  // m_paused should have already been set asynchronously
 
   bool success = false;
   if (m_paused)

@@ -42,7 +42,6 @@
 #include <sys/boardctl.h>
 
 #include "system/readline.h"
-#include "netutils/netinit.h"
 #include "nshlib/nshlib.h"
 
 #include "nsh.h"
@@ -85,12 +84,12 @@ void nsh_initialize(void)
 #if defined(CONFIG_NSH_READLINE) && defined(CONFIG_READLINE_TABCOMPLETION)
   /* Configure the NSH prompt */
 
-  (void)readline_prompt(g_nshprompt);
+  readline_prompt(g_nshprompt);
 
 #ifdef CONFIG_READLINE_HAVE_EXTMATCH
   /* Set up for tab completion on NSH commands */
 
-  (void)readline_extmatch(&g_nsh_extmatch);
+  readline_extmatch(&g_nsh_extmatch);
 #endif
 #endif
 
@@ -101,12 +100,6 @@ void nsh_initialize(void)
 #ifdef CONFIG_NSH_ARCHINIT
   /* Perform architecture-specific initialization (if configured) */
 
-  (void)boardctl(BOARDIOC_INIT, 0);
-#endif
-
-#ifdef CONFIG_NSH_NETINIT
-  /* Bring up the network */
-
-  (void)netinit_bringup();
+  boardctl(BOARDIOC_INIT, 0);
 #endif
 }

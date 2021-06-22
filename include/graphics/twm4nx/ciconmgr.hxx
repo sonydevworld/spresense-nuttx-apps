@@ -203,7 +203,7 @@ namespace Twm4Nx
       /**
        * There is no custom event handler.  We use the common event handler.
        *
-       * @return.  null is always returned in this impementation.
+       * @return.  null is always returned in this implementation.
        */
 
       inline FAR CTwm4NxEvent *getEventHandler(void)
@@ -241,7 +241,7 @@ namespace Twm4Nx
       ~CIconMgr(void);
 
       /**
-       * Create and initialize the icon manager window. 
+       * Create and initialize the icon manager window.
        *
        * @param name  The prefix for this icon manager name
        * @return True on success
@@ -336,4 +336,4 @@ namespace Twm4Nx
 // Public Function Prototypes
 /////////////////////////////////////////////////////////////////////////////
 
-#endif  // __APPS_INCLUDE_GRAPHICS_TWM4NX_CICONMGR_HXX
+#endif // __APPS_INCLUDE_GRAPHICS_TWM4NX_CICONMGR_HXX

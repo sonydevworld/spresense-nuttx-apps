@@ -56,12 +56,17 @@
 
 static void show_usage(FAR const char *progname)
 {
-  fprintf(stderr, "USAGE: %s [-w <signo>] [-o <value>] <driver-path>\n", progname);
+  fprintf(stderr, "USAGE: %s [-w <signo>] [-o <value>] <driver-path>\n",
+          progname);
   fprintf(stderr, "       %s -h\n", progname);
   fprintf(stderr, "Where:\n");
-  fprintf(stderr, "\t<driver-path>: The full path to the GPIO pin driver.\n");
-  fprintf(stderr, "\t-w <signo>: Wait for an signal if this is an interrupt pin.\n");
-  fprintf(stderr, "\t-o <value>:  Write this value (0 or 1) if this is an output pin.\n");
+  fprintf(stderr, "\t<driver-path>: The full path to the GPIO pin "
+          "driver.\n");
+  fprintf(stderr,
+          "\t-w <signo>: Wait for an signal if this is an interrupt pin.\n");
+  fprintf(stderr,
+          "\t-o <value>:  Write this value (0 or 1) if this is an output "
+          "pin.\n");
   fprintf(stderr, "\t-h: Print this usage information and exit.\n");
 }
 
@@ -176,7 +181,8 @@ int main(int argc, FAR char *argv[])
   if (ret < 0)
     {
       int errcode = errno;
-      fprintf(stderr, "ERROR: Failed to read pintype from %s: %d\n", devpath, errcode);
+      fprintf(stderr, "ERROR: Failed to read pintype from %s: %d\n",
+              devpath, errcode);
       close(fd);
       return EXIT_FAILURE;
     }
@@ -187,7 +193,8 @@ int main(int argc, FAR char *argv[])
   if (ret < 0)
     {
       int errcode = errno;
-      fprintf(stderr, "ERROR: Failed to read value from %s: %d\n", devpath, errcode);
+      fprintf(stderr, "ERROR: Failed to read value from %s: %d\n",
+              devpath, errcode);
       close(fd);
       return EXIT_FAILURE;
     }
@@ -198,11 +205,27 @@ int main(int argc, FAR char *argv[])
     {
       case GPIO_INPUT_PIN:
         {
-          printf("  Input pin:     Value=%u\n", (unsigned int)invalue);
+          printf("  Input pin:     Value=%u\n",
+                 (unsigned int)invalue);
+        }
+        break;
+
+      case GPIO_INPUT_PIN_PULLUP:
+        {
+          printf("  Input pin (pull-up):     Value=%u\n",
+                 (unsigned int)invalue);
+        }
+        break;
+
+      case GPIO_INPUT_PIN_PULLDOWN:
+        {
+          printf("  Input pin (pull-down):     Value=%u\n",
+                 (unsigned int)invalue);
         }
         break;
 
       case GPIO_OUTPUT_PIN:
+      case GPIO_OUTPUT_PIN_OPENDRAIN:
         {
           printf("  Output pin:    Value=%u\n", (unsigned int)invalue);
 
@@ -216,19 +239,22 @@ int main(int argc, FAR char *argv[])
               if (ret < 0)
                {
                  int errcode = errno;
-                 fprintf(stderr, "ERROR: Failed to write value %u from %s: %d\n",
-                         devpath, (unsigned int)outvalue, errcode);
+                 fprintf(stderr,
+                         "ERROR: Failed to write value %u from %s: %d\n",
+                         (unsigned int)outvalue, devpath, errcode);
                  close(fd);
                  return EXIT_FAILURE;
                }
 
               /* Re-read the pin value */
 
-              ret = ioctl(fd, GPIOC_READ, (unsigned long)((uintptr_t)&invalue));
+              ret = ioctl(fd, GPIOC_READ,
+                          (unsigned long)((uintptr_t)&invalue));
               if (ret < 0)
                 {
                   int errcode = errno;
-                  fprintf(stderr, "ERROR: Failed to re-read value from %s: %d\n",
+                  fprintf(stderr,
+                          "ERROR: Failed to re-read value from %s: %d\n",
                           devpath, errcode);
                   close(fd);
                   return EXIT_FAILURE;
@@ -259,7 +285,8 @@ int main(int argc, FAR char *argv[])
                 {
                   int errcode = errno;
 
-                  fprintf(stderr, "ERROR: Failed to setup for signal from %s: %d\n",
+                  fprintf(stderr,
+                          "ERROR: Failed to setup for signal from %s: %d\n",
                           devpath, errcode);
 
                   close(fd);
@@ -268,14 +295,14 @@ int main(int argc, FAR char *argv[])
 
               /* Wait up to 5 seconds for the signal */
 
-              (void)sigemptyset(&set);
-              (void)sigaddset(&set, signo);
+              sigemptyset(&set);
+              sigaddset(&set, signo);
 
               ts.tv_sec  = 5;
               ts.tv_nsec = 0;
 
               ret = sigtimedwait(&set, NULL, &ts);
-              (void)ioctl(fd, GPIOC_UNREGISTER, 0);
+              ioctl(fd, GPIOC_UNREGISTER, 0);
 
               if (ret < 0)
                 {
@@ -288,8 +315,8 @@ int main(int argc, FAR char *argv[])
                     }
                   else
                     {
-                      fprintf(stderr, "ERROR: Failed to wait signal %d from %s: %d\n",
-                              signo, devpath, errcode);
+                      fprintf(stderr, "ERROR: Failed to wait signal %d "
+                              "from %s: %d\n", signo, devpath, errcode);
                       close(fd);
                       return EXIT_FAILURE;
                     }
@@ -297,11 +324,13 @@ int main(int argc, FAR char *argv[])
 
               /* Re-read the pin value */
 
-              ret = ioctl(fd, GPIOC_READ, (unsigned long)((uintptr_t)&invalue));
+              ret = ioctl(fd, GPIOC_READ,
+                          (unsigned long)((uintptr_t)&invalue));
               if (ret < 0)
                 {
                   int errcode = errno;
-                  fprintf(stderr, "ERROR: Failed to re-read value from %s: %d\n",
+                  fprintf(stderr,
+                          "ERROR: Failed to re-read value from %s: %d\n",
                           devpath, errcode);
                   close(fd);
                   return EXIT_FAILURE;

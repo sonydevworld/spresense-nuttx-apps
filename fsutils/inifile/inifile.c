@@ -60,32 +60,22 @@
 #  define CONFIG_FSUTILS_INIFILE_DEBUGLEVEL 0
 #endif
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 0
-#    define inidbg(format, ...) \
-       printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
-#  else
-#    define inidbg(x...)
-#  endif
-
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 1
-#    define iniinfo(format, ...) \
-       printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
-#  else
-#    define iniinfo(x...)
-#  endif
+#if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL < 1
+#  define inidbg _none
+#elif defined(CONFIG_CPP_HAVE_VARARGS)
+#  define inidbg(format, ...) \
+     printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 #else
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 0
-#    define inidbg printf
-#  else
-#    define inidbg (void)
-#  endif
+#  define inidbg printf
+#endif
 
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 1
-#    define iniinfo printf
-#  else
-#    define iniinfo (void)
-#  endif
+#if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL < 2
+#  define iniinfo _none
+#elif defined(CONFIG_CPP_HAVE_VARARGS)
+#  define iniinfo(format, ...) \
+     printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+#else
+#  define iniinfo printf
 #endif
 
 /****************************************************************************
@@ -100,13 +90,13 @@ struct inifile_var_s
   FAR char *value;
 };
 
-/* This structure describes the state of one instance of the INI file parser */
+/* A structure describes the state of one instance of the INI file parser */
 
 struct inifile_state_s
 {
   FILE *instream;
   int   nextch;
-  char  line[CONFIG_FSUTILS_INIFILE_MAXLINE+1];
+  char  line[CONFIG_FSUTILS_INIFILE_MAXLINE + 1];
 };
 
 /****************************************************************************
@@ -146,7 +136,7 @@ static FAR char *
 
 static bool inifile_next_line(FAR struct inifile_state_s *priv)
 {
-  /* Search ahead for the end of line mark (or possibly the end of file mark) */
+  /* Search ahead for the end of line mark (possibly the end of file mark) */
 
   while ((priv->nextch != '\n') && (priv->nextch != EOF))
     {
@@ -185,7 +175,7 @@ static int inifile_read_line(FAR struct inifile_state_s *priv)
   while ((nbytes < CONFIG_FSUTILS_INIFILE_MAXLINE) &&
          (priv->nextch != EOF) &&
          (priv->nextch != '\n'))
-   {
+    {
       /* Always ignore carriage returns */
 
       if (priv->nextch != '\r')
@@ -217,7 +207,7 @@ static int inifile_read_line(FAR struct inifile_state_s *priv)
 
   if (priv->nextch != EOF)
     {
-      (void)inifile_next_line(priv);
+      inifile_next_line(priv);
     }
 
   /* And return the number of bytes read (excluding the NUL terminator and
@@ -242,7 +232,8 @@ static int inifile_read_noncomment_line(FAR struct inifile_state_s *priv)
 
   /* Read until either a (1) no further lines are found in
    * the file, or (2) a line that does not begin with a semi-colon
-   * is found */
+   * is found.
+   */
 
   do nbytes = inifile_read_line(priv);
   while (nbytes > 0 && priv->line[0] == ';');
@@ -314,7 +305,7 @@ static bool inifile_seek_to_section(FAR struct inifile_state_s *priv,
                   *sectend = '\0';
                 }
 
-              /* Then compare the section name to the one we are looking for */
+              /* Then compare the section name to what we are looking for */
 
               if (strcasecmp(&priv->line[1], section) == 0)
                 {
@@ -354,7 +345,7 @@ static bool inifile_read_variable(FAR struct inifile_state_s *priv,
    * the section is found, or (3) a valid variable assignment is found.
    */
 
-  for (;;)
+  for (; ; )
     {
       /* Read the next line in the buffer */
 
@@ -365,9 +356,9 @@ static bool inifile_read_variable(FAR struct inifile_state_s *priv,
        */
 
       if (!nbytes || priv->line[0] == '[')
-       {
-         return false;
-       }
+        {
+          return false;
+        }
 
       /* Search for the '=' delimiter.  NOTE  the line is guaranteed to
        * be NULL terminated by inifile_read_noncomment_line().
@@ -389,7 +380,7 @@ static bool inifile_read_variable(FAR struct inifile_state_s *priv,
            * a NULL string
            */
 
-          varinfo->variable = (char*)priv->line;
+          varinfo->variable = (FAR char *)priv->line;
           varinfo->value    = (ptr + 1);
           return true;
         }
@@ -418,7 +409,7 @@ static FAR char *
 
   iniinfo("variable=\"%s\"\n", variable);
 
-  for (;;)
+  for (; ; )
     {
       /* Get the next variable from this section. */
 
@@ -527,6 +518,7 @@ INIHANDLE inifile_initialize(FAR const char *inifile_name)
   else
     {
       inidbg("ERROR: Could not open \"%s\"\n", inifile_name);
+      free(priv);
       return (INIHANDLE)NULL;
     }
 }

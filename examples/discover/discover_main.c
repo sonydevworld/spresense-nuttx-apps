@@ -116,18 +116,18 @@ int main(int argc, FAR char *argv[])
 #ifdef CONFIG_EXAMPLES_DISCOVER_DHCPC
   addr.s_addr = 0;
 #else
-  addr.s_addr = HTONL(CONFIG_EXAMPLES_DISCOVER_IPADDR);
+  addr.s_addr = htonl(CONFIG_EXAMPLES_DISCOVER_IPADDR);
 #endif
   netlib_set_ipv4addr("eth0", &addr);
 
   /* Set up the default router address */
 
-  addr.s_addr = HTONL(CONFIG_EXAMPLES_DISCOVER_DRIPADDR);
+  addr.s_addr = htonl(CONFIG_EXAMPLES_DISCOVER_DRIPADDR);
   netlib_set_dripv4addr("eth0", &addr);
 
   /* Setup the subnet mask */
 
-  addr.s_addr = HTONL(CONFIG_EXAMPLES_DISCOVER_NETMASK);
+  addr.s_addr = htonl(CONFIG_EXAMPLES_DISCOVER_NETMASK);
   netlib_set_ipv4netmask("eth0", &addr);
 
   /* New versions of netlib_set_ipvXaddr will not bring the network up,
@@ -153,7 +153,7 @@ int main(int argc, FAR char *argv[])
   if (handle)
     {
       struct dhcpc_state ds;
-      (void)dhcpc_request(handle, &ds);
+      dhcpc_request(handle, &ds);
       netlib_set_ipv4addr("eth0", &ds.ipaddr);
 
       if (ds.netmask.s_addr != 0)
@@ -186,4 +186,3 @@ int main(int argc, FAR char *argv[])
 
   return OK;
 }
-

@@ -55,6 +55,7 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
+
 /* Make sure that support for MTD partitions is enabled */
 
 #ifndef CONFIG_MTD_PARTITION
@@ -75,7 +76,9 @@
 #    error "CONFIG_RAMMTD is required without CONFIG_EXAMPLES_MTDPART_ARCHINIT"
 #  endif
 
-/* This must exactly match the default configuration in drivers/mtd/rammtd.c */
+/* This must exactly match the default configuration in
+ * drivers/mtd/rammtd.c
+ */
 
 #  ifndef CONFIG_RAMMTD_ERASESIZE
 #    define CONFIG_RAMMTD_ERASESIZE 4096
@@ -114,6 +117,7 @@ struct mtdpart_filedesc_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 /* Pre-allocated simulated flash */
 
 #ifndef CONFIG_EXAMPLES_MTDPART_ARCHINIT
@@ -208,7 +212,8 @@ int main(int argc, FAR char *argv[])
 
   /* Get the geometry of the FLASH device */
 
-  ret = master->ioctl(master, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+  ret = master->ioctl(master, MTDIOC_GEOMETRY,
+                      (unsigned long)((uintptr_t)&geo));
   if (ret < 0)
     {
       ferr("ERROR: mtd->ioctl failed: %d\n", ret);
@@ -226,11 +231,13 @@ int main(int argc, FAR char *argv[])
    */
 
   blkpererase = geo.erasesize / geo.blocksize;
-  nblocks     = (geo.neraseblocks / CONFIG_EXAMPLES_MTDPART_NPARTITIONS) * blkpererase;
+  nblocks     = (geo.neraseblocks / CONFIG_EXAMPLES_MTDPART_NPARTITIONS) *
+                blkpererase;
   partsize    = nblocks * geo.blocksize;
 
   printf("  No. partitions: %u\n", CONFIG_EXAMPLES_MTDPART_NPARTITIONS);
-  printf("  Partition size: %lu Blocks (%lu bytes)\n", nblocks, partsize);
+  printf("  Partition size: %ju Blocks (%lu bytes)\n", (uintmax_t)nblocks,
+         partsize);
 
   /* Now create MTD FLASH partitions */
 
@@ -254,7 +261,9 @@ int main(int argc, FAR char *argv[])
           exit(4);
         }
 
-      /* Initialize to provide an FTL block driver on the MTD FLASH interface */
+      /* Initialize to provide an FTL block driver on the MTD FLASH
+       * interface
+       */
 
       snprintf(blockname, 32, "/dev/mtdblock%d", i);
       snprintf(charname, 32, "/dev/mtd%d", i);
@@ -400,24 +409,24 @@ int main(int argc, FAR char *argv[])
            * indication.
            */
 
-         else if (nbytes == 0)
-           {
-              printf("ERROR: Unexpected end of file on %s\n", charname);
-              fflush(stdout);
-              exit(15);
-           }
-
-         /* This is not expected at all */
-
-         else if (nbytes != geo.blocksize)
-           {
-              printf("ERROR: Short read from %s failed: %lu\n",
-                     charname, (unsigned long)nbytes);
-              fflush(stdout);
-              exit(16);
+          else if (nbytes == 0)
+            {
+               printf("ERROR: Unexpected end of file on %s\n", charname);
+               fflush(stdout);
+               exit(15);
             }
 
-          /* Verfy the offsets in the block */
+          /* This is not expected at all */
+
+          else if (nbytes != geo.blocksize)
+            {
+               printf("ERROR: Short read from %s failed: %lu\n",
+                      charname, (unsigned long)nbytes);
+               fflush(stdout);
+               exit(16);
+            }
+
+          /* Verify the offsets in the block */
 
           for (k = 0; k < geo.blocksize / sizeof(uint32_t); k++)
             {
@@ -475,7 +484,7 @@ int main(int argc, FAR char *argv[])
       nbytes = read(fd, buffer, geo.blocksize);
       if (nbytes != 0)
         {
-          printf("ERROR: Expected end-of-file from %s failed: %d %d\n",
+          printf("ERROR: Expected end-of-file from %s failed: %zd %d\n",
                  charname, nbytes, errno);
           fflush(stdout);
           exit(22);
@@ -488,7 +497,7 @@ int main(int argc, FAR char *argv[])
    * should on the device.
    */
 
-  printf("Verfying media:\n");
+  printf("Verifying media:\n");
 
   fd = open("/dev/mtd0", O_RDONLY);
   if (fd < 0)
@@ -526,7 +535,7 @@ int main(int argc, FAR char *argv[])
           exit(26);
         }
 
-      /* Verfy the values in the block */
+      /* Verify the values in the block */
 
       for (k = 0; k < geo.blocksize / sizeof(uint32_t); k++)
         {
@@ -550,4 +559,3 @@ int main(int argc, FAR char *argv[])
   fflush(stdout);
   return 0;
 }
-

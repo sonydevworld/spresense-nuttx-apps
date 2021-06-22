@@ -204,7 +204,7 @@ int nsh_removevar(FAR struct console_stdio_s *pstate, FAR char *pair)
  * Name: nsh_getvar
  ****************************************************************************/
 
-FAR char *nsh_getvar(FAR struct nsh_vtbl_s *vtbl,FAR const char *name)
+FAR char *nsh_getvar(FAR struct nsh_vtbl_s *vtbl, FAR const char *name)
 {
   FAR struct console_stdio_s *pstate = (FAR struct console_stdio_s *)vtbl;
   FAR char *pair;
@@ -255,11 +255,11 @@ int nsh_setvar(FAR struct nsh_vtbl_s *vtbl, FAR const char *name,
        * will be added again below.
        */
 
-      (void)nsh_removevar(pstate, pair);
+      nsh_removevar(pstate, pair);
     }
 
-  /* Get the size of the new name=value string.  The +2 is for the '=' and for
-   * null terminator
+  /* Get the size of the new name=value string.  The +2 is for the '=' and
+   * for null terminator
    */
 
   varlen = strlen(name) + strlen(value) + 2;
@@ -322,7 +322,7 @@ int nsh_unsetvar(FAR struct nsh_vtbl_s *vtbl, FAR const char *name)
     {
       /* It does!  Remove the name=value pair from the NSH variables. */
 
-      (void)nsh_removevar(pstate, pair);
+      nsh_removevar(pstate, pair);
 
       /* Reallocate the new NSH variable buffer */
 

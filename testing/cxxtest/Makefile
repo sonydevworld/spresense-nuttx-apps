@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # CXX test program
 
@@ -43,7 +43,7 @@ MAINSRC = cxxtest_main.cxx
 
 PROGNAME = cxxtest
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 4096
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_TESTING_CXXTEST)
 
 include $(APPDIR)/Application.mk

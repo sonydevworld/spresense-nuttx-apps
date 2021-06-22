@@ -33,16 +33,21 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # I2C tool
 CSRCS   = i2c_bus.c i2c_common.c i2c_dev.c i2c_get.c i2c_set.c i2c_verf.c
 CSRCS  += i2c_devif.c i2c_dump.c i2c_hexdump.c
+
+ifeq ($(CONFIG_I2C_RESET),y)
+CSRCS += i2c_reset.c
+endif
+
 MAINSRC = i2c_main.c
 
 PROGNAME = i2c
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_SYSTEM_I2CTOOL)
 
 include $(APPDIR)/Application.mk

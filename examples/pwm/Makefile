@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # PWM Example.
 
@@ -43,7 +43,7 @@ MAINSRC = pwm_main.c
 
 PROGNAME = pwm
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_PWM)
 
 include $(APPDIR)/Application.mk

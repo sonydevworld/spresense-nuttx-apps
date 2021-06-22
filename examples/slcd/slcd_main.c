@@ -61,6 +61,7 @@
 /****************************************************************************
  * Private Typs
  ****************************************************************************/
+
 /* All state information for this test is kept within the following structure
  * in order create a namespace and to minimize the possibility of name
  * collisions.
@@ -101,7 +102,8 @@ static const char g_slcdhello[] = "Hello";
  *
  ****************************************************************************/
 
-void slcd_dumpbuffer(FAR const char *msg, FAR const uint8_t *buffer, unsigned int buflen)
+void slcd_dumpbuffer(FAR const char *msg, FAR const uint8_t *buffer,
+                     unsigned int buflen)
 {
   int i;
   int j;
@@ -154,7 +156,7 @@ void slcd_dumpbuffer(FAR const char *msg, FAR const uint8_t *buffer, unsigned in
         }
 
       printf("\n");
-   }
+    }
 }
 
 /****************************************************************************
@@ -221,7 +223,7 @@ static void slcd_putc(FAR struct lib_outstream_s *stream, int ch)
 
   if (stream->nput >= CONFIG_EXAMPLES_SLCD_BUFSIZE)
     {
-      (void)slcd_flush(stream);
+      slcd_flush(stream);
     }
 }
 
@@ -267,7 +269,7 @@ int main(int argc, FAR char *argv[])
   printf("Opening %s for read/write access\n", CONFIG_EXAMPLES_SLCD_DEVNAME);
 
   fd = open(CONFIG_EXAMPLES_SLCD_DEVNAME, O_RDWR);
-  if (priv->fd < 0)
+  if (fd < 0)
     {
       printf("Failed to open %s: %d\n", CONFIG_EXAMPLES_SLCD_DEVNAME, errno);
       goto errout;
@@ -286,6 +288,7 @@ int main(int argc, FAR char *argv[])
 #ifdef CONFIG_STDIO_LINEBUFFER
       priv->stream.flush = slcd_flush;
 #endif
+      priv->fd = fd;
 
       /* Get the attributes of the SCLD device */
 
@@ -358,8 +361,9 @@ int main(int argc, FAR char *argv[])
   return 0;
 
 errout_with_fd:
-   close(priv->fd);
+  close(priv->fd);
+
 errout:
-   priv->initialized = false;
-   exit(EXIT_FAILURE);
+  priv->initialized = false;
+  exit(EXIT_FAILURE);
 }

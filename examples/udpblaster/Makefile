@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Basic TCP networking test
 
@@ -50,7 +50,7 @@ HOST_BIN = host
 
 # NET test built-in application info
 
-PROGNAME = $(CONFIG_UDPBLASTER_PROGNAME)
+PROGNAME = $(CONFIG_EXAMPLES_UDPBLASTER_PROGNAME)
 PRIORITY = $(CONFIG_EXAMPLES_UDPBLASTER_PRIORITY)
 STACKSIZE = $(CONFIG_EXAMPLES_UDPBLASTER_STACKSIZE)
 
@@ -67,7 +67,9 @@ config.h: $(TOPDIR)/include/nuttx/config.h
 	$(Q) cp $< $@
 
 ifneq ($(CONFIG_EXAMPLES_UDPBLASTER_LOOPBACK),y)
-$(HOST_BIN): config.h $(HOST_OBJS)
+$(HOST_OBJS): config.h
+
+$(HOST_BIN): $(HOST_OBJS)
 	@echo "LD:  $@"
 	$(Q) $(HOSTCC) $(HOSTLDFLAGS) $(HOST_OBJS) -o $@
 endif

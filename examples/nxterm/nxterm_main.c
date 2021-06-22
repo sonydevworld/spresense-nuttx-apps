@@ -1,35 +1,20 @@
 /****************************************************************************
  * examples/nxterm/nxterm_main.c
  *
- *   Copyright (C) 2012, 2016-2017, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -63,7 +48,6 @@
 #include <nuttx/nx/nxfonts.h>
 #include <nuttx/nx/nxterm.h>
 
-#include "platform/cxxinitialize.h"
 #include "nshlib/nshlib.h"
 
 #include "nxterm_internal.h"
@@ -76,16 +60,6 @@
 
 #ifndef CONFIG_NET
 #  undef CONFIG_NSH_TELNET
-#endif
-
-/* If Telnet is used and both IPv6 and IPv4 are enabled, then we need to
- * pick one.
- */
-
-#ifdef CONFIG_NET_IPv6
-#  define ADDR_FAMILY AF_INET6
-#else
-#  define ADDR_FAMILY AF_INET
 #endif
 
 /****************************************************************************
@@ -127,7 +101,8 @@ static int nxterm_initialize(void)
   ret = boardctl(BOARDIOC_NX_START, 0);
   if (ret < 0)
     {
-      printf("nxterm_initialize: Failed to start the NX server: %d\n", errno);
+      printf("nxterm_initialize: Failed to start the NX server: %d\n",
+             errno);
       return ERROR;
     }
 
@@ -141,53 +116,54 @@ static int nxterm_initialize(void)
 #ifdef CONFIG_VNCSERVER
       /* Setup the VNC server to support keyboard/mouse inputs */
 
-       struct boardioc_vncstart_s vnc =
-       {
-         0, g_nxterm_vars.hnx
-       };
+      struct boardioc_vncstart_s vnc =
+      {
+        0, g_nxterm_vars.hnx
+      };
 
-       ret = boardctl(BOARDIOC_VNC_START, (uintptr_t)&vnc);
-       if (ret < 0)
-         {
-           printf("boardctl(BOARDIOC_VNC_START) failed: %d\n", ret);
-           nx_disconnect(g_nxterm_vars.hnx);
-           return ERROR;
-         }
+      ret = boardctl(BOARDIOC_VNC_START, (uintptr_t)&vnc);
+      if (ret < 0)
+        {
+          printf("boardctl(BOARDIOC_VNC_START) failed: %d\n", ret);
+          nx_disconnect(g_nxterm_vars.hnx);
+          return ERROR;
+        }
 #endif
 
-       /* Start a separate thread to listen for server events.  This is probably
-        * the least efficient way to do this, but it makes this example flow more
-        * smoothly.
-        */
+      /* Start a separate thread to listen for server events.  This is
+       * probably the least efficient way to do this, but it makes this
+       * example flow more smoothly.
+       */
 
-       (void)pthread_attr_init(&attr);
-       param.sched_priority = CONFIG_EXAMPLES_NXTERM_LISTENERPRIO;
-       (void)pthread_attr_setschedparam(&attr, &param);
-       (void)pthread_attr_setstacksize(&attr, CONFIG_EXAMPLES_NXTERM_STACKSIZE);
+      pthread_attr_init(&attr);
+      param.sched_priority = CONFIG_EXAMPLES_NXTERM_LISTENERPRIO;
+      pthread_attr_setschedparam(&attr, &param);
+      pthread_attr_setstacksize(&attr, CONFIG_EXAMPLES_NXTERM_STACKSIZE);
 
-       ret = pthread_create(&thread, &attr, nxterm_listener, NULL);
-       if (ret != 0)
-         {
-            printf("nxterm_initialize: pthread_create failed: %d\n", ret);
-            return ERROR;
-         }
+      ret = pthread_create(&thread, &attr, nxterm_listener, NULL);
+      if (ret != 0)
+        {
+          printf("nxterm_initialize: pthread_create failed: %d\n", ret);
+          return ERROR;
+        }
 
-       /* Don't return until we are connected to the server */
+      /* Don't return until we are connected to the server */
 
-       while (!g_nxterm_vars.connected)
-         {
-           /* Wait for the listener thread to wake us up when we really
-            * are connected.
-            */
+      while (!g_nxterm_vars.connected)
+        {
+          /* Wait for the listener thread to wake us up when we really
+           * are connected.
+           */
 
-           (void)sem_wait(&g_nxterm_vars.eventsem);
-         }
+          sem_wait(&g_nxterm_vars.eventsem);
+        }
     }
   else
     {
       printf("nxterm_initialize: nx_connect failed: %d\n", errno);
       return ERROR;
     }
+
   return OK;
 }
 
@@ -200,14 +176,14 @@ static int nxterm_task(int argc, char **argv)
   /* If the console front end is selected, then run it on this thread */
 
 #ifdef CONFIG_NSH_CONSOLE
-  (void)nsh_consolemain(0, NULL);
+  nsh_consolemain(argc, argv);
 #endif
 
   printf("nxterm_task: Unlinking the NX console device\n");
-  (void)unlink(CONFIG_EXAMPLES_NXTERM_DEVNAME);
+  unlink(CONFIG_EXAMPLES_NXTERM_DEVNAME);
 
   printf("nxterm_task: Close the window\n");
-  (void)nxtk_closewindow(g_nxterm_vars.hwnd);
+  nxtk_closewindow(g_nxterm_vars.hwnd);
 
   /* Disconnect from the server */
 
@@ -233,18 +209,14 @@ int main(int argc, FAR char *argv[])
   int ret;
 
   /* General Initialization *************************************************/
+
   /* Reset all global data */
 
   printf("nxterm_main: Started\n");
   memset(&g_nxterm_vars, 0, sizeof(struct nxterm_state_s));
 
-  /* Call all C++ static constructors */
-
-#if defined(CONFIG_HAVE_CXX) && defined(CONFIG_HAVE_CXXINITIALIZE)
-  up_cxxinitialize();
-#endif
-
   /* NSH Initialization *****************************************************/
+
   /* Initialize the NSH library */
 
   printf("nxterm_main: Initialize NSH\n");
@@ -255,17 +227,19 @@ int main(int argc, FAR char *argv[])
    */
 
 #ifdef CONFIG_NSH_TELNET
-  ret = nsh_telnetstart(ADDR_FAMILY);
+  ret = nsh_telnetstart(AF_UNSPEC);
   if (ret < 0)
     {
-     /* The daemon is NOT running.  Report the error then fail...
-      * either with the serial console up or just exiting.
-      */
+      /* The daemon is NOT running.  Report the error then fail...
+       * either with the serial console up or just exiting.
+       */
 
-     fprintf(stderr, "ERROR: Failed to start TELNET daemon: %d\n", ret);
-   }
+      fprintf(stderr, "ERROR: Failed to start TELNET daemon: %d\n", ret);
+    }
 #endif
+
   /* NX Initialization ******************************************************/
+
   /* Initialize NX */
 
   printf("nxterm_main: Initialize NX\n");
@@ -291,6 +265,7 @@ int main(int argc, FAR char *argv[])
     }
 
   /* Window Configuration ***************************************************/
+
   /* Create a window */
 
   printf("nxterm_main: Create window\n");
@@ -308,7 +283,7 @@ int main(int argc, FAR char *argv[])
 
   while (!g_nxterm_vars.haveres)
     {
-      (void)sem_wait(&g_nxterm_vars.eventsem);
+      sem_wait(&g_nxterm_vars.eventsem);
     }
 
   printf("nxterm_main: Screen resolution (%d,%d)\n",
@@ -316,8 +291,10 @@ int main(int argc, FAR char *argv[])
 
   /* Determine the size and position of the window */
 
-  g_nxterm_vars.wndo.wsize.w = g_nxterm_vars.xres / 2 + g_nxterm_vars.xres / 4;
-  g_nxterm_vars.wndo.wsize.h = g_nxterm_vars.yres / 2 + g_nxterm_vars.yres / 4;
+  g_nxterm_vars.wndo.wsize.w = g_nxterm_vars.xres / 2 +
+                               g_nxterm_vars.xres / 4;
+  g_nxterm_vars.wndo.wsize.h = g_nxterm_vars.yres / 2 +
+                               g_nxterm_vars.yres / 4;
 
   g_nxterm_vars.wpos.x       = g_nxterm_vars.xres / 8;
   g_nxterm_vars.wpos.y       = g_nxterm_vars.yres / 8;
@@ -362,7 +339,8 @@ int main(int argc, FAR char *argv[])
 
   sleep(2);
 
-  /* NxTerm Configuration ************************************************/
+  /* NxTerm Configuration ***************************************************/
+
   /* Use the window to create an NX console */
 
   g_nxterm_vars.wndo.wcolor[0] = CONFIG_EXAMPLES_NXTERM_WCOLOR;
@@ -402,48 +380,48 @@ int main(int argc, FAR char *argv[])
     }
 
   /* Start Console Task *****************************************************/
+
   /* Now re-direct stdout and stderr so that they use the NX console driver.
-   * Note that stdin is retained (file descriptor 0, probably the serial console).
-    */
+   * Note that stdin is retained (file descriptor 0, probably the serial
+   * console).
+   */
 
-   printf("nxterm_main: Starting the console task\n");
-   fflush(stdout);
+  printf("nxterm_main: Starting the console task\n");
 
-  (void)fflush(stdout);
-  (void)fflush(stderr);
+  fflush(stdout);
+  fflush(stderr);
 
-  (void)fclose(stdout);
-  (void)fclose(stderr);
+  dup2(fd, 1);
+  dup2(fd, 2);
 
-  (void)dup2(fd, 1);
-  (void)dup2(fd, 2);
+  /* And we can close our original driver file descriptor */
 
-   /* And we can close our original driver file descriptor */
+  close(fd);
 
-   close(fd);
+  /* And start the console task.  It will inherit stdin, stdout, and stderr
+   * from this task.
+   */
 
-   /* And start the console task.  It will inherit stdin, stdout, and stderr
-    * from this task.
-    */
-
-   g_nxterm_vars.pid = task_create("NxTerm", CONFIG_EXAMPLES_NXTERM_PRIO,
+  g_nxterm_vars.pid = task_create("NxTerm", CONFIG_EXAMPLES_NXTERM_PRIO,
                                   CONFIG_EXAMPLES_NXTERM_STACKSIZE,
                                   nxterm_task, NULL);
-   DEBUGASSERT(g_nxterm_vars.pid > 0);
-   return EXIT_SUCCESS;
+  DEBUGASSERT(g_nxterm_vars.pid > 0);
+  return EXIT_SUCCESS;
 
   /* Error Exits ************************************************************/
 
 errout_with_driver:
-  (void)unlink(CONFIG_EXAMPLES_NXTERM_DEVNAME);
+  unlink(CONFIG_EXAMPLES_NXTERM_DEVNAME);
 
 errout_with_hwnd:
-  (void)nxtk_closewindow(g_nxterm_vars.hwnd);
+  nxtk_closewindow(g_nxterm_vars.hwnd);
 
 errout_with_nx:
+
   /* Disconnect from the server */
 
   nx_disconnect(g_nxterm_vars.hnx);
+
 errout:
   return EXIT_FAILURE;
 }

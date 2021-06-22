@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 ifeq ($(CONFIG_NETUTILS_PING),y)
   CSRCS += icmp_ping.c
@@ -44,5 +44,3 @@ ifeq ($(CONFIG_NETUTILS_PING6),y)
 endif
 
 include $(APPDIR)/Application.mk
-
-

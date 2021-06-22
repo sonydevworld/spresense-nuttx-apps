@@ -33,13 +33,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # ROMFS built-in application info
 
 PROGNAME = romfs
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_ROMFS)
 
 # ROMFS File System Example
@@ -69,5 +69,6 @@ context:: romfs_testdir.h
 distclean::
 	$(call DELFILE, testdir.img)
 	$(call DELFILE, romfs_testdir.h)
+	$(call DELDIR, testdir)
 
 include $(APPDIR)/Application.mk

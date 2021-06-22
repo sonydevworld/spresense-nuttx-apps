@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # relays Example
 
@@ -43,7 +43,7 @@ MAINSRC = relays_main.c
 
 PROGNAME = relays
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 512
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_RELAYS)
 
 include $(APPDIR)/Application.mk

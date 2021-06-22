@@ -39,6 +39,7 @@
 
 #include "config.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
@@ -47,6 +48,10 @@
 #include <netinet/in.h>
 
 #include "udpblaster.h"
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 /****************************************************************************
  * main
@@ -83,14 +88,23 @@ int main(int argc, char **argv, char **envp)
 #else
   target.sin6_family            = AF_INET6;
   target.sin6_port              = HTONS(UDPBLASTER_TARGET_PORTNO);
-  target.sin6_addr.s6_addr16[0] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_1);
-  target.sin6_addr.s6_addr16[1] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_2);
-  target.sin6_addr.s6_addr16[2] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_3);
-  target.sin6_addr.s6_addr16[3] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_4);
-  target.sin6_addr.s6_addr16[4] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_5);
-  target.sin6_addr.s6_addr16[5] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_6);
-  target.sin6_addr.s6_addr16[6] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_7);
-  target.sin6_addr.s6_addr16[7] = HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_8);
+
+  *(uint16_t *)&target.sin6_addr.s6_addr[0] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_1);
+  *(uint16_t *)&target.sin6_addr.s6_addr[2] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_2);
+  *(uint16_t *)&target.sin6_addr.s6_addr[4] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_3);
+  *(uint16_t *)&target.sin6_addr.s6_addr[6] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_4);
+  *(uint16_t *)&target.sin6_addr.s6_addr[8] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_5);
+  *(uint16_t *)&target.sin6_addr.s6_addr[10] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_6);
+  *(uint16_t *)&target.sin6_addr.s6_addr[12] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_7);
+  *(uint16_t *)&target.sin6_addr.s6_addr[14] =
+      HTONS(CONFIG_EXAMPLES_UDPBLASTER_TARGETIPv6_8);
 
   addrlen                       = sizeof(struct sockaddr_in6);
   sockfd                        = socket(PF_INET6, SOCK_DGRAM, 0);
@@ -105,10 +119,13 @@ int main(int argc, char **argv, char **envp)
    * bits/sec     = CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE
    * bytes/sec    = CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE / 8
    * packets/sec  = (bytes/sec) / (bytes/packet)
-   *              = CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE / UDPBLASTER_SENDSIZE / 8
+   *              = CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE /
+   *                UDPBLASTER_SENDSIZE / 8
    * delay        = microseconds/packet
-   *              = (1000000 * UDPBLASTER_SENDSIZE) / CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE / 8
-   *              = (125000 * UDPBLASTER_SENDSIZE) / CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE
+   *              = (1000000 * UDPBLASTER_SENDSIZE) /
+   *                CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE / 8
+   *              = (125000 * UDPBLASTER_SENDSIZE) /
+   *                CONFIG_EXAMPLES_UDPBLASTER_HOSTRATE
    */
 
   sendsize = UDPBLASTER_SENDSIZE;
@@ -117,7 +134,7 @@ int main(int argc, char **argv, char **envp)
   npackets = 0;
   ndots    = 0;
 
-  for (;;)
+  for (; ; )
     {
       ret = sendto(sockfd, g_udpblaster_text, sendsize, 0,
                    (struct sockaddr *)&target, addrlen);
@@ -133,10 +150,10 @@ int main(int argc, char **argv, char **envp)
           npackets = 0;
 
           if (++ndots >= 50)
-          {
-            putchar('\n');
-            ndots = 0;
-          }
+            {
+              putchar('\n');
+              ndots = 0;
+            }
         }
 
       usleep(delay);

@@ -120,9 +120,10 @@ static int dd_write(FAR struct dd_s *dd)
       nbytes = write(dd->outfd, buffer, dd->sectsize - written);
       if (nbytes < 0)
         {
-           FAR struct nsh_vtbl_s *vtbl = dd->vtbl;
-           nsh_error(vtbl, g_fmtcmdfailed, g_dd, "write", NSH_ERRNO_OF(-nbytes));
-           return ERROR;
+          FAR struct nsh_vtbl_s *vtbl = dd->vtbl;
+          nsh_error(vtbl, g_fmtcmdfailed, g_dd, "write",
+                    NSH_ERRNO_OF(-nbytes));
+          return ERROR;
         }
 
       written += nbytes;
@@ -148,9 +149,10 @@ static int dd_read(FAR struct dd_s *dd)
       nbytes = read(dd->infd, buffer, dd->sectsize - dd->nbytes);
       if (nbytes < 0)
         {
-           FAR struct nsh_vtbl_s *vtbl = dd->vtbl;
-           nsh_error(vtbl, g_fmtcmdfailed, g_dd, "read", NSH_ERRNO_OF(-nbytes));
-           return ERROR;
+          FAR struct nsh_vtbl_s *vtbl = dd->vtbl;
+          nsh_error(vtbl, g_fmtcmdfailed, g_dd, "read",
+                    NSH_ERRNO_OF(-nbytes));
+          return ERROR;
         }
 
       dd->nbytes += nbytes;
@@ -314,9 +316,9 @@ int cmd_dd(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
 
 #ifdef CONFIG_NSH_CMDOPT_DD_STATS
 #ifdef CONFIG_CLOCK_MONOTONIC
-  (void)clock_gettime(CLOCK_MONOTONIC, &ts0);
+  clock_gettime(CLOCK_MONOTONIC, &ts0);
 #else
-  (void)clock_gettime(CLOCK_REALTIME, &ts0);
+  clock_gettime(CLOCK_REALTIME, &ts0);
 #endif
 #endif
 
@@ -367,9 +369,9 @@ int cmd_dd(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
 
 #ifdef CONFIG_NSH_CMDOPT_DD_STATS
 #ifdef CONFIG_CLOCK_MONOTONIC
-  (void)clock_gettime(CLOCK_MONOTONIC, &ts1);
+  clock_gettime(CLOCK_MONOTONIC, &ts1);
 #else
-  (void)clock_gettime(CLOCK_REALTIME, &ts1);
+  clock_gettime(CLOCK_REALTIME, &ts1);
 #endif
 
   elapsed  = (((uint64_t)ts1.tv_sec * NSEC_PER_SEC) + ts1.tv_nsec);
@@ -385,10 +387,10 @@ int cmd_dd(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
 #endif
 
 errout_with_outf:
-  (void)close(dd.outfd);
+  close(dd.outfd);
 
 errout_with_inf:
-  (void)close(dd.infd);
+  close(dd.infd);
   free(dd.buffer);
 
 errout_with_paths:
@@ -406,4 +408,3 @@ errout_with_paths:
 }
 
 #endif /* !CONFIG_NSH_DISABLE_DD */
-

@@ -55,29 +55,6 @@
 #ifdef CONFIG_NET
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-/* The address family that we used to create the socket really does not
- * matter.  It should, however, be valid in the current configuration.
- */
-
-#if defined(CONFIG_NET_IPv4)
-#  define AF_FAMILY  AF_INET
-#elif defined(CONFIG_NET_IPv6)
-#  define AF_FAMILY  AF_INET6
-#elif defined(CONFIG_NET_LOCAL)
-#  define AF_FAMILY  AF_LOCAL
-#elif defined(CONFIG_NET_PKT)
-#  define AF_FAMILY  AF_PACKET
-#elif defined(CONFIG_NET_IEEE802154)
-#  define AF_FAMILY AF_IEEE802154
-#elif defined(CONFIG_NET_BLUETOOTH)
-#  define AF_FAMILY AF_BLUETOOTH
-#elif defined(CONFIG_NET_USRSOCK)
-#  define AF_FAMILY  AF_INET
-#endif
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -102,7 +79,8 @@ int netlib_ifup(const char *ifname)
     {
       /* Get a socket (only so that we get access to the INET subsystem) */
 
-      int sockfd = socket(AF_FAMILY, NETLIB_SOCK_TYPE, 0);
+      int sockfd = socket(NETLIB_SOCK_FAMILY,
+                          NETLIB_SOCK_TYPE, NETLIB_SOCK_PROTOCOL);
       if (sockfd >= 0)
         {
           struct ifreq req;
@@ -145,7 +123,8 @@ int netlib_ifdown(const char *ifname)
     {
       /* Get a socket (only so that we get access to the INET subsystem) */
 
-      int sockfd = socket(AF_FAMILY, NETLIB_SOCK_TYPE, 0);
+      int sockfd = socket(NETLIB_SOCK_FAMILY,
+                          NETLIB_SOCK_TYPE, NETLIB_SOCK_PROTOCOL);
       if (sockfd >= 0)
         {
           struct ifreq req;
@@ -168,4 +147,3 @@ int netlib_ifdown(const char *ifname)
 }
 
 #endif /* CONFIG_NET */
-

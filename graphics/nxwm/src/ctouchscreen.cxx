@@ -39,6 +39,7 @@
 
 #include <nuttx/config.h>
 
+#include <cinttypes>
 #include <cunistd>
 #include <cerrno>
 #include <cfcntl>
@@ -59,25 +60,6 @@
 #include "graphics/nxwm/nxwmconfig.hxx"
 #include "graphics/nxglyphs.hxx"
 #include "graphics/nxwm/ctouchscreen.hxx"
-
-/********************************************************************************************
- * Pre-Processor Definitions
- ********************************************************************************************/
-/* We want debug output from this file if either input/touchscreen or graphics debug is
- * enabled.
- */
-
-#if !defined(CONFIG_DEBUG_INPUT) && !defined(CONFIG_DEBUG_GRAPHICS)
-#  undef gerr
-#  undef _info
-#  ifdef CONFIG_CPP_HAVE_VARARGS
-#    define gerr(x...)
-#    define _info(x...)
-#  else
-#    define gerr  (void)
-#    define _info (void)
-#  endif
-#endif
 
 /********************************************************************************************
  * CTouchscreen Method Implementations
@@ -130,7 +112,7 @@ CTouchscreen::~CTouchscreen(void)
   // to receive data
   // REVISIT:  Need wait here for the listener thread to terminate
 
-  (void)pthread_kill(m_thread, CONFIG_NXWM_TOUCHSCREEN_SIGNO);
+  pthread_kill(m_thread, CONFIG_NXWM_TOUCHSCREEN_SIGNO);
 
   // Close the touchscreen device (or should these be done when the thread exits?)
 
@@ -158,13 +140,13 @@ bool CTouchscreen::start(void)
 
   // Start a separate thread to listen for touchscreen events
 
-  (void)pthread_attr_init(&attr);
+  pthread_attr_init(&attr);
 
   struct sched_param param;
   param.sched_priority = CONFIG_NXWM_TOUCHSCREEN_LISTENERPRIO;
-  (void)pthread_attr_setschedparam(&attr, &param);
+  pthread_attr_setschedparam(&attr, &param);
 
-  (void)pthread_attr_setstacksize(&attr, CONFIG_NXWM_TOUCHSCREEN_LISTENERSTACK);
+  pthread_attr_setstacksize(&attr, CONFIG_NXWM_TOUCHSCREEN_LISTENERSTACK);
 
   m_state  = LISTENER_STARTED; // The listener thread has been started, but is not yet running
 
@@ -177,7 +159,7 @@ bool CTouchscreen::start(void)
 
   // Detach from the thread
 
-  (void)pthread_detach(m_thread);
+  pthread_detach(m_thread);
 
   // Don't return until we are sure that the listener thread is running
   // (or until it reports an error).
@@ -187,7 +169,7 @@ bool CTouchscreen::start(void)
       // Wait for the listener thread to wake us up when we really
       // are connected.
 
-      (void)sem_wait(&m_waitSem);
+      sem_wait(&m_waitSem);
     }
 
   // Then return true only if the listener thread reported successful
@@ -220,7 +202,7 @@ void CTouchscreen::setCalibrationData(const struct SCalibrationData &caldata)
   // Wake up the listener thread so that it will use our buffer
   // to receive data
 
-  (void)pthread_kill(m_thread, CONFIG_NXWM_TOUCHSCREEN_SIGNO);
+  pthread_kill(m_thread, CONFIG_NXWM_TOUCHSCREEN_SIGNO);
 }
 
 /**
@@ -246,7 +228,7 @@ bool CTouchscreen::waitRawTouchData(struct touch_sample_s *touch)
   // Wake up the listener thread so that it will use our buffer
   // to receive data
 
-  (void)pthread_kill(m_thread, CONFIG_NXWM_TOUCHSCREEN_SIGNO);
+  pthread_kill(m_thread, CONFIG_NXWM_TOUCHSCREEN_SIGNO);
 
   // And wait for touch data
 
@@ -383,7 +365,7 @@ FAR void *CTouchscreen::listener(FAR void *arg)
 }
 
 /**
- *  Inject touchscreen data into NX as mouse intput
+ *  Inject touchscreen data into NX as mouse input
  */
 
 void CTouchscreen::handleMouseInput(struct touch_sample_s *sample)
@@ -576,12 +558,13 @@ void CTouchscreen::handleMouseInput(struct touch_sample_s *sample)
           y = (nxgl_coord_t)bigY;
         }
 
-      _info("raw: (%d, %d) scaled: (%d, %d)\n", rawX, rawY, x, y);
+      _info("raw: (%" PRId32 ", %" PRId32 ") scaled: (%d, %d)\n",
+            rawX, rawY, x, y);
 #endif
     }
 
   // Get the server handle and "inject the mouse data
 
   NXHANDLE handle = m_server->getServer();
-  (void)nx_mousein(handle, x, y, buttons);
+  nx_mousein(handle, x, y, buttons);
 }

@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # uIP very tiny web server example
 
@@ -44,7 +44,7 @@ MAINSRC = webserver_main.c
 
 PROGNAME = webserver
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_WEBSERVER)
 
 # Common build

@@ -48,7 +48,7 @@
 #include "timers.h"
 
 /****************************************************************************
- * Pre-Processor Definitons
+ * Pre-Processor Definitions
  ****************************************************************************/
 
 #define HASH_SIZE 67
@@ -217,7 +217,7 @@ Timer *tmr_create(struct timeval *now, TimerProc *timer_proc,
     }
   else
     {
-      (void)gettimeofday(&tmr->time, NULL);
+      gettimeofday(&tmr->time, NULL);
     }
 
   tmr->time.tv_sec  += msecs / 1000L;

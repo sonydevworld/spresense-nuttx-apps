@@ -91,27 +91,28 @@ static bool g_has_json       = false;
  * Private Functions
  ****************************************************************************/
 
-static void wgetjson_postdebug_callback(FAR char **buffer, int offset,
-                                        int datend, FAR int *buflen,
-                                        FAR void *arg)
+static int wgetjson_postdebug_callback(FAR char **buffer, int offset,
+                                       int datend, FAR int *buflen,
+                                       FAR void *arg)
 {
   int len = datend - offset;
   if (len <= 0)
     {
       printf("Callback No Data!\n");
-      return;
+      return 0;
     }
 
   ((*buffer)[datend]) = '\0';
   printf("Callback Data(Length:%d):\n%s\n", len, &((*buffer)[offset]));
+  return 0;
 }
 
 /****************************************************************************
  * Name: wgetjson_callback
  ****************************************************************************/
 
-static void wgetjson_callback(FAR char **buffer, int offset, int datend,
-                              FAR int *buflen, FAR void *arg)
+static int wgetjson_callback(FAR char **buffer, int offset, int datend,
+                             FAR int *buflen, FAR void *arg)
 {
   FAR char *new_json_buff;
   int len = datend - offset;
@@ -119,7 +120,7 @@ static void wgetjson_callback(FAR char **buffer, int offset, int datend,
 
   if (len <= 0)
     {
-      return;
+      return 0;
     }
 
   if (!g_json_buff)
@@ -134,23 +135,27 @@ static void wgetjson_callback(FAR char **buffer, int offset, int datend,
       if (g_json_bufflen >= CONFIG_EXAMPLES_WGETJSON_MAXSIZE)
         {
           g_json_bufflen += org;
-          return;
+          return 0;
         }
 
-      if (g_json_bufflen+len > CONFIG_EXAMPLES_WGETJSON_MAXSIZE)
+      if (g_json_bufflen + len > CONFIG_EXAMPLES_WGETJSON_MAXSIZE)
         {
           len = CONFIG_EXAMPLES_WGETJSON_MAXSIZE - g_json_bufflen;
         }
 
-      new_json_buff = (FAR char *)realloc(g_json_buff, g_json_bufflen + len + 1);
+      new_json_buff = (FAR char *)realloc(g_json_buff,
+                                          g_json_bufflen + len + 1);
       if (new_json_buff)
         {
           g_json_buff = new_json_buff;
-          memcpy(&g_json_buff[g_json_bufflen-1], &((*buffer)[offset]), len);
+          memcpy(&g_json_buff[g_json_bufflen - 1], &((*buffer)[offset]),
+                 len);
           g_json_buff[g_json_bufflen + len] = 0;
           g_json_bufflen += org;
         }
     }
+
+  return 0;
 }
 
 /****************************************************************************
@@ -181,7 +186,7 @@ static void wgetjson_doit(char *text)
   json = cJSON_Parse(text);
   if (!json)
     {
-      printf("Error before: [%s]\n",cJSON_GetErrorPtr());
+      printf("Error before: [%s]\n", cJSON_GetErrorPtr());
     }
   else
     {
@@ -197,7 +202,8 @@ static void wgetjson_doit(char *text)
  * Name: wgetjson_json_item_callback
  ****************************************************************************/
 
-static int wgetjson_json_item_callback(const char *name,int type,cJSON *item)
+static int wgetjson_json_item_callback(const char *name, int type,
+                                       cJSON *item)
 {
   if (strlen(name) > 8 && !memcmp(name, "/(null)", 7))
     {
@@ -208,32 +214,39 @@ static int wgetjson_json_item_callback(const char *name,int type,cJSON *item)
   if (!strcmp(name, "name"))
     {
       printf("name:\t\t\t%s \n", item->valuestring);
-      // todo something....
+
+      /* todo something.... */
     }
-  else if (strcmp(name, "format/type")==0)
+  else if (strcmp(name, "format/type") == 0)
     {
       printf("format/type:\t\t%s \n", item->valuestring);
-      // todo something....
+
+      /* todo something.... */
     }
   else if (!strcmp(name, "format/width"))
     {
       printf("format/width:\t\t%d \n", item->valueint);
-      // todo something....
+
+      /* todo something.... */
     }
   else if (!strcmp(name, "format/height"))
     {
       printf("format/height:\t\t%d \n", item->valueint);
-      // todo something....
+
+      /* todo something.... */
     }
   else if (!strcmp(name, "format/interlace"))
     {
-      printf("format/interlace:\t%s \n", (item->valueint) ? "true" : "false");
-      // todo something....
+      printf("format/interlace:\t%s \n",
+             (item->valueint) ? "true" : "false");
+
+      /* todo something.... */
     }
   else if (!strcmp(name, "format/frame rate"))
     {
       printf("format/frame rate:\t%d \n", item->valueint);
-      // todo something....
+
+      /* todo something.... */
     }
 
   return 1;
@@ -250,8 +263,9 @@ static void wgetjson_json_item_scan(cJSON *item, const char *prefix)
 
   while (item)
     {
-      newprefix = malloc(strlen(prefix) + strlen(item->string) + 2);
-      sprintf(newprefix, "%s/%s", prefix, item->string);
+      const char *string = item->string ? item->string : "(null)";
+      newprefix = malloc(strlen(prefix) + strlen(string) + 2);
+      sprintf(newprefix, "%s/%s", prefix, string);
 
       dorecurse = wgetjson_json_item_callback(newprefix, item->type, item);
       if (item->child && dorecurse)
@@ -273,7 +287,7 @@ static int wgetjson_json_parse(char *text)
   cJSON *json;
   char *path = "";
 
-  json=cJSON_Parse(text);
+  json = cJSON_Parse(text);
   if (!json)
     {
       printf("Error before: [%s]\n", cJSON_GetErrorPtr());
@@ -304,15 +318,23 @@ int main(int argc, FAR char *argv[])
   int option;
   bool is_post = false;
   bool is_post_multi = false;
-  bool badarg=false;
-  bool is_debug=false;
+  bool badarg = false;
+  bool is_debug = false;
   char *post_buff = NULL;
   int post_buff_len = 0;
   char *post_single_name  = "type";
   char *post_single_value = "string";
-  char *post_multi_names[MULTI_POST_NDATA]  = {"name", "gender", "country"};
-  char *post_multi_values[MULTI_POST_NDATA] = {"darcy", "man", "china"};
-  wget_callback_t wget_cb = wgetjson_callback;
+  char *post_multi_names[MULTI_POST_NDATA]  =
+    {
+      "name", "gender", "country"
+    };
+
+  char *post_multi_values[MULTI_POST_NDATA] =
+    {
+      "darcy", "man", "china"
+    };
+
+  webclient_sink_callback_t wget_cb = wgetjson_callback;
 
   while ((option = getopt(argc, argv, ":pPD")) != ERROR)
     {
@@ -344,7 +366,8 @@ int main(int argc, FAR char *argv[])
 
   if (badarg)
     {
-      printf("usage: wgetjson -p(single post) -P(multi post) -D(debug wget callback)\n");
+      printf("usage: wgetjson -p(single post) -P(multi post) "
+             "-D(debug wget callback)\n");
       return -1;
     }
 
@@ -355,45 +378,63 @@ int main(int argc, FAR char *argv[])
 
   if (is_post)
     {
-      buffer_len = 512*2;
+      buffer_len = 512 * 2;
     }
 
   buffer = malloc(buffer_len);
   wgetjson_json_release();
 
-  printf("URL: %s\n", url);
-
-  wget_initialize();
-
+  struct webclient_context ctx;
+  webclient_set_defaults(&ctx);
+  ctx.buffer = buffer;
+  ctx.buflen = buffer_len;
+  ctx.sink_callback = wget_cb;
+  ctx.sink_callback_arg = NULL;
   if (is_post)
     {
       url = CONFIG_EXAMPLES_WGETPOST_URL;
+      printf("URL: %s\n", url);
       if (is_post_multi)
         {
-          post_buff_len = web_posts_strlen(post_multi_names, post_multi_values, MULTI_POST_NDATA);
+          post_buff_len = web_posts_strlen(post_multi_names,
+                                           post_multi_values,
+                                           MULTI_POST_NDATA);
           post_buff = malloc(post_buff_len);
-          web_posts_str(post_buff, &post_buff_len, post_multi_names, post_multi_values, MULTI_POST_NDATA);
+          web_posts_str(post_buff, &post_buff_len, post_multi_names,
+                        post_multi_values, MULTI_POST_NDATA);
         }
       else
         {
-          post_buff_len = web_post_strlen(post_single_name, post_single_value);
+          post_buff_len = web_post_strlen(post_single_name,
+                                          post_single_value);
           post_buff = malloc(post_buff_len);
-          web_post_str(post_buff, &post_buff_len, post_single_name, post_single_value);
+          web_post_str(post_buff, &post_buff_len, post_single_name,
+                       post_single_value);
         }
 
       if (post_buff)
         {
-          ret = wget_post(url, post_buff, buffer, buffer_len, wget_cb, NULL);
+          const char *header = "Content-Type: "
+                               "application/x-www-form-urlencoded";
+          ctx.method = "POST";
+          ctx.url = url;
+          ctx.headers = &header;
+          ctx.nheaders = 1;
+          webclient_set_static_body(&ctx, post_buff, strlen(post_buff));
+          ret = webclient_perform(&ctx);
         }
     }
   else
     {
-      ret = wget(url, buffer, buffer_len, wget_cb , NULL);
+      printf("URL: %s\n", url);
+      ctx.method = "GET";
+      ctx.url = url;
+      ret = webclient_perform(&ctx);
     }
 
   if (ret < 0)
     {
-      printf("get json size: %d\n",g_json_bufflen);
+      printf("get json size: %d\n", g_json_bufflen);
     }
   else if (!is_debug)
     {

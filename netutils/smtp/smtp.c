@@ -2,13 +2,14 @@
  * apps/netutitls/smtp/smtp.c
  * smtp SMTP E-mail sender
  *
- *   Copyright (C) 2007, 2009, 2011, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2009, 2011, 2015, 2020 Gregory Nutt. All rights
+ *     reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Heavily leveraged from uIP 1.0 which also has a BSD-like license:
  *
  * The Simple Mail Transfer Protocol (SMTP) as defined by RFC821 is
- * the standard way of sending and transfering e-mail on the
+ * the standard way of sending and transferring e-mail on the
  * Internet. This simple example implementation is intended as an
  * example of how to implement protocols in uIP, and is able to send
  * out e-mail but has not been extensively tested.
@@ -90,7 +91,8 @@ struct smtp_state
   bool         connected;
   sem_t        sem;
   in_addr_t    smtpserver;
-  const char  *localhostname;
+  in_port_t    port;
+  const char  *hostname;
   const char  *to;
   const char  *cc;
   const char  *from;
@@ -134,7 +136,8 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
       return ERROR;
     }
 
-  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtphelo, psmtp->localhostname);
+  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+           g_smtphelo, psmtp->hostname);
   if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
     {
       return ERROR;
@@ -150,7 +153,8 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
       return ERROR;
     }
 
-  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtpmailfrom, psmtp->from);
+  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+           g_smtpmailfrom, psmtp->from);
   if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
     {
       return ERROR;
@@ -166,7 +170,8 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
       return ERROR;
     }
 
-  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtprcptto, psmtp->to);
+  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+           g_smtprcptto, psmtp->to);
   if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
     {
       return ERROR;
@@ -184,7 +189,8 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
 
   if (psmtp->cc != 0)
     {
-      snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtprcptto, psmtp->cc);
+      snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+               g_smtprcptto, psmtp->cc);
       if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
         {
           return ERROR;
@@ -216,7 +222,8 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
       return ERROR;
     }
 
-  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtpto, psmtp->to);
+  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+           g_smtpto, psmtp->to);
   if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
     {
       return ERROR;
@@ -224,20 +231,23 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
 
   if (psmtp->cc != 0)
     {
-      snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtpto, psmtp->cc);
+      snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+               g_smtpto, psmtp->cc);
       if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
         {
           return ERROR;
         }
     }
 
-  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtpfrom, psmtp->from);
+  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n",
+           g_smtpfrom, psmtp->from);
   if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
     {
       return ERROR;
     }
 
-  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n", g_smtpsubject, psmtp->subject);
+  snprintf(psmtp->buffer, SMTP_INPUT_BUFFER_SIZE, "%s%s\r\n\r\n",
+           g_smtpsubject, psmtp->subject);
   if (send(sockfd, psmtp->buffer, strlen(psmtp->buffer), 0) < 0)
     {
       return ERROR;
@@ -267,6 +277,7 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
     {
       return ERROR;
     }
+
   return OK;
 }
 
@@ -274,7 +285,7 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
  * Public Functions
  ****************************************************************************/
 
-/* Specificy an SMTP server and hostname.
+/* Specify an SMTP server and hostname.
  *
  * This function is used to configure the SMTP module with an SMTP server and
  * the hostname of the host.
@@ -285,12 +296,13 @@ static inline int smtp_send_message(int sockfd, struct smtp_state *psmtp)
  *               configured.
  */
 
-void smtp_configure(FAR void *handle, FAR const char *lhostname,
-                    FAR const in_addr_t *paddr)
+void smtp_configure(FAR void *handle, FAR const char *hostname,
+                    FAR const in_addr_t *paddr, FAR const in_port_t *port)
 {
   FAR struct smtp_state *psmtp = (FAR struct smtp_state *)handle;
-  psmtp->localhostname = lhostname;
-  net_ipv4addr_copy(psmtp->smtpserver, paddr);
+  psmtp->hostname = hostname;
+  net_ipv4addr_copy(psmtp->smtpserver, *paddr);
+  psmtp->port = *port;
 }
 
 /* Send an e-mail.
@@ -335,8 +347,8 @@ int smtp_send(void *handle, const char *to, const char *cc, const char *from,
    */
 
   server.sin_family = AF_INET;
-  memcpy(&server.sin_addr.s_addr, &psmtp->smtpserver, sizeof(in_addr_t));
-  server.sin_port = HTONS(25);
+  net_ipv4addr_copy(server.sin_addr.s_addr, psmtp->smtpserver);
+  server.sin_port = psmtp->port;
 
   if (connect(sockfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in)) < 0)
     {
@@ -362,10 +374,10 @@ void *smtp_open(void)
       /* Initialize the handle */
 
       memset(psmtp, 0, sizeof(struct smtp_state));
-     (void)sem_init(&psmtp->sem, 0, 0);
+      sem_init(&psmtp->sem, 0, 0);
     }
 
-  return (void*)psmtp;
+  return (FAR void *)psmtp;
 }
 
 void smtp_close(void *handle)

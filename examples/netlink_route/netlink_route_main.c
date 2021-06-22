@@ -103,7 +103,7 @@ static void dump_devices(sa_family_t family)
       FAR struct netlib_device_s *dev = &devlist[i];
 
 #ifdef CONFIG_NETDEV_IFINDEX
-      printf("  Index: %2d  ," dev->ifindex);
+      printf("  Index: %2d  ", dev->ifindex);
 #else
       printf("  ");
 #endif
@@ -155,7 +155,7 @@ static void dump_neighbor(void)
     {
       FAR struct neighbor_entry_s *nb = &nbtab[i];
 
-      (void)inet_ntop(AF_INET6, &nb->ne_ipaddr, buffer, INET6_ADDRSTRLEN);
+      inet_ntop(AF_INET6, &nb->ne_ipaddr, buffer, INET6_ADDRSTRLEN);
       printf("  Dest: %s MAC Type: %2u Size: %3u Addr: ",
              buffer, nb->ne_addr.na_lltype, nb->ne_addr.na_llsize);
 
@@ -234,25 +234,25 @@ static void dump_arp(void)
     {
       FAR struct arp_entry_s *arp = &arptab[i];
 
-      (void)inet_ntop(AF_INET6, &arp->at_ipaddr, buffer, INET_ADDRSTRLEN);
+      inet_ntop(AF_INET, &arp->at_ipaddr, buffer, INET_ADDRSTRLEN);
       printf("  Dest: %s MAC Addr: ", buffer);
 
       for (j = 0; j < ETHER_ADDR_LEN; j++)
         {
           if (j == (ETHER_ADDR_LEN - 1))
             {
-              printf("%02x", arp->at_ethaddr);
+              printf("%02x", arp->at_ethaddr.ether_addr_octet[j]);
             }
           else
             {
-              printf("%02x.", arp->at_ethaddr);
+              printf("%02x.", arp->at_ethaddr.ether_addr_octet[j]);
             }
         }
 
 #ifdef CONFIG_SYSTEM_TIME64
-      printf("Time 0x%" PRIx64 "\n", arp->at_time);
+      printf(" Time 0x%" PRIx64 "\n", arp->at_time);
 #else
-      printf("Time 0x%" PRIx32 "\n", arp->at_time);
+      printf(" Time 0x%" PRIx32 "\n", arp->at_time);
 #endif
     }
 
@@ -301,16 +301,16 @@ static void dump_route(sa_family_t family)
     {
       FAR struct rtentry *rte = &rttab[i];
 
-      (void)inet_ntop(rte->rt_dst.ss_family, &rte->rt_dst.ss_data, buffer,
-                      ROUTE_BUFSIZE);
+      inet_ntop(rte->rt_dst.ss_family, &rte->rt_dst.ss_data, buffer,
+                ROUTE_BUFSIZE);
       printf("  Dest: %s ", buffer);
 
-      (void)inet_ntop(rte->rt_gateway.ss_family, &rte->rt_gateway.ss_data,
-                      buffer, ROUTE_BUFSIZE);
+      inet_ntop(rte->rt_gateway.ss_family, &rte->rt_gateway.ss_data,
+                buffer, ROUTE_BUFSIZE);
       printf("Gateway: %s ", buffer);
 
-      (void)inet_ntop(rte->rt_genmask.ss_family, &rte->rt_genmask.ss_data,
-                      buffer, ROUTE_BUFSIZE);
+      inet_ntop(rte->rt_genmask.ss_family, &rte->rt_genmask.ss_data,
+                buffer, ROUTE_BUFSIZE);
       printf("GenMASK: %s ", buffer);
       printf("Flags: %04x\n", rte->rt_flags);
     }

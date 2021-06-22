@@ -33,17 +33,19 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # DHCP Daemon Example
 
-MAINSRC = target.c
+CSRCS = dhcpd_daemon.c
+
+MAINSRC = dhcpd_start.c dhcpd_stop.c target.c
 
 # DHCPD built-in application info
 
-PROGNAME = dhcpd
+PROGNAME = dhcpd_start dhcpd_stop dhcpd
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_DHCPD)
 
 include $(APPDIR)/Application.mk

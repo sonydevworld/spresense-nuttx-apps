@@ -11,6 +11,7 @@
  *   This code implements the MD5 message-digest algorithm.
  *   The algorithm is due to Ron Rivest.  This code was
  *   written by Colin Plumb in 1993, no copyright is claimed.
+ *
  *   This code is in the public domain; do with it what you wish.
  *
  *   Equivalent code is available from RSA Data Security, Inc.
@@ -19,8 +20,8 @@
  *   with every copy.
  *
  *   To compute the message digest of a chunk of bytes, declare an
- *   MD5Context structure, pass it to MD5Init, call MD5Update as
- *   needed on buffers full of bytes, and then call MD5Final, which
+ *   md5_context_s structure, pass it to md5_init, call md5_update as
+ *   needed on buffers full of bytes, and then call md5_final, which
  *   will fill a supplied 16-byte array with the digest.
  *
  *   See README and COPYING for more details.
@@ -40,17 +41,17 @@
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
  *
- *   THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
- *   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- *   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- *   ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
- *   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- *   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- *   OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- *   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- *   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- *   SUCH DAMAGE.
+ *   THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS''
+ *   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *   THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *   PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS
+ *   BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ *   THE POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
 
@@ -74,24 +75,24 @@ extern "C"
  * Public Types
  ****************************************************************************/
 
-struct MD5Context
+struct md5_context_s
 {
   uint32_t buf[4];
   uint32_t bits[2];
   uint8_t in[64];
 };
 
-typedef struct MD5Context MD5_CTX;
+typedef struct md5_context_s MD5_CTX;
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-void MD5Init(struct MD5Context *context);
-void MD5Update(struct MD5Context *context, unsigned char const *buf,
+void md5_init(struct md5_context_s *context);
+void md5_update(struct md5_context_s *context, unsigned char const *buf,
                unsigned len);
-void MD5Final(unsigned char digest[16], struct MD5Context *context);
-void MD5Transform(uint32_t buf[4], uint32_t const in[16]);
+void md5_final(unsigned char digest[16], struct md5_context_s *context);
+void md5_transform(uint32_t buf[4], uint32_t const in[16]);
 
 void md5_sum(const uint8_t *addr, const size_t len, uint8_t *mac);
 char *md5_hash(const uint8_t *addr, const size_t len);

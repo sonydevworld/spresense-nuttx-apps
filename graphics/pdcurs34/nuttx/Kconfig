@@ -168,7 +168,7 @@ config PDCURSES_DJOYSTICK
 	bool "Discrete Joystick"
 	default n
 	select PDCURSES_HAVE_INPUT
-	depends on DJOYSTICK
+	depends on INPUT_DJOYSTICK
 
 config PDCURSES_DJOYDEV
 	string "Discrete Joystick Device"
@@ -194,4 +194,3 @@ config PDCURSES_TERMINPUT
 	depends on SYSTEM_TERMCURSES
 
 endmenu # Input Devices
-

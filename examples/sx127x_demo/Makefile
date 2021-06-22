@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Basic sx127x+  demonstration
 
@@ -43,7 +43,7 @@ MAINSRC = sx127x_demo.c
 
 PROGNAME = sx127x
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_SX127X)
 
 include $(APPDIR)/Application.mk

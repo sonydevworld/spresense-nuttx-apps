@@ -182,7 +182,7 @@ static void parse_args(FAR struct args_s *args, int argc, FAR char **argv)
   int nargs;
   int i_value;
 
-  for (index = 1; index < argc;)
+  for (index = 1; index < argc; )
     {
       ptr = argv[index];
       if (ptr[0] != '-')
@@ -346,22 +346,23 @@ static void print_hex(uint8_t *data, int len)
 {
   int i;
 
-  if(len == 0)
+  if (len == 0)
     {
       printf("empty buffer!\n");
     }
   else
     {
-      for(i = 0 ; i < len ; i += 1)
+      for (i = 0 ; i < len ; i += 1)
         {
           printf("0x%02x ", data[i]);
 
-          if((i+1)%10 == 0)
+          if ((i + 1) % 10 == 0)
             {
               printf("\n");
             }
         }
     }
+
   printf("\n");
 }
 
@@ -380,7 +381,8 @@ static int modulation_set(int fd, uint8_t modulation)
           printf("LORA modulation\n");
 
           modulation = SX127X_MODULATION_LORA;
-          ret = ioctl(fd, SX127XIOC_MODULATIONSET, (unsigned long)&modulation);
+          ret = ioctl(fd, SX127XIOC_MODULATIONSET,
+                      (unsigned long)&modulation);
           if (ret < 0)
             {
               printf("failed change modulation %d!\n", ret);
@@ -394,7 +396,8 @@ static int modulation_set(int fd, uint8_t modulation)
           printf("FSK modulation\n");
 
           modulation = SX127X_MODULATION_FSK;
-          ret = ioctl(fd, SX127XIOC_MODULATIONSET, (unsigned long)&modulation);
+          ret = ioctl(fd, SX127XIOC_MODULATIONSET,
+                      (unsigned long)&modulation);
           if (ret < 0)
             {
               printf("failed change modulation %d!\n", ret);
@@ -408,7 +411,8 @@ static int modulation_set(int fd, uint8_t modulation)
           printf("OOK modulation\n");
 
           modulation = SX127X_MODULATION_OOK;
-          ret = ioctl(fd, SX127XIOC_MODULATIONSET, (unsigned long)&modulation);
+          ret = ioctl(fd, SX127XIOC_MODULATIONSET,
+                      (unsigned long)&modulation);
           if (ret < 0)
             {
               printf("failed change modulation %d!\n", ret);
@@ -434,7 +438,9 @@ errout:
 
 int main(int argc, FAR char *argv[])
 {
+#ifdef CONFIG_LPWAN_SX127X_RXSUPPORT
   struct sx127x_read_hdr_s data;
+#endif
   struct sx127x_chanscan_ioc_s chanscan;
   struct args_s   *args;
   struct timespec tstart;
@@ -447,7 +453,7 @@ int main(int argc, FAR char *argv[])
 
   /* Initialize buffer with data */
 
-  for (i = 0; i < TX_BUFFER_MAX; i+=1)
+  for (i = 0; i < TX_BUFFER_MAX; i += 1)
     {
       buffer[i] = i;
     }
@@ -483,7 +489,8 @@ int main(int argc, FAR char *argv[])
   fd = open(DEV_NAME, O_RDWR);
   if (fd < 0)
     {
-      printf("ERROR: Failed to open device!\n");
+      int errcode = errno;
+      printf("ERROR: Failed to open device %s: %d\n", DEV_NAME, errcode);
       goto errout;
     }
 
@@ -498,7 +505,7 @@ int main(int argc, FAR char *argv[])
 
   /* Set RF frequency */
 
-  printf("Set frequency to %d\n", args->frequency);
+  printf("Set frequency to %" PRId32 "\n", args->frequency);
 
   ret = ioctl(fd, WLIOC_SETRADIOFREQ, (unsigned long)&args->frequency);
   if (ret < 0)
@@ -522,10 +529,11 @@ int main(int argc, FAR char *argv[])
 
   clock_gettime(CLOCK_REALTIME, &tstart);
 
-  while(1)
+  while (1)
     {
       switch (args->app_mode)
         {
+#ifdef CONFIG_LPWAN_SX127X_TXSUPPORT
           /* Transmit some data */
 
           case APP_MODE_TX:
@@ -541,7 +549,9 @@ int main(int argc, FAR char *argv[])
 
               break;
             }
+#endif
 
+#ifdef CONFIG_LPWAN_SX127X_RXSUPPORT
           /* Receive data */
 
           case APP_MODE_RX:
@@ -577,6 +587,7 @@ int main(int argc, FAR char *argv[])
 
               break;
             }
+#endif
 
           /* Send some data and wait for response */
 
@@ -605,7 +616,8 @@ int main(int argc, FAR char *argv[])
                   goto errout;
                 }
 
-              printf("freq = %d max = %d min = %d free = %d\n", chanscan.freq,
+              printf("freq = %" PRId32 " max = %d min = %d free = %d\n",
+                     chanscan.freq,
                      chanscan.rssi_max, chanscan.rssi_min, chanscan.free);
 
               break;

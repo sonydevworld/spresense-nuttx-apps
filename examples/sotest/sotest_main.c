@@ -45,16 +45,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/binfmt/symtab.h>
+#include <nuttx/symtab.h>
 
 #ifdef CONFIG_EXAMPLES_SOTEST_BUILTINFS
 #  include <nuttx/drivers/ramdisk.h>
-#  include "lib/romfs.h"
 #endif
 
 /****************************************************************************
@@ -99,6 +99,11 @@
  * Symbols from Auto-Generated Code
  ****************************************************************************/
 
+#ifdef CONFIG_EXAMPLES_SOTEST_BUILTINFS
+extern const unsigned char romfs_img[];
+extern const unsigned int romfs_img_len;
+#endif
+
 extern const struct symtab_s g_sot_exports[];
 extern const int g_sot_nexports;
 
@@ -140,7 +145,9 @@ int main(int argc, FAR char *argv[])
                          NSECTORS(romfs_img_len), SECTORSIZE);
   if (ret < 0)
     {
-      /* This will happen naturally if we registered the ROM disk previously. */
+      /* This will happen naturally if we registered the ROM disk
+       * previously.
+       */
 
       if (ret != -EEXIST)
         {
@@ -156,11 +163,12 @@ int main(int argc, FAR char *argv[])
   printf("main: Mounting ROMFS filesystem at target=%s with source=%s\n",
          BINDIR, CONFIG_EXAMPLES_SOTEST_DEVPATH);
 
-  ret = mount(CONFIG_EXAMPLES_SOTEST_DEVPATH, BINDIR, "romfs", MS_RDONLY, NULL);
+  ret = mount(CONFIG_EXAMPLES_SOTEST_DEVPATH, BINDIR, "romfs", MS_RDONLY,
+              NULL);
   if (ret < 0)
     {
       fprintf(stderr, "ERROR: mount(%s,%s,romfs) failed: %s\n",
-              CONFIG_EXAMPLES_SOTEST_DEVPATH, BINDIR, errno);
+              CONFIG_EXAMPLES_SOTEST_DEVPATH, BINDIR, strerror(errno));
       exit(EXIT_FAILURE);
     }
 #endif /* CONFIG_EXAMPLES_SOTEST_BUILTINFS */
@@ -251,12 +259,15 @@ int main(int argc, FAR char *argv[])
   testfunc(msg);
 
 #if CONFIG_MODLIB_MAXDEPEND > 0
-  /* This should fail because the second shared library depends on the first. */
+  /* This should fail because the second shared library depends on
+   * the first.
+   */
 
   ret = dlclose(handle1);
   if (ret == 0)
     {
-      fprintf(stderr, "ERROR: dlclose(handle1) succeeded with a dependency\n");
+      fprintf(stderr,
+              "ERROR: dlclose(handle1) succeeded with a dependency\n");
       exit(EXIT_FAILURE);
     }
 #endif

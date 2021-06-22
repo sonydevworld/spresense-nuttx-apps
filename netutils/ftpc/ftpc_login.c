@@ -1,35 +1,20 @@
 /****************************************************************************
  * apps/netutils/ftpc/ftpc_login.c
  *
- *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,26 +31,6 @@
 #include "netutils/ftpc.h"
 
 #include "ftpc_internal.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
@@ -130,7 +95,7 @@ int ftpc_login(SESSION handle, FAR struct ftpc_login_s *login)
   return OK;
 
 errout_with_err:
-  set_errno(errcode);
+  errno = errcode;
 errout:
   return ERROR;
 }
@@ -147,10 +112,10 @@ int ftpc_relogin(FAR struct ftpc_session_s *session)
 {
   int ret;
 
-  /* Log into the server.  First send the USER command.  The server may accept
-   * USER with:
+  /* Log into the server.  First send the USER command.  The server may
+   * accept USER with:
    *
-   * - "230 User logged in, proceed" meaning that the client has permission to
+   * - "230 User logged in, proceed" meaning that the client has permission
    *    access files under that username
    * - "331 "User name okay, need password" or "332 Need account for login"
    *    meaning that permission might be granted after a PASS request.
@@ -170,19 +135,22 @@ int ftpc_relogin(FAR struct ftpc_session_s *session)
 
   if (session->code == 331)
     {
-      /* Send the PASS command with the passed. The server may accept PASS with:
+      /* Send the PASS command with the passed. The server may accept PASS
+       * with:
        *
-       * - "230 User logged in, proceed" meaning that the client has permission to
-       *    access files under that username
-       * - "202 Command not implemented, superfluous at this site" meaning that
-       *    permission was already granted in response to USER
-       * - "332 Need account for login" meaning that permission might be granted
-       *    after an ACCT request.
+       * - "230 User logged in, proceed" meaning that the client has
+       *    permission to access files under that username
+       * - "202 Command not implemented, superfluous at this site" meaning
+       *    that permission was already granted in response to USER
+       * - "332 Need account for login" meaning that permission might be
+       *    granted after an ACCT request.
        *
        * The server may reject PASS with:
        *
-       * - "503 Bad sequence of commands" if the previous request was not USER
-       * - "530 - Not logged in" if this username and password are unacceptable.
+       * - "503 Bad sequence of commands" if the previous request was not
+       *    USER.
+       * - "530 - Not logged in" if this username and password are
+       *    unacceptable.
        */
 
       ret = ftpc_cmd(session, "PASS %s", session->pwd);
@@ -199,7 +167,10 @@ int ftpc_relogin(FAR struct ftpc_session_s *session)
 
   FTPC_SET_LOGGEDIN(session);
   session->homerdir = ftpc_rpwd((SESSION)session);
-  session->currdir  = strdup(session->homerdir);
+  if (session->homerdir != NULL)
+    {
+      session->currdir = strdup(session->homerdir);
+    }
 
   /* If the user has requested a special start up directory, then change to
    * that directory now.

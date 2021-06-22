@@ -133,8 +133,8 @@ public:
   void showButton(CLatchButtonArray *buttonArray);
 
   // Perform a simulated mouse click on a button in the array.  This method injects
-  // the mouse click through the NX heirarchy just as would real mouse
-  // hardward.
+  // the mouse click through the NX hierarchy just as would real mouse
+  // hardware.
 
   void click(CLatchButtonArray *buttonArray, int column, int row);
 

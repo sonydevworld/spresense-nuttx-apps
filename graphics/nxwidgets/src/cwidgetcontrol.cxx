@@ -107,7 +107,7 @@ CWidgetControl::CWidgetControl(FAR const CWidgetStyle *style)
   m_nCh                = 0;
   m_nCc                = 0;
 
-  // Intialize semaphores:
+  // Initialize semaphores:
   //
   // m_waitSem. The semaphore that will wake up the external logic on mouse events,
   //   keypress events, or widget deletion events.
@@ -187,7 +187,7 @@ CWidgetControl::~CWidgetControl(void)
 void CWidgetControl::waitForWindowEvent(void)
 {
   m_waiting = true;
- (void)sem_wait(&m_waitSem);
+  sem_wait(&m_waitSem);
   m_waiting = false;
 }
 #endif
@@ -201,7 +201,7 @@ void CWidgetControl::postWindowEvent(void)
 {
   if (m_waiting)
     {
-      (void)sem_post(&m_waitSem);
+      sem_post(&m_waitSem);
     }
 }
 #endif
@@ -211,7 +211,7 @@ void CWidgetControl::postWindowEvent(void)
  * This method normally called externally... either periodically
  * or when a window event is detected.  If CONFIG_NXWIDGET_EVENTWAIT
  * is defined, then external logic want call waitWindow event and
- * when awakened, they chould call this function.  As an example:
+ * when awakened, they should call this function.  As an example:
  *
  *   for (;;)
  *     {
@@ -473,7 +473,7 @@ void CWidgetControl::newMouseEvent(FAR const struct nxgl_point_s *pos, uint8_t b
 
           m_xyinput.leftPressed = 1;
 
-          (void)clock_gettime(CLOCK_REALTIME, &m_xyinput.leftPressTime);
+          clock_gettime(CLOCK_REALTIME, &m_xyinput.leftPressTime);
 
           // Check for double click event
 
@@ -494,7 +494,7 @@ void CWidgetControl::newMouseEvent(FAR const struct nxgl_point_s *pos, uint8_t b
           // New left button release
 
           m_xyinput.leftReleased  = 1;
-          (void)clock_gettime(CLOCK_REALTIME, &m_xyinput.leftReleaseTime);
+          clock_gettime(CLOCK_REALTIME, &m_xyinput.leftReleaseTime);
         }
 
       m_xyinput.leftHeld = 0;
@@ -590,7 +590,7 @@ void CWidgetControl::newMouseEvent(FAR const struct nxgl_point_s *pos, uint8_t b
 #ifdef CONFIG_NX_KBD
 void CWidgetControl::newKeyboardEvent(uint8_t nCh, FAR const uint8_t *pStr)
 {
-  FAR uint8_t *pBuffer = &m_kbdbuf[m_nCh];
+  FAR uint8_t *buffer = &m_kbdbuf[m_nCh];
 
   // Append each new character to keyboard character buffer
 
@@ -598,7 +598,7 @@ void CWidgetControl::newKeyboardEvent(uint8_t nCh, FAR const uint8_t *pStr)
        i < nCh && m_nCh < CONFIG_NXWIDGETS_KBDBUFFER_SIZE;
        i++, m_nCh++)
     {
-      *pBuffer++ = *pStr++;
+      *buffer++ = *pStr++;
     }
 
   // Notify any external logic that a keyboard event has occurred
@@ -692,7 +692,7 @@ uint32_t CWidgetControl::elapsedTime(FAR const struct timespec *startTime)
 {
   struct timespec endTime;
 
-  (void)clock_gettime(CLOCK_REALTIME, &endTime);
+  clock_gettime(CLOCK_REALTIME, &endTime);
   if (startTime->tv_sec <= endTime.tv_sec)
     {
       // Get the elapsed seconds
@@ -927,8 +927,8 @@ void CWidgetControl::takeGeoSem(void)
 }
 
 /**
- * Check if geomtry data is available.  If not, [re-]request the
- * geomtry data and wait for it to become valid.
+ * Check if geometry data is available.  If not, [re-]request the
+ * geometry data and wait for it to become valid.
  *
  * CAREFUL:  This assumes that if we already have geometry data, then
  * it is valid.  This might not be true if the size position was

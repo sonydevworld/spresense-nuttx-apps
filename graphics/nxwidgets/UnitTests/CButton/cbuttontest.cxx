@@ -267,8 +267,8 @@ void CButtonTest::showButton(CButton *button)
 }
 
 // Perform a simulated mouse click on the button.  This method injects
-// the mouse click through the NX heirarchy just as would real mouse
-// hardward.
+// the mouse click through the NX hierarchy just as would real mouse
+// hardware.
 
 void CButtonTest::click(void)
 {
@@ -284,7 +284,7 @@ void CButtonTest::click(void)
 
   // Then inject the mouse click
 
-  (void)nx_mousein(handle, m_center.x, m_center.y, NX_MOUSE_LEFTBUTTON);
+  nx_mousein(handle, m_center.x, m_center.y, NX_MOUSE_LEFTBUTTON);
 }
 
 // The counterpart to click.  This simulates a button release through
@@ -304,7 +304,7 @@ void CButtonTest::release(void)
 
   // Then inject the mouse click
 
-  (void)nx_mousein(handle, m_center.x, m_center.y, NX_MOUSE_NOBUTTONS);
+  nx_mousein(handle, m_center.x, m_center.y, NX_MOUSE_NOBUTTONS);
 }
 
 // Widget events are normally handled in a modal loop.
@@ -322,4 +322,3 @@ bool CButtonTest::poll(CButton *button)
 
   return button->isClicked();
 }
-

@@ -42,19 +42,10 @@
 #include <cstdio>
 #include <debug.h>
 
-#include <nuttx/init.h>
-
-#include "platform/cxxinitialize.h"
-
 //***************************************************************************
 // Definitions
 //***************************************************************************
 // Configuration ************************************************************
-// C++ initialization requires CXX initializer support
-
-#if !defined(CONFIG_HAVE_CXX) || !defined(CONFIG_HAVE_CXXINITIALIZE)
-#  undef CONFIG_EXAMPLES_HELLOXX_CXXINITIALIZE
-#endif
 
 // Debug ********************************************************************
 // Non-standard debug that may be enabled just for testing the constructors
@@ -129,14 +120,7 @@ extern "C"
 {
   int main(int argc, FAR char *argv[])
  {
-    // If C++ initialization for static constructors is supported, then do
-    // that first
-
-#ifdef CONFIG_EXAMPLES_HELLOXX_CXXINITIALIZE
-    up_cxxinitialize();
-#endif
-
-    // Exercise an explictly instantiated C++ object
+    // Exercise an explicitly instantiated C++ object
 
     CHelloWorld *pHelloWorld = new CHelloWorld;
     printf("helloxx_main: Saying hello from the dynamically constructed instance\n");
@@ -144,12 +128,10 @@ extern "C"
 
     // Exercise an C++ object instantiated on the stack
 
-#ifndef CONFIG_EXAMPLES_HELLOXX_NOSTACKCONST
     CHelloWorld HelloWorld;
 
     printf("helloxx_main: Saying hello from the instance constructed on the stack\n");
     HelloWorld.HelloWorld();
-#endif
 
     // Exercise an statically constructed C++ object
 

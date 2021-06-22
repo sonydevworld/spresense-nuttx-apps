@@ -33,7 +33,7 @@
 #
 #################################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # CKeyPad unit test
 
@@ -42,7 +42,7 @@ MAINSRC = ckeypad_main.cxx
 
 PROGNAME = ckeypad
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_NXWIDGETS_UNITTEST_CKEYPAD)
 
 include $(APPDIR)/Application.mk

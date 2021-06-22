@@ -825,6 +825,11 @@ namespace Twm4Nx
           {
             m_iconWidget->getSize(size);
           }
+        else
+          {
+            size.w = 0;
+            size.h = 0;
+          }
       }
 
       /**
@@ -841,6 +846,11 @@ namespace Twm4Nx
         if (m_iconWidget != (FAR CIconWidget *)0)
           {
             m_iconWidget->getPos(pos);
+          }
+        else
+          {
+            pos.x = 0;
+            pos.y = 0;
           }
       }
 
@@ -886,7 +896,7 @@ namespace Twm4Nx
        * temporarily while in certain absorbing states (such as resizing the
        * window).
        *
-       * @param disables The set of buttons to enable or disble See
+       * @param disables The set of buttons to enable or disable See
        *   DISABLE_* definitions.
        */
 
@@ -908,7 +918,7 @@ namespace Twm4Nx
        // pollEvents() returns true if any interesting event occurred.
        // false is not a failure.
 
-        (void)control->pollEvents();
+        control->pollEvents();
         return true;
       }
 
@@ -943,4 +953,4 @@ namespace Twm4Nx
                                    uint8_t flags);
 }
 
-#endif  // __APPS_INCLUDE_GRAPHICS_TWM4NX_CWINDOW_HXX
+#endif // __APPS_INCLUDE_GRAPHICS_TWM4NX_CWINDOW_HXX

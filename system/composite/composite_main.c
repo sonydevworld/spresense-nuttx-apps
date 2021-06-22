@@ -1,35 +1,20 @@
 /****************************************************************************
  * system/composite/composite_main.c
  *
- *   Copyright (C) 2012-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,6 +29,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -124,11 +110,7 @@ static void check_test_memory_usage(FAR const char *msg)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_composite.mmcurrent = mallinfo();
-#else
-  (void)mallinfo(&g_composite.mmcurrent);
-#endif
 
   /* Show the change from the previous time */
 
@@ -137,11 +119,7 @@ static void check_test_memory_usage(FAR const char *msg)
 
   /* Set up for the next test */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_composite.mmprevious = g_composite.mmcurrent;
-#else
-  memcpy(&g_composite.mmprevious, &g_composite.mmcurrent, sizeof(struct mallinfo));
-#endif
 }
 #else
 #  define check_test_memory_usage(msg)
@@ -156,11 +134,7 @@ static void final_memory_usage(FAR const char *msg)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_composite.mmcurrent = mallinfo();
-#else
-  (void)mallinfo(&g_composite.mmcurrent);
-#endif
 
   /* Show the change from the previous time */
 
@@ -362,6 +336,7 @@ static int composite_enumerate(struct usbtrace_s *trace, void *arg)
           break;
         }
     }
+
   return OK;
 }
 #endif
@@ -412,13 +387,14 @@ int main(int argc, FAR char *argv[])
   int config = CONFIG_SYSTEM_COMPOSITE_DEFCONFIG;
   int ret;
 
-  /* If this program is implemented as the NSH 'conn' command, then we need to
-   * do a little error checking to assure that we are not being called re-entrantly.
+  /* If this program is implemented as the NSH 'conn' command, then we need
+   * to do a little error checking to assure that we are not being called
+   * re-entrantly.
    */
 
-   /* Check if there is a non-NULL USB mass storage device handle (meaning that the
-    * USB mass storage device is already configured).
-    */
+  /* Check if there is a non-NULL USB mass storage device handle (meaning
+   * that the composite device is already configured).
+   */
 
   if (g_composite.cmphandle)
     {
@@ -443,13 +419,8 @@ int main(int argc, FAR char *argv[])
   usbtrace_enable(TRACE_BITSET);
 
 #ifdef CONFIG_SYSTEM_COMPOSITE_DEBUGMM
-#  ifdef CONFIG_CAN_PASS_STRUCTS
   g_composite.mmstart    = mallinfo();
   g_composite.mmprevious = g_composite.mmstart;
-#  else
-  (void)mallinfo(&g_composite.mmstart);
-  memcpy(&g_composite.mmprevious, &g_composite.mmstart, sizeof(struct mallinfo));
-#  endif
 #endif
 
   /* Perform architecture-specific initialization */
@@ -465,7 +436,8 @@ int main(int argc, FAR char *argv[])
   ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
   if (ret < 0)
     {
-      printf("conn_main: boardctl(BOARDIOC_USBDEV_CONTROL) failed: %d\n", -ret);
+      printf("conn_main: boardctl(BOARDIOC_USBDEV_CONTROL) failed: %d\n",
+             -ret);
       return 1;
     }
 
@@ -482,7 +454,8 @@ int main(int argc, FAR char *argv[])
   ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
   if (ret < 0)
     {
-      printf("conn_main: boardctl(BOARDIOC_USBDEV_CONTROL) failed: %d\n", -ret);
+      printf("conn_main: boardctl(BOARDIOC_USBDEV_CONTROL) failed: %d\n",
+             -ret);
       return 1;
     }
 
@@ -493,7 +466,7 @@ int main(int argc, FAR char *argv[])
 
   /* Now looping */
 
-  for (;;)
+  for (; ; )
     {
       /* Sleep for a bit */
 
@@ -513,11 +486,11 @@ int main(int argc, FAR char *argv[])
     }
 #endif
 
-   /* Dump debug memory usage */
+  /* Dump debug memory usage */
 
-   printf("conn_main: Exiting\n");
-   final_memory_usage("Final memory usage");
-   return 0;
+  printf("conn_main: Exiting\n");
+  final_memory_usage("Final memory usage");
+  return 0;
 }
 
 /****************************************************************************
@@ -558,7 +531,7 @@ int disconn_main(int argc, char *argv[])
       return EXIT_FAILURE;
     }
 
-  /* Then disconnect the device and uninitialize the USB mass storage driver */
+  /* Then disconnect the device and uninitialize the composite driver */
 
   ctrl.usbdev   = BOARDIOC_USBDEV_COMPOSITE;
   ctrl.action   = BOARDIOC_USBDEV_DISCONNECT;
@@ -566,7 +539,7 @@ int disconn_main(int argc, char *argv[])
   ctrl.config   = config;
   ctrl.handle   = &g_composite.cmphandle;
 
-  (void)boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
 
   g_composite.cmphandle = NULL;
   printf("disconn_main: Disconnected\n");

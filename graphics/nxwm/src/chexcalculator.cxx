@@ -437,7 +437,7 @@ void CHexCalculator::setGeometry(void)
 
   // Get the size of the window
 
-  (void)window->getSize(&m_windowSize);
+  window->getSize(&m_windowSize);
 
   // Pick a height and width of a button to fill the entire window.
   // For the height, we will assume that the text window is 1.5 times
@@ -492,7 +492,7 @@ void CHexCalculator::setGeometry(void)
 }
 
 /**
- * Create the calculator widgets.  Only start as part of the applicaiton
+ * Create the calculator widgets.  Only start as part of the application
  * start method.
  */
 
@@ -673,11 +673,11 @@ void CHexCalculator::updateText(void)
 
   if (m_hexMode)
     {
-      std::snprintf(buffer, 24, "%16llX", m_accum);
+      std::snprintf(buffer, 24, "%16" PRIX64, m_accum);
     }
   else
     {
-      std::snprintf(buffer, 24, "%lld", m_accum);
+      std::snprintf(buffer, 24, "%" PRId64, m_accum);
     }
 
   // setText will perform the redraw as well

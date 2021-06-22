@@ -1,36 +1,20 @@
 /****************************************************************************
  * apps/nshlib/nsh_parse.c
  *
- *   Copyright (C) 2007-2013, 2014, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -90,6 +74,15 @@
 #  define NSH_MEMLIST_INIT(m)   do { (m) = 0; } while (0)
 #  define NSH_MEMLIST_ADD(m,a)
 #  define NSH_MEMLIST_FREE(m)
+#endif
+
+/* Do we need g_nullstring[]? */
+
+#undef NEED_NULLSTRING
+#if defined(NSH_HAVE_VARS) || defined(CONFIG_NSH_CMDPARMS)
+#  define NEED_NULLSTRING       1
+#elif !defined(CONFIG_NSH_ARGCAT) || !defined(HAVE_MEMLIST)
+#  define NEED_NULLSTRING       1
 #endif
 
 /****************************************************************************
@@ -169,8 +162,8 @@ static void nsh_dequote(FAR char *cmdline);
 #  define nsh_dequote(c)
 #endif
 
-static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
-               FAR char **allocation, FAR int *isenvvar);
+static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl,
+               FAR char *cmdline, FAR char **allocation, FAR int *isenvvar);
 static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, char **saveptr,
                FAR NSH_MEMLIST_TYPE *memlist, FAR int *isenvvar);
 
@@ -222,7 +215,9 @@ static const char g_exitstatus[]      = "?";
 static const char g_success[]         = "0";
 static const char g_failure[]         = "1";
 #endif
+#ifdef NEED_NULLSTRING
 static const char g_nullstring[]      = "";
+#endif
 
 /****************************************************************************
  * Public Data
@@ -233,7 +228,8 @@ static const char g_nullstring[]      = "";
  */
 
 #if CONFIG_VERSION_MAJOR != 0 || CONFIG_VERSION_MINOR != 0
-const char g_nshgreeting[]       = "\nNuttShell (NSH) NuttX-" CONFIG_VERSION_STRING "\n";
+const char g_nshgreeting[]       =
+  "\nNuttShell (NSH) NuttX-" CONFIG_VERSION_STRING "\n";
 #else
 const char g_nshgreeting[]       = "\nNuttShell (NSH)\n";
 #endif
@@ -248,7 +244,8 @@ const char g_nshmotd[]           = CONFIG_NSH_MOTD_STRING;
 
 #ifdef CONFIG_NSH_LOGIN
 #if defined(CONFIG_NSH_TELNET_LOGIN) && defined(CONFIG_NSH_TELNET)
-const char g_telnetgreeting[]    = "\nWelcome to NuttShell(NSH) Telnet Server...\n";
+const char g_telnetgreeting[]    =
+  "\nWelcome to NuttShell(NSH) Telnet Server...\n";
 #endif
 const char g_userprompt[]        = "login: ";
 const char g_passwordprompt[]    = "password: ";
@@ -338,7 +335,7 @@ static void nsh_releaseargs(struct cmdarg_s *arg)
   FAR struct nsh_vtbl_s *vtbl = arg->vtbl;
   int i;
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   /* If the output was redirected, then file descriptor should
    * be closed.  The created task has its one, independent copy of
    * the file descriptor
@@ -346,7 +343,7 @@ static void nsh_releaseargs(struct cmdarg_s *arg)
 
   if (vtbl->np.np_redirect)
     {
-      (void)close(arg->fd);
+      close(arg->fd);
     }
 #endif
 
@@ -451,7 +448,7 @@ static int nsh_saveresult(FAR struct nsh_vtbl_s *vtbl, bool result)
    * status.
    */
 
-   else if (np->np_lpstate[np->np_lpndx].lp_state == NSH_LOOP_UNTIL)
+  else if (np->np_lpstate[np->np_lpndx].lp_state == NSH_LOOP_UNTIL)
     {
       np->np_fail = false;
       np->np_lpstate[np->np_lpndx].lp_enable = (result != OK);
@@ -487,23 +484,82 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
                        int argc, FAR char *argv[],
                        FAR const char *redirfile, int oflags)
 {
-#if CONFIG_NFILE_STREAMS > 0 || !defined(CONFIG_NSH_DISABLEBG)
+#if defined(CONFIG_FILE_STREAM) || !defined(CONFIG_NSH_DISABLEBG)
   int fd = -1;
 #endif
   int ret;
 
-  /* Does this command correspond to an application filename?
-   * nsh_fileapp() returns:
+  /* DO NOT CHANGE THE ORDERING OF THE FOLLOWING STEPS
    *
-   *   -1 (ERROR)  if the application task corresponding to 'argv[0]' could not
-   *               be started (possibly because it does not exist).
+   * They must work as follows:
+   *
+   * 1. Load a file from file system if possible.  An external command on a
+   *    file system with the provided name (and on the defined PATH) takes
+   *    precendence over any other source of a command by that name.  This
+   *    allows the user to replace a built-in command with a command on a`
+   *    file system
+   *
+   * 2. If not, run a built-in application of that name if possible.  A
+   *    built-in application will take precendence over any NSH command.
+   *
+   * 3. If not, run an NSH command line command if possible.
+   *
+   * 4. If not, report that the command was not found.
+   */
+
+  /* Does this command correspond to a built-in command?
+   * nsh_builtin() returns:
+   *
+   *   -1 (ERROR)  if the application task corresponding to 'argv[0]' could
+   *               not be started (possibly because it does not exist).
    *    0 (OK)     if the application task corresponding to 'argv[0]' was
    *               and successfully started.  If CONFIG_SCHED_WAITPID is
    *               defined, this return value also indicates that the
    *               application returned successful status (EXIT_SUCCESS)
    *    1          If CONFIG_SCHED_WAITPID is defined, then this return value
-   *               indicates that the application task was spawned successfully
-   *               but returned failure exit status.
+   *               indicates that the application task was spawned
+   *               successfully but returned failure exit status.
+   *
+   * Note the priority is not effected by nice-ness.
+   */
+
+#ifdef CONFIG_NSH_BUILTIN_APPS
+#ifdef CONFIG_FILE_STREAM
+  ret = nsh_builtin(vtbl, argv[0], argv, redirfile, oflags);
+#else
+  ret = nsh_builtin(vtbl, argv[0], argv, NULL, 0);
+#endif
+  if (ret >= 0)
+    {
+      /* nsh_builtin() returned 0 or 1.  This means that the built-in
+       * command was successfully started (although it may not have ran
+       * successfully).  So certainly it is not an NSH command.
+       */
+
+      /* Save the result:  success if 0; failure if 1 */
+
+      return nsh_saveresult(vtbl, ret != OK);
+    }
+
+  /* No, not a built in command (or, at least, we were unable to start a
+   * built-in command of that name). Maybe it is a built-in application
+   * or an NSH command.
+   */
+
+#endif
+
+  /* Does this command correspond to an application filename?
+   * nsh_fileapp() returns:
+   *
+   *   -1 (ERROR)  if the application task corresponding to 'argv[0]' could
+   *               not be started (possibly because it doesn not exist).
+   *    0 (OK)     if the application task corresponding to 'argv[0]' was
+   *               and successfully started.  If CONFIG_SCHED_WAITPID is
+   *               defined, this return value also indicates that the
+   *               application returned successful status (EXIT_SUCCESS)
+   *    1          If CONFIG_SCHED_WAITPID is defined, then this return value
+   *               indicates that the application task was spawned
+   *               successfully but returned failure exit status.
    *
    * Note the priority is not effected by nice-ness.
    */
@@ -523,53 +579,12 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
     }
 
   /* No, not a file name command (or, at least, we were unable to start a
-   * program of that name).  Maybe it is a built-in application or an NSH
-   * command.
+   * program of that name). Treat it like an NSH command.
    */
 
 #endif
 
-  /* Does this command correspond to a built-in command?
-   * nsh_builtin() returns:
-   *
-   *   -1 (ERROR)  if the application task corresponding to 'argv[0]' could not
-   *               be started (possibly because it doesn not exist).
-   *    0 (OK)     if the application task corresponding to 'argv[0]' was
-   *               and successfully started.  If CONFIG_SCHED_WAITPID is
-   *               defined, this return value also indicates that the
-   *               application returned successful status (EXIT_SUCCESS)
-   *    1          If CONFIG_SCHED_WAITPID is defined, then this return value
-   *               indicates that the application task was spawned successfully
-   *               but returned failure exit status.
-   *
-   * Note the priority if not effected by nice-ness.
-   */
-
-#if defined(CONFIG_NSH_BUILTIN_APPS) && (!defined(CONFIG_NSH_FILE_APPS) || !defined(CONFIG_FS_BINFS))
-#if CONFIG_NFILE_STREAMS > 0
-  ret = nsh_builtin(vtbl, argv[0], argv, redirfile, oflags);
-#else
-  ret = nsh_builtin(vtbl, argv[0], argv, NULL, 0);
-#endif
-  if (ret >= 0)
-    {
-      /* nsh_builtin() returned 0 or 1.  This means that the built-in
-       * command was successfully started (although it may not have ran
-       * successfully).  So certainly it is not an NSH command.
-       */
-
-      /* Save the result:  success if 0; failure if 1 */
-
-      return nsh_saveresult(vtbl, ret != OK);
-    }
-
-  /* No, not a built in command (or, at least, we were unable to start a
-   * built-in command of that name).  Treat it like an NSH command.
-   */
-
-#endif
-
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   /* Redirected output? */
 
   if (vtbl->np.np_redirect)
@@ -623,12 +638,12 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
           goto errout_with_redirect;
         }
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
       /* Handle redirection of output via a file descriptor */
 
       if (vtbl->np.np_redirect)
         {
-          (void)nsh_redirect(bkgvtbl, fd, NULL);
+          nsh_redirect(bkgvtbl, fd, NULL);
         }
 #endif
 
@@ -637,9 +652,12 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
       ret = sched_getparam(0, &param);
       if (ret != 0)
         {
-          nsh_error(vtbl, g_fmtcmdfailed, argv[0], "sched_getparm", NSH_ERRNO);
+          nsh_error(vtbl, g_fmtcmdfailed, argv[0], "sched_getparm",
+                    NSH_ERRNO);
+
+          /* NOTE: bkgvtbl is released in nsh_relaseargs() */
+
           nsh_releaseargs(args);
-          nsh_release(bkgvtbl);
           goto errout;
         }
 
@@ -670,18 +688,23 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
 
       /* Set up the thread attributes */
 
-      (void)pthread_attr_init(&attr);
-      (void)pthread_attr_setschedpolicy(&attr, SCHED_NSH);
-      (void)pthread_attr_setschedparam(&attr, &param);
+      pthread_attr_init(&attr);
+      pthread_attr_setschedpolicy(&attr, SCHED_NSH);
+      pthread_attr_setschedparam(&attr, &param);
 
-      /* Execute the command as a separate thread at the appropriate priority */
+      /* Execute the command as a separate thread at the appropriate
+       * priority.
+       */
 
       ret = pthread_create(&thread, &attr, nsh_child, (pthread_addr_t)args);
       if (ret != 0)
         {
-          nsh_error(vtbl, g_fmtcmdfailed, argv[0], "pthread_create", NSH_ERRNO_OF(ret));
+          nsh_error(vtbl, g_fmtcmdfailed, argv[0], "pthread_create",
+                    NSH_ERRNO_OF(ret));
+
+          /* NOTE: bkgvtbl is released in nsh_relaseargs() */
+
           nsh_releaseargs(args);
-          nsh_release(bkgvtbl);
           goto errout;
         }
 
@@ -689,14 +712,15 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
        * Otherwise, we would have a memory leak.
        */
 
-      (void)pthread_detach(thread);
+      pthread_detach(thread);
 
-      nsh_output(vtbl, "%s [%d:%d]\n", argv[0], thread, param.sched_priority);
+      nsh_output(vtbl, "%s [%d:%d]\n", argv[0], thread,
+                 param.sched_priority);
     }
   else
 #endif
     {
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
       uint8_t save[SAVE_SIZE];
 
       /* Handle redirection of output via a file descriptor */
@@ -707,16 +731,16 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
         }
 #endif
 
-      /* Then execute the command in "foreground" -- i.e., while the user waits
-       * for the next prompt.  nsh_command will return:
+      /* Then execute the command in "foreground" -- i.e., while the user
+       * waits for the next prompt.  nsh_command will return:
        *
-       * -1 (ERRROR) if the command was unsuccessful
+       * -1 (ERROR) if the command was unsuccessful
        *  0 (OK)     if the command was successful
        */
 
       ret = nsh_command(vtbl, argc, argv);
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
       /* Restore the original output.  Undirect will close the redirection
        * file descriptor.
        */
@@ -727,8 +751,8 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
         }
 #endif
 
-      /* Mark errors so that it is possible to test for non-zero return values
-       * in nsh scripts.
+      /* Mark errors so that it is possible to test for non-zero return
+       * values in nsh scripts.
        */
 
       if (ret < 0)
@@ -745,7 +769,7 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
 
 #ifndef CONFIG_NSH_DISABLEBG
 errout_with_redirect:
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   if (vtbl->np.np_redirect)
     {
       close(fd);
@@ -883,7 +907,9 @@ static FAR char *nsh_cmdparm(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
   FAR char *argument;
   int ret;
 
-  /* We cannot process the command argument if there is no allocation pointer */
+  /* We cannot process the command argument if there is no allocation
+   * pointer.
+   */
 
   if (!allocation)
     {
@@ -1010,7 +1036,8 @@ static FAR char *nsh_strchr(FAR const char *str, int ch)
  ****************************************************************************/
 
 #ifdef NSH_HAVE_VARS
-static FAR char *nsh_envexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *varname)
+static FAR char *nsh_envexpand(FAR struct nsh_vtbl_s *vtbl,
+                               FAR char *varname)
 {
   /* Check for built-in variables */
 
@@ -1117,8 +1144,9 @@ static void nsh_dequote(FAR char *cmdline)
  ****************************************************************************/
 
 #if defined(CONFIG_NSH_ARGCAT) && defined(HAVE_MEMLIST)
-static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
-                               FAR char **allocation, FAR int *isenvvar)
+static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl,
+                               FAR char *cmdline, FAR char **allocation,
+                               FAR int *isenvvar)
 {
   FAR char *working = cmdline;
 #ifdef CONFIG_NSH_QUOTE
@@ -1183,12 +1211,12 @@ static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
 
           if (argument)
             {
-              /* Yes, then we probably need to add the last part of the argument
-               * beginning at the last working pointer to the concatenated
-               * argument.
+              /* Yes, then we probably need to add the last part of the
+               * argument beginning at the last working pointer to the
+               * concatenated argument.
                *
-               * On failures to allocation memory, nsh_strcat will just return
-               * old value of argument
+               * On failures to allocation memory, nsh_strcat will just
+               * return old value of argument
                */
 
               argument    = nsh_strcat(vtbl, argument, working);
@@ -1201,7 +1229,9 @@ static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
             }
           else
             {
-              /* No.. just return the original string from the command line. */
+              /* No.. just return the original string from the command
+               * line.
+               */
 
               nsh_dequote(cmdline);
               return cmdline;
@@ -1210,7 +1240,9 @@ static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
       else
 
 #ifdef CONFIG_NSH_CMDPARMS
-      /* Check for a back-quoted command embedded within the argument string. */
+      /* Check for a back-quoted command embedded within the argument
+       * string.
+       */
 
       if (*ptr == '`')
         {
@@ -1336,7 +1368,7 @@ static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
           if ((vtbl->np.np_flags & NSH_PFLAG_SILENT) == 0)
 #endif
             {
-              nsh_output(vtbl,"  %s=%s\n", ptr, envstr ? envstr :"(null)");
+              nsh_output(vtbl, "  %s=%s\n", ptr, envstr ? envstr : "(null)");
             }
 
           /* Concatenate the result of the operation with the accumulated
@@ -1364,8 +1396,9 @@ static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
 }
 
 #else
-static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
-                               FAR char **allocation, FAR int *isenvvar)
+static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl,
+                               FAR char *cmdline, FAR char **allocation,
+                               FAR int *isenvvar)
 {
   FAR char *argument = (FAR char *)g_nullstring;
 #ifdef CONFIG_NSH_QUOTE
@@ -1440,8 +1473,10 @@ static FAR char *nsh_argexpand(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
  * Name: nsh_argument
  ****************************************************************************/
 
-static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, FAR char **saveptr,
-                              FAR NSH_MEMLIST_TYPE *memlist, FAR int *isenvvar)
+static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl,
+                              FAR char **saveptr,
+                              FAR NSH_MEMLIST_TYPE *memlist,
+                              FAR int *isenvvar)
 {
   FAR char *pbegin     = *saveptr;
   FAR char *pend       = NULL;
@@ -1463,7 +1498,8 @@ static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, FAR char **saveptr,
        pbegin++);
 
   /* If we are at the end of the string with nothing but delimiters found,
-   * then return NULL, meaning that there are no further arguments on the line.
+   * then return NULL, meaning that there are no further arguments on the
+   * line.
    */
 
   if (!*pbegin)
@@ -1540,9 +1576,10 @@ static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, FAR char **saveptr,
       /* Find the end of the string */
 
 #ifdef CONFIG_NSH_CMDPARMS
-      /* Some special care must be exercised to make sure that we do not break up
-       * any back-quote delimited substrings.  NOTE that the absence of a closing
-       * back-quote is not detected;  That case should be detected later.
+      /* Some special care must be exercised to make sure that we do not
+       * break up any back-quote delimited substrings.  NOTE that the
+       * absence of a closing back-quote is not detected;  That case should
+       * be detected later.
        */
 
 #ifdef CONFIG_NSH_QUOTE
@@ -1634,7 +1671,6 @@ static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, FAR char **saveptr,
 
           if (prev != NULL && *prev == '\\' && !quoted)
             {
-
               /* Do no special checks on the quoted character */
 
               quoted = true;
@@ -1834,7 +1870,7 @@ static int nsh_loop(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
 
           /* Check if we have exceeded the maximum depth of nesting */
 
-          if (np->np_lpndx >= CONFIG_NSH_NESTDEPTH-1)
+          if (np->np_lpndx >= CONFIG_NSH_NESTDEPTH - 1)
             {
               nsh_error(vtbl, g_fmtdeepnesting, cmd);
               goto errout;
@@ -1916,22 +1952,23 @@ static int nsh_loop(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
 
           if (np->np_lpstate[np->np_lpndx].lp_enable)
             {
-               /* Set the new file position to the top of the loop offset */
+              /* Set the new file position to the top of the loop offset */
 
-               ret = fseek(np->np_stream,
-                           np->np_lpstate[np->np_lpndx].lp_topoffs,
-                           SEEK_SET);
-               if (ret <  0)
+              ret = fseek(np->np_stream,
+                          np->np_lpstate[np->np_lpndx].lp_topoffs,
+                          SEEK_SET);
+              if (ret < 0)
                 {
-                  nsh_error(vtbl, g_fmtcmdfailed, "done", "fseek", NSH_ERRNO);
+                  nsh_error(vtbl, g_fmtcmdfailed, "done", "fseek",
+                            NSH_ERRNO);
                 }
 
 #ifndef NSH_DISABLE_SEMICOLON
-               /* Signal nsh_parse that we need to stop processing the
-                * current line and jump back to the top of the loop.
-                */
+              /* Signal nsh_parse that we need to stop processing the
+               * current line and jump back to the top of the loop.
+               */
 
-               np->np_jump = true;
+              np->np_jump = true;
 #endif
             }
           else
@@ -2027,7 +2064,7 @@ static int nsh_itef(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
 
           /* Check if we have exceeded the maximum depth of nesting */
 
-          if (np->np_iendx >= CONFIG_NSH_NESTDEPTH-1)
+          if (np->np_iendx >= CONFIG_NSH_NESTDEPTH - 1)
             {
               nsh_error(vtbl, g_fmtdeepnesting, "if");
               goto errout;
@@ -2047,7 +2084,9 @@ static int nsh_itef(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
 
       else if (strcmp(cmd, "then") == 0)
         {
-          /* Get the cmd following the "then" -- there may or may not be one */
+          /* Get the cmd following the "then" -- there may or may not be
+           * one.
+           */
 
           *ppcmd = nsh_argument(vtbl, saveptr, memlist, NULL);
 
@@ -2066,7 +2105,9 @@ static int nsh_itef(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
 
       else if (strcmp(cmd, "else") == 0)
         {
-          /* Get the cmd following the "else" -- there may or may not be one */
+          /* Get the cmd following the "else" -- there may or may not be
+           * one.
+           */
 
           *ppcmd = nsh_argument(vtbl, saveptr, memlist, NULL);
 
@@ -2114,7 +2155,9 @@ static int nsh_itef(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
           np->np_iendx--;
         }
 
-      /* If we just parsed "if", then nothing is acceptable other than "then" */
+      /* If we just parsed "if", then nothing is acceptable other than
+       * "then".
+       */
 
       else if (np->np_iestate[np->np_iendx].ie_state == NSH_ITEF_IF)
         {
@@ -2174,6 +2217,7 @@ static int nsh_nice(FAR struct nsh_vtbl_s *vtbl, FAR char **ppcmd,
                       nsh_error(vtbl, g_fmtarginvalid, "nice");
                       return ERROR;
                     }
+
                   cmd = nsh_argument(vtbl, saveptr, memlist, NULL);
                 }
             }
@@ -2269,14 +2313,15 @@ static int nsh_parse_cmdparm(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
    * of argv is:
    *
    *   argv[0]:      The command name.
-   *   argv[1]:      The beginning of argument (up to CONFIG_NSH_MAXARGUMENTS)
+   *   argv[1]:      The beginning of argument (up to
+   *                 CONFIG_NSH_MAXARGUMENTS)
    *   argv[argc]:   NULL terminating pointer
    *
    * Maximum size is CONFIG_NSH_MAXARGUMENTS+1
    */
 
   argv[0] = cmd;
-  for (argc = 1; argc < MAX_ARGV_ENTRIES-1; argc++)
+  for (argc = 1; argc < MAX_ARGV_ENTRIES - 1; argc++)
     {
       argv[argc] = nsh_argument(vtbl, &saveptr, &memlist, NULL);
       if (!argv[argc])
@@ -2296,7 +2341,8 @@ static int nsh_parse_cmdparm(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline,
 
   /* Then execute the command */
 
-  ret = nsh_execute(vtbl, argc, argv, redirfile, O_WRONLY|O_CREAT|O_TRUNC);
+  ret = nsh_execute(vtbl, argc, argv, redirfile,
+                    O_WRONLY | O_CREAT | O_TRUNC);
 
   /* Restore the backgrounding and redirection state */
 
@@ -2328,7 +2374,7 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
   int       oflags = 0;
   int       argc;
   int       ret;
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   bool      redirect_save = false;
 #endif
 
@@ -2341,7 +2387,7 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
   vtbl->np.np_bg       = false;
 #endif
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   vtbl->np.np_redirect = false;
 #endif
 
@@ -2406,7 +2452,8 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
    * of argv is:
    *
    *   argv[0]:      The command name.
-   *   argv[1]:      The beginning of argument (up to CONFIG_NSH_MAXARGUMENTS)
+   *   argv[1]:      The beginning of argument (up to
+   *                 CONFIG_NSH_MAXARGUMENTS)
    *   argv[argc-3]: Possibly '>' or '>>'
    *   argv[argc-2]: Possibly <file>
    *   argv[argc-1]: Possibly '&'
@@ -2416,7 +2463,7 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
    */
 
   argv[0] = cmd;
-  for (argc = 1; argc < MAX_ARGV_ENTRIES-1; argc++)
+  for (argc = 1; argc < MAX_ARGV_ENTRIES - 1; argc++)
     {
       int isenvvar = 0; /* flag for if an environment variable gets expanded */
 
@@ -2429,7 +2476,7 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
 
       if (isenvvar != 0)
         {
-          while (argc < MAX_ARGV_ENTRIES-1)
+          while (argc < MAX_ARGV_ENTRIES - 1)
             {
               FAR char *pbegin = argv[argc];
 
@@ -2482,38 +2529,38 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
   /* Check if the command should run in background */
 
 #ifndef CONFIG_NSH_DISABLEBG
-  if (argc > 1 && strcmp(argv[argc-1], "&") == 0)
+  if (argc > 1 && strcmp(argv[argc - 1], "&") == 0)
     {
       vtbl->np.np_bg = true;
-      argv[argc-1] = NULL;
+      argv[argc - 1] = NULL;
       argc--;
     }
 #endif
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   /* Check if the output was re-directed using > or >> */
 
   if (argc > 2)
     {
       /* Check for redirection to a new file */
 
-      if (strcmp(argv[argc-2], g_redirect1) == 0)
+      if (strcmp(argv[argc - 2], g_redirect1) == 0)
         {
           redirect_save        = vtbl->np.np_redirect;
           vtbl->np.np_redirect = true;
-          oflags               = O_WRONLY|O_CREAT|O_TRUNC;
-          redirfile            = nsh_getfullpath(vtbl, argv[argc-1]);
+          oflags               = O_WRONLY | O_CREAT | O_TRUNC;
+          redirfile            = nsh_getfullpath(vtbl, argv[argc - 1]);
           argc                -= 2;
         }
 
       /* Check for redirection by appending to an existing file */
 
-      else if (strcmp(argv[argc-2], g_redirect2) == 0)
+      else if (strcmp(argv[argc - 2], g_redirect2) == 0)
         {
           redirect_save        = vtbl->np.np_redirect;
           vtbl->np.np_redirect = true;
-          oflags               = O_WRONLY|O_CREAT|O_APPEND;
-          redirfile            = nsh_getfullpath(vtbl, argv[argc-1]);
+          oflags               = O_WRONLY | O_CREAT | O_APPEND;
+          redirfile            = nsh_getfullpath(vtbl, argv[argc - 1]);
           argc                -= 2;
         }
     }
@@ -2532,7 +2579,7 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
 
   /* Free any allocated resources */
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   /* Free the redirected output file path */
 
   if (redirfile)
@@ -2575,15 +2622,15 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
   size_t len;
   int ret;
 
-  /* Loop until all of the commands on the command line have been processed OR
-   * until the end-of-loop has been recountered and we need to reload the line
-   * at the top of the loop.
+  /* Loop until all of the commands on the command line have been processed
+   * OR until the end-of-loop has been encountered and we need to reload the
+   * line at the top of the loop.
    */
 
 #if !defined(CONFIG_NSH_DISABLESCRIPT) && !defined(CONFIG_NSH_DISABLE_LOOPS)
   for (np->np_jump = false; !np->np_jump; )
 #else
-  for (;;)
+  for (; ; )
 #endif
     {
 #if !defined(CONFIG_NSH_DISABLESCRIPT) && !defined(CONFIG_NSH_DISABLE_LOOPS)

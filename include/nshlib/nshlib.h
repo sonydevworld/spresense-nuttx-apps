@@ -42,11 +42,14 @@
 
 #include <nuttx/config.h>
 
+#include <arpa/inet.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* If a USB device is selected for the NSH console then we need to handle some
- * special start-up conditions.
+
+/* If a USB device is selected for the NSH console then we need to handle
+ * some special start-up conditions.
  */
 
 #undef HAVE_USB_CONSOLE
@@ -136,7 +139,7 @@ void nsh_initialize(void);
  *
  ****************************************************************************/
 
-int nsh_consolemain(int argc, char *argv[]);
+int nsh_consolemain(int argc, FAR char *argv[]);
 
 /****************************************************************************
  * Name: nsh_telnetstart
@@ -170,7 +173,7 @@ int nsh_telnetstart(sa_family_t family);
  *   must provide this function in order to obtain the Message of the Day
  *   (MOTD)
  *
- * Input Parmeters:
+ * Input Parameters:
  *   buffer - A caller allocated buffer in which to receive the MOTD
  *   buflen - The length in bytes of the caller allocated buffer
  *
@@ -191,7 +194,7 @@ void platform_motd(FAR char *buffer, size_t buflen);
  *   must provide this function in order verify user credentials as part of
  *   the login process.
  *
- * Input Parmeters:
+ * Input Parameters:
  *   username/password - User credentials to be verified.
  *
  * Returned value:
@@ -224,7 +227,7 @@ int platform_user_verify(FAR const char *username, FAR const char *password);
  *
  ****************************************************************************/
 
-int nsh_system(int argc, char *argv[]);
+int nsh_system(int argc, FAR char *argv[]);
 
 #undef EXTERN
 #ifdef __cplusplus

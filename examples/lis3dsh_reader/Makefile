@@ -33,11 +33,11 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 PROGNAME = $(CONFIG_EXAMPLES_LIS3DSH_READER_PROGNAME)
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_LIS3DSH_READER)
 
 # LIS3DSH reader example

@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps/modbus/rtu/mbrtu_m.c
  *
- * FreeModbus Libary: A portable Modbus implementation for Modbus ASCII/RTU.
+ * FreeModbus Library: A portable Modbus implementation for Modbus ASCII/RTU.
  * Copyright (c) 2013 China Beijing Armink <armink.ztl@gmail.com>
  * All rights reserved.
  *
@@ -136,7 +136,7 @@ eMBErrorCode eMBMasterRTUInit(uint8_t ucPort, speed_t ulBaudRate,
           /* The timer reload value for a character is given by: ChTimeValue =
            * Ticks_per_1s / ( Baudrate / 11 ) = 11 * Ticks_per_1s / Baudrate =
            * 220000 / Baudrate The reload for t3.5 is 1.5 times this value and
-           * similary for t3.5.
+           * similarly for t3.5.
            */
 
           usTimerT35_50us = (7UL * 220000UL) / (2UL * ulBaudRate);
@@ -190,7 +190,7 @@ eMBErrorCode eMBMasterRTUReceive(uint8_t *pucRcvAddress, uint8_t **pucFrame,
   if ((usMasterRcvBufferPos >= MB_SER_PDU_SIZE_MIN)
       && (usMBCRC16((uint8_t *) ucMasterRTURcvBuf, usMasterRcvBufferPos) == 0))
     {
-      /* Save the address field. All frames are passed to the upper layed and
+      /* Save the address field. All frames are passed to the upper laid and
        * the decision if a frame is used is done there.
        */
 
@@ -278,7 +278,7 @@ bool xMBMasterRTUReceiveFSM(void)
 
   /* Always read the character. */
 
-  (void)xMBMasterPortSerialGetByte((uint8_t *) & ucByte);
+  xMBMasterPortSerialGetByte((uint8_t *) & ucByte);
 
   switch (eRcvState)
     {
@@ -422,7 +422,7 @@ bool xMBMasterRTUTimerExpired(void)
       xNeedPoll = xMBMasterPortEventPost(EV_MASTER_FRAME_RECEIVED);
       break;
 
-      /* An error occured while receiving the frame. */
+      /* An error occurred while receiving the frame. */
 
     case STATE_M_RX_ERROR:
       vMBMasterSetErrorType(EV_ERROR_RECEIVE_DATA);

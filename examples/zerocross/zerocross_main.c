@@ -51,6 +51,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
 #ifndef CONFIG_SENSORS_ZEROCROSS
@@ -112,6 +113,10 @@ int main(int argc, FAR char *argv[])
       goto errout_with_fd;
     }
 
+  /* Ignore the default signal action */
+
+  signal(CONFIG_EXAMPLES_ZEROCROSS_SIGNO, SIG_IGN);
+
   /* Then loop, receiving signals indicating zero cross events. */
 
   for (; ; )
@@ -122,8 +127,8 @@ int main(int argc, FAR char *argv[])
 
       /* Wait for a signal */
 
-      (void)sigemptyset(&set);
-      (void)sigaddset(&set, CONFIG_EXAMPLES_ZEROCROSS_SIGNO);
+      sigemptyset(&set);
+      sigaddset(&set, CONFIG_EXAMPLES_ZEROCROSS_SIGNO);
       ret = sigwaitinfo(&set, &value);
       if (ret < 0)
         {

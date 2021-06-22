@@ -122,9 +122,9 @@ int netlib_set_dripv4addr(FAR const char *ifname,
               /* Delete the default route first */
               /* This call fails if no default route exists, but it's OK */
 
-              (void)delroute(sockfd,
-                             (FAR struct sockaddr_storage *)&target,
-                             (FAR struct sockaddr_storage *)&netmask);
+              delroute(sockfd,
+                       (FAR struct sockaddr_storage *)&target,
+                       (FAR struct sockaddr_storage *)&netmask);
 
               /* Then add the new default route */
 
@@ -143,4 +143,3 @@ int netlib_set_dripv4addr(FAR const char *ifname,
 }
 
 #endif /* CONFIG_NET_IPv4 */
-

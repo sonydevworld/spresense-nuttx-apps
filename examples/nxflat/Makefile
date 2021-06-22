@@ -33,18 +33,33 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # NXFLAT Example
 
+CSRCS = romfs.c
+CSRCS += dirlist.c
+CSRCS += symtab.c
 MAINSRC = nxflat_main.c
 
 PROGNAME = nxflat
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_NXFLAT)
 
-context::
-	@$(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+DEPPATH := --dep-path tests
+
+VPATH += :tests
+
+tests/romfs.c: build
+tests/dirlist.c: build
+tests/symtab.c: build
+
+.PHONY: build
+build:
+	+$(Q) $(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+
+clean::
+	+$(Q) $(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
 
 include $(APPDIR)/Application.mk

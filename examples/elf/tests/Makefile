@@ -33,7 +33,6 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
 ALL_SUBDIRS = errno hello helloxx longjmp mutex pthread signal task struct
@@ -57,68 +56,50 @@ endif
 
 ELF_DIR = $(APPDIR)/examples/elf
 TESTS_DIR = $(ELF_DIR)/tests
-DIRLIST_HDR = $(TESTS_DIR)/dirlist.h
+DIRLIST_SRC = $(TESTS_DIR)/dirlist.c
 SYMTAB_SRC = $(TESTS_DIR)/symtab.c
 
 ifeq ($(CONFIG_EXAMPLES_ELF_ROMFS),y)
   FSIMG_SUBDIR = romfs
   FSIMG_DIR = $(TESTS_DIR)/$(FSIMG_SUBDIR)
   ROMFS_IMG = $(TESTS_DIR)/romfs.img
-  FSIMG_HDR = $(TESTS_DIR)/romfs.h
+  FSIMG_SRC = $(TESTS_DIR)/romfs.c
 else
   NXTOOLDIR = $(TOPDIR)/tools
   GENCROMFSSRC = gencromfs.c
-  GENCROMFSEXE = gencromfs$(EXEEXT)
+  GENCROMFSEXE = gencromfs$(HOSTEXEEXT)
 
   FSIMG_SUBDIR = cromfs
   FSIMG_DIR = $(TESTS_DIR)/$(FSIMG_SUBDIR)
-  FSIMG_HDR = $(TESTS_DIR)/cromfs.h
+  FSIMG_SRC = $(TESTS_DIR)/cromfs.c
 endif
 
 define DIR_template
 $(1)_$(2):
-	$(Q) $(MAKE) -C $(1) $(3) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" FSIMG_DIR="$(FSIMG_DIR)" CROSSDEV=$(CROSSDEV)
+	+$(Q) $(MAKE) -C $(1) $(2) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" FSIMG_DIR="$(FSIMG_DIR)" CROSSDEV=$(CROSSDEV)
 endef
 
-all: $(FSIMG_HDR) $(DIRLIST_HDR) $(SYMTAB_SRC)
-.PHONY: all build clean install populate
+all: $(FSIMG_SRC) $(DIRLIST_SRC) $(SYMTAB_SRC)
+.PHONY: all clean install
 
-$(foreach DIR, $(BUILD_SUBDIRS), $(eval $(call DIR_template,$(DIR),build, all)))
-$(foreach DIR, $(ALL_SUBDIRS), $(eval $(call DIR_template,$(DIR),clean,clean)))
-$(foreach DIR, $(BUILD_SUBDIRS), $(eval $(call DIR_template,$(DIR),install,install)))
-
-# Build program(s) in each sud-directory
-
-build: $(foreach DIR, $(BUILD_SUBDIRS), $(DIR)_build)
+$(foreach DIR, $(ALL_SUBDIRS), $(eval $(call DIR_template,$(DIR),clean)))
+$(foreach DIR, $(BUILD_SUBDIRS), $(eval $(call DIR_template,$(DIR),install)))
 
 # Install each program in the file system image directory
 
 install: $(foreach DIR, $(BUILD_SUBDIRS), $(DIR)_install)
-ifneq ($(STRIP),)
-ifneq ($(CONFIG_EXAMPLES_ELF_NOSTRIP),y)
-	$(Q) $(STRIP) $(wildcard $(FSIMG_SUBDIR)/*)
-endif
-endif
-
-# Create the file system image directory
-
-$(FSIMG_DIR):
-	$(Q) mkdir $(FSIMG_DIR)
-
-# Populate the file system image directory
-
-populate:  $(FSIMG_DIR) build install
 
 ifeq ($(CONFIG_EXAMPLES_ELF_ROMFS),y)
 # Create the romfs.img file from the populated romfs directory
 
-$(ROMFS_IMG): populate
-	$(Q) genromfs -f $@ -d $(FSIMG_DIR) -V "ELFTEST"
+$(ROMFS_IMG): install
+	$(Q) genromfs -f $@.tmp -d $(FSIMG_DIR) -V "ELFTEST"
+	$(Q) $(call TESTANDREPLACEFILE, $@.tmp, $@)
 
-# Create the romfs.h header file from the romfs.img file
+# Create the romfs.c file from the romfs.img file
 
-$(FSIMG_HDR) : $(ROMFS_IMG)
-	$(Q) (cd $(TESTS_DIR); xxd -i romfs.img | sed -e "s/^unsigned/static const unsigned/g" >$@)
+$(FSIMG_SRC): $(ROMFS_IMG)
+	$(Q) (cd $(TESTS_DIR); xxd -i romfs.img | sed -e "s/^unsigned/const unsigned/g" >$@)
 
 else
 # Make sure that the NuttX gencromfs tool has been built
@@ -128,23 +109,26 @@ $(NXTOOLDIR)/$(GENCROMFSEXE): $(NXTOOLDIR)/$(GENCROMFSSRC)
 
 # Create the cromfs.h header file from the populated cromfs directory
 
-$(FSIMG_HDR) : populate $(NXTOOLDIR)/$(GENCROMFSEXE)
-	$(Q) $(NXTOOLDIR)/$(GENCROMFSEXE) $(FSIMG_DIR) $(FSIMG_HDR)
+$(FSIMG_SRC): install $(NXTOOLDIR)/$(GENCROMFSEXE)
+	$(Q) $(NXTOOLDIR)/$(GENCROMFSEXE) $(FSIMG_DIR) $@.tmp
+	$(Q) $(call TESTANDREPLACEFILE, $@.tmp, $@)
 
 endif
 
 # Create the dirlist.h header file from the file system image directory
 
-$(DIRLIST_HDR) : populate
-	$(Q) $(TESTS_DIR)/mkdirlist.sh $(FSIMG_DIR) >$@
+$(DIRLIST_SRC): install
+	$(Q) $(TESTS_DIR)/mkdirlist.sh $(FSIMG_DIR) >$@.tmp
+	$(Q) $(call TESTANDREPLACEFILE, $@.tmp, $@)
 
 # Create the exported symbol table
 
-$(SYMTAB_SRC): build
-	$(Q) $(TESTS_DIR)/mksymtab.sh $(FSIMG_DIR) >$@
+$(SYMTAB_SRC): install
+	$(Q) $(APPDIR)$(DELIM)tools$(DELIM)mksymtab.sh $(FSIMG_DIR) g_elf >$@.tmp
+	$(Q) $(call TESTANDREPLACEFILE, $@.tmp, $@)
 
 # Clean each subdirectory
 
 clean: $(foreach DIR, $(ALL_SUBDIRS), $(DIR)_clean)
-	$(Q) rm -f $(FSIMG_HDR) $(DIRLIST_HDR) $(ROMFS_IMG) $(SYMTAB_SRC)
+	$(Q) rm -f $(FSIMG_SRC) $(DIRLIST_SRC) $(ROMFS_IMG) $(SYMTAB_SRC)
 	$(Q) rm -rf $(FSIMG_DIR)

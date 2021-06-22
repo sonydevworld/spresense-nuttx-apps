@@ -288,7 +288,7 @@ void CCallback::newKeyboardEvent(NXHANDLE hwnd, uint8_t nCh,
       iocargs.cmd  = NXTERMIOC_NXTERM_KBDIN;
       iocargs.arg  = (uintptr_t)&kbdin;
 
-      (void)boardctl(BOARDIOC_NXTERM_IOCTL, (uintptr_t)&iocargs);
+      boardctl(BOARDIOC_NXTERM_IOCTL, (uintptr_t)&iocargs);
     }
   else
 #endif
@@ -344,14 +344,14 @@ void CCallback::windowEvent(NXWINDOW hwnd, enum nx_event_e event,
 
   switch (event)
     {
-      case NXEVENT_SYNCHED:  // Server is syncrhonized
+      case NXEVENT_SYNCHED:  // Server is synchronized
         {
           // The second argument must be the CCallback instance
 
           CCallback *This = (CCallback *)arg2;
           DEBUGASSERT(This != NULL);
 
-          // We are now syncrhonized
+          // We are now synchronized
 
           This->m_synchronized = true;
           sem_post(&This->m_semevent);

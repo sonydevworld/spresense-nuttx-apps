@@ -33,33 +33,39 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-OBJEXT ?= .o
-DELIM ?= /
+include $(APPDIR)/Make.defs
 
 # Shared library example built-in application info
 
 PROGNAME = sotest
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_SOTEST)
 
 # Shared Library Example
 
-CSRCS = sot_symtab.c
+ifeq ($(CONFIG_EXAMPLES_SOTEST_BUILTINFS),y)
+CSRCS = romfs.c
+endif
+CSRCS += sot_symtab.c
 MAINSRC = sotest_main.c
 
-ROOTDEPPATH += --dep-path lib
+DEPPATH += --dep-path lib
 
 # Build targets
 
 VPATH = lib
 
-context::
-	@$(MAKE) -C lib TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+ifeq ($(CONFIG_EXAMPLES_SOTEST_BUILTINFS),y)
+lib/romfs.c: build
+endif
+lib/sot_symtab.c: build
+
+.PHONY: build
+build:
+	+$(Q) $(MAKE) -C lib TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
 
 clean::
-	@$(MAKE) -C lib TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
+	+$(Q) $(MAKE) -C lib TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
 
 include $(APPDIR)/Application.mk
