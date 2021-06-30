@@ -39,6 +39,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -393,7 +394,8 @@ static inline int
   crc = crc32(g_entryimage, entry->len);
   if (crc != entry->crc)
     {
-      printf("ERROR: Bad CRC: %u vs %u\n", crc, entry->crc);
+      printf("ERROR: Bad CRC: %" PRIu32 " vs %" PRIu32 "\n",
+             crc, entry->crc);
       printf("  Entry id:   %04X\n", entry->id);
       printf("  Entry size: %d\n", entry->len);
       return ERROR;
