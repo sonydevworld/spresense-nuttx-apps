@@ -92,6 +92,7 @@ struct gs2200m_s
   uint8_t mode;
   uint8_t ch;
   int     gsfd;
+  int     usock_enable;
   struct usock_s sockets[SOCKET_COUNT];
 };
 
@@ -449,6 +450,14 @@ static int socket_request(int fd, FAR struct gs2200m_s *priv,
 
   gs2200m_printf("%s: start type=%d \n",
                  __func__, req->type);
+
+  /* Check Usrsock enabled */
+
+  if (!priv->usock_enable)
+    {
+      usockid = -EPROTONOSUPPORT;
+    }
+  else
 
   /* Check domain requested */
 
@@ -1510,6 +1519,7 @@ static int ioctl_request(int fd, FAR struct gs2200m_s *priv,
   struct usrsock_message_req_ack_s resp;
   struct usrsock_message_datareq_ack_s resp2;
   struct gs2200m_ifreq_msg imsg;
+  uint8_t sock_type;
   bool getreq = false;
   int ret = -EINVAL;
 
@@ -1530,6 +1540,24 @@ static int ioctl_request(int fd, FAR struct gs2200m_s *priv,
       case SIOCSIFNETMASK:
 
         read(fd, &imsg.ifr, sizeof(imsg.ifr));
+        break;
+
+      case SIOCDENYINETSOCK:
+
+        read(fd, &sock_type, sizeof(uint8_t));
+
+        if (sock_type == DENY_INET_SOCK_ENABLE)
+          {
+            /* Block to create INET socket */
+
+            priv->usock_enable = FALSE;
+          }
+        else
+          {
+            /* Allow to create INET socket */
+
+            priv->usock_enable = TRUE;
+          }
         break;
 
       default:
@@ -1720,6 +1748,8 @@ int main(int argc, FAR char *argv[])
             break;
         }
     }
+
+  _daemon->usock_enable = TRUE;
 
   if ((ap_mode && (4 != argc) && (5 != argc))
       || (!ap_mode && 3 != argc))
