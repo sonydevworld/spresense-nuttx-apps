@@ -108,6 +108,7 @@ struct usock_s
 struct wiznet_s
 {
   int            gsfd;
+  int            usock_enable;
   struct usock_s sockets[SOCKET_NUMBER];
 };
 
@@ -462,6 +463,14 @@ static int socket_request(int fd, FAR struct wiznet_s *priv,
 
   wiznet_printf("%s: start type=%d \n",
                  __func__, req->type);
+
+  /* Check Usrsock enabled */
+
+  if (!priv->usock_enable)
+    {
+      usockid = -EPROTONOSUPPORT;
+    }
+  else
 
   /* Check domain requested */
 
@@ -1649,6 +1658,7 @@ static int ioctl_request(int fd, FAR struct wiznet_s *priv,
   struct usrsock_message_req_ack_s resp;
   struct usrsock_message_datareq_ack_s resp2;
   struct wiznet_ifreq_msg cmsg;
+  uint8_t sock_type;
   bool getreq = false;
   int ret = -EINVAL;
 
@@ -1669,6 +1679,24 @@ static int ioctl_request(int fd, FAR struct wiznet_s *priv,
       case SIOCSIFNETMASK:
 
         read(fd, &cmsg.ifr, sizeof(cmsg.ifr));
+        break;
+
+      case SIOCDENYINETSOCK:
+
+        read(fd, &sock_type, sizeof(uint8_t));
+
+        if (sock_type == DENY_INET_SOCK_ENABLE)
+          {
+            /* Block to create INET socket */
+
+            priv->usock_enable = FALSE;
+          }
+        else
+          {
+            /* Allow to create INET socket */
+
+            priv->usock_enable = TRUE;
+          }
         break;
 
       default:
@@ -1854,6 +1882,8 @@ int main(int argc, FAR char *argv[])
           mac_addr = strtoll(argv[2], NULL, 16);
         }
     }
+
+  _daemon->usock_enable = TRUE;
 
   ret = wiznet_loop(_daemon, &mac_addr);
 
