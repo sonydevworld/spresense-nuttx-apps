@@ -9,6 +9,7 @@ config NETUTILS_WIZNET
 	depends on NET_USRSOCK && NET_WIZNET
 	select NET_USRSOCK_TCP
 	select PIPES
+	select NET_USRSOCK_OTHER
 	---help---
 		Enable support for the WIZnet usrsock daemon
 

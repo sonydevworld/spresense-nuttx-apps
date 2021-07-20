@@ -464,19 +464,20 @@ static int socket_request(int fd, FAR struct wiznet_s *priv,
   wiznet_printf("%s: start type=%d \n",
                  __func__, req->type);
 
-  /* Check Usrsock enabled */
-
-  if (!priv->usock_enable)
-    {
-      usockid = -EPROTONOSUPPORT;
-    }
-  else
-
   /* Check domain requested */
 
-  if (req->domain != AF_INET)
+  if (req->domain != AF_INET && req->domain != PF_USRSOCK)
     {
       usockid = -EAFNOSUPPORT;
+    }
+  else if (!priv->usock_enable && req->domain == AF_INET)
+    {
+      /* If domain is AF_INET while usock_enable is false,
+       * set usockid to -EPROTONOSUPPORT to fallback kernel
+       * network stack.
+       */
+
+      usockid = -EPROTONOSUPPORT;
     }
   else
     {
