@@ -102,6 +102,7 @@ struct usock_s
   int                orig_sock;
   struct sockaddr_in bind_addr;
   int                backlog;
+  struct sockaddr_in udpaddr;
 };
 
 struct wiznet_s
@@ -643,14 +644,22 @@ static int connect_request(int fd, FAR struct wiznet_s *priv,
       goto prepare;
     }
 
-  cmsg.sockfd  = f_usockid_to_sockfd(req->usockid);
-  cmsg.type    = usock->type;
-  cmsg.addrlen = req->addrlen;
-  ret = ioctl(priv->gsfd, WIZNET_IOC_CONNECT, (unsigned long)&cmsg);
-
-  if (0 == ret)
+  if (usock->type == SOCK_DGRAM)
     {
+      usock->udpaddr = *addr;
       usock->state = CONNECTED;
+    }
+  else
+    {
+      cmsg.sockfd  = f_usockid_to_sockfd(req->usockid);
+      cmsg.type    = usock->type;
+      cmsg.addrlen = req->addrlen;
+      ret = ioctl(priv->gsfd, WIZNET_IOC_CONNECT, (unsigned long)&cmsg);
+
+      if (0 == ret)
+        {
+          usock->state = CONNECTED;
+        }
     }
 
 prepare:
@@ -732,27 +741,34 @@ static int sendto_request(int fd, FAR struct wiznet_s *priv,
 
   /* For UDP, addlen must be provided */
 
-  if (usock->type == SOCK_DGRAM && CONNECTED != usock->state)
+  if (usock->type == SOCK_DGRAM)
     {
-      if (req->addrlen == 0)
+      if (CONNECTED != usock->state)
         {
-          ret = -EINVAL;
-          goto prepare;
+          if (req->addrlen == 0)
+            {
+              ret = -EINVAL;
+              goto prepare;
+            }
+
+          /* In UDP case, read the address. */
+
+          rlen = read(fd, addr, sizeof(struct sockaddr_in));
+
+          if (rlen < 0 || rlen < req->addrlen)
+            {
+              ret = -EFAULT;
+              goto prepare;
+            }
+
+          wiznet_printf("%s: addr: %s:%d",
+                        __func__,
+                        inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
         }
-
-      /* In UDP case, read the address. */
-
-      rlen = read(fd, addr, sizeof(struct sockaddr_in));
-
-      if (rlen < 0 || rlen < req->addrlen)
+      else /* DGRAM sock is alreay connected.. */
         {
-          ret = -EFAULT;
-          goto prepare;
+          *addr = usock->udpaddr;
         }
-
-      wiznet_printf("%s: addr: %s:%d",
-                     __func__,
-                     inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
     }
 
   /* Check if the request has data. */
