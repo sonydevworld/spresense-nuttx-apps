@@ -2793,6 +2793,10 @@ static int ioctl_lte_power(int fd, FAR struct alt1250_s *dev,
       case LTE_CMDID_GIVEWLOCK:
         power.cmdid = cmd->cmdid;
         ret = ioctl(dev->altfd, ALT1250_IOC_POWER, (unsigned long)&power);
+        if (ret > 0)
+          {
+            ret = OK;
+          }
         break;
       case LTE_CMDID_POWEROFF:
         alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
