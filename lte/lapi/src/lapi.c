@@ -65,10 +65,10 @@
 #define ALTCOMBS_EDRX_CYCLE_WBS1_MAX      (LTE_EDRX_CYC_262144)
 #define ALTCOMBS_EDRX_CYCLE_NBS1_MIN      (LTE_EDRX_CYC_2048)
 #define ALTCOMBS_EDRX_CYCLE_NBS1_MAX      (LTE_EDRX_CYC_1048576)
-#define ALTCOMBS_EDRX_PTW_WBS1_MIN        (0)
-#define ALTCOMBS_EDRX_PTW_WBS1_MAX        (15)
-#define ALTCOMBS_EDRX_PTW_NBS1_MIN        (0)
-#define ALTCOMBS_EDRX_PTW_NBS1_MAX        (15)
+#define ALTCOMBS_EDRX_PTW_WBS1_MIN        (LTE_EDRX_PTW_128)
+#define ALTCOMBS_EDRX_PTW_WBS1_MAX        (LTE_EDRX_PTW_2048)
+#define ALTCOMBS_EDRX_PTW_NBS1_MIN        (LTE_EDRX_PTW_256)
+#define ALTCOMBS_EDRX_PTW_NBS1_MAX        (LTE_EDRX_PTW_4096)
 #define ALTCOMBS_PSM_UNIT_T3324_MIN       (LTE_PSM_T3324_UNIT_2SEC)
 #define ALTCOMBS_PSM_UNIT_T3324_MAX       (LTE_PSM_T3324_UNIT_6MIN)
 #define ALTCOMBS_PSM_UNIT_T3412_MIN       (LTE_PSM_T3412_UNIT_2SEC)
@@ -289,6 +289,8 @@ static int lte_set_ce_inparam_check(lte_ce_setting_t *settings)
 
 static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
 {
+  int32_t ret = 0;
+
   if (!settings)
     {
       printf("Input argument is NULL.\n");
@@ -306,37 +308,75 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
       return -EINVAL;
     }
 
-  if (settings->act_type == LTE_EDRX_ACTTYPE_WBS1)
+  ret = lte_get_rat_sync();
+  if (ret < 0 && ret != -ENOTSUP)
     {
-      if (!(ALTCOMBS_EDRX_CYCLE_WBS1_MIN < settings->edrx_cycle &&
-        settings->edrx_cycle < ALTCOMBS_EDRX_CYCLE_WBS1_MAX))
-        {
-          printf("Input argument edrx_cycle is invalid.\n");
-          return -EINVAL;
-        }
+      printf("Unable to read RAT setting from the device. ret: [%ld].\n",
+        ret);
+      return ret;
+    }
+  else if (ret == -ENOTSUP)
+    {
+      /* act_type check for protocol version V1 */
 
-      if (!(ALTCOMBS_EDRX_PTW_WBS1_MIN < settings->edrx_cycle &&
-        settings->edrx_cycle < ALTCOMBS_EDRX_PTW_WBS1_MAX))
+      if (LTE_EDRX_ACTTYPE_NOTUSE != settings->act_type &&
+          LTE_EDRX_ACTTYPE_WBS1   != settings->act_type)
         {
-          printf("Input argument edrx_cycle is invalid.\n");
-          return -EINVAL;
+          printf("Operation is not allowed[act_type : %d].\n",
+            settings->act_type);
+          return -EPERM;
+        }
+    }
+  else
+    {
+      /* act_type check for version V4 or later */
+
+      if (!((ret == LTE_RAT_CATM
+             && settings->act_type == LTE_EDRX_ACTTYPE_WBS1) ||
+            (ret == LTE_RAT_NBIOT
+             && settings->act_type == LTE_EDRX_ACTTYPE_NBS1) ||
+            (settings->act_type == LTE_EDRX_ACTTYPE_NOTUSE)))
+        {
+          printf("Operation is not allowed[act_type : %d, RAT : %ld].\n",
+            settings->act_type, ret);
+          return -EPERM;
         }
     }
 
-  if (settings->act_type == LTE_EDRX_ACTTYPE_NBS1)
+  if (settings->enable)
     {
-      if (!(ALTCOMBS_EDRX_CYCLE_NBS1_MIN < settings->edrx_cycle &&
-          settings->edrx_cycle < ALTCOMBS_EDRX_CYCLE_NBS1_MAX))
+      if (settings->act_type == LTE_EDRX_ACTTYPE_WBS1)
         {
-          printf("Input argument edrx_cycle is invalid.\n");
-          return -EINVAL;
+          if (!(ALTCOMBS_EDRX_CYCLE_WBS1_MIN <= settings->edrx_cycle &&
+            settings->edrx_cycle <= ALTCOMBS_EDRX_CYCLE_WBS1_MAX))
+            {
+              printf("Input argument edrx_cycle is invalid.\n");
+              return -EINVAL;
+            }
+
+          if (!(ALTCOMBS_EDRX_PTW_WBS1_MIN <= settings->ptw_val &&
+            settings->ptw_val <= ALTCOMBS_EDRX_PTW_WBS1_MAX))
+            {
+              printf("Input argument ptw is invalid.\n");
+              return -EINVAL;
+            }
         }
 
-      if (!(ALTCOMBS_EDRX_PTW_NBS1_MIN < settings->edrx_cycle &&
-          settings->edrx_cycle < ALTCOMBS_EDRX_PTW_NBS1_MAX))
+      if (settings->act_type == LTE_EDRX_ACTTYPE_NBS1)
         {
-          printf("Input argument edrx_cycle is invalid.\n");
-          return -EINVAL;
+          if (!(ALTCOMBS_EDRX_CYCLE_NBS1_MIN <= settings->edrx_cycle &&
+              settings->edrx_cycle <= ALTCOMBS_EDRX_CYCLE_NBS1_MAX))
+            {
+              printf("Input argument edrx_cycle is invalid.\n");
+              return -EINVAL;
+            }
+
+          if (!(ALTCOMBS_EDRX_PTW_NBS1_MIN <= settings->ptw_val &&
+              settings->ptw_val <= ALTCOMBS_EDRX_PTW_NBS1_MAX))
+            {
+              printf("Input argument ptw is invalid.\n");
+              return -EINVAL;
+            }
         }
     }
 
@@ -987,12 +1027,10 @@ int32_t lte_get_edrx_sync(lte_edrx_setting_t *settings)
 int32_t lte_set_edrx_sync(lte_edrx_setting_t *settings)
 {
   int32_t ret;
-  int32_t ratinfo_ret;
-  lte_ratinfo_t ratinfo;
   int32_t result;
   FAR void *inarg[] =
     {
-      settings, &ratinfo_ret, &ratinfo
+      settings
     };
 
   FAR void *outarg[] =
@@ -1000,12 +1038,11 @@ int32_t lte_set_edrx_sync(lte_edrx_setting_t *settings)
       &result
     };
 
-  if (lte_set_edrx_inparam_check(settings))
+  ret = lte_set_edrx_inparam_check(settings);
+  if (ret < 0)
     {
-      return -EINVAL;
+      return ret;
     }
-
-  ratinfo_ret = lte_get_ratinfo_sync(&ratinfo);
 
   ret = lapi_req(LTE_CMDID_SETEDRX,
                  (FAR void *)inarg, ARRAY_SZ(inarg),
@@ -1632,6 +1669,7 @@ int32_t lte_get_edrx(get_edrx_cb_t callback)
 
 int32_t lte_set_edrx(lte_edrx_setting_t *settings, set_edrx_cb_t callback)
 {
+  int32_t ret;
   FAR void *inarg[] =
     {
       settings
@@ -1642,9 +1680,10 @@ int32_t lte_set_edrx(lte_edrx_setting_t *settings, set_edrx_cb_t callback)
       return -EINVAL;
     }
 
-  if (lte_set_edrx_inparam_check(settings))
+  ret = lte_set_edrx_inparam_check(settings);
+  if (ret < 0)
     {
-      return -EINVAL;
+      return ret;
     }
 
   return lapi_req(LTE_CMDID_SETEDRX | LTE_CMDOPT_ASYNC_BIT,
