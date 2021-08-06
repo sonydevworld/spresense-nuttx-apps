@@ -53,6 +53,9 @@
 
 #define NCBTABLES (8 + ALTCOM_NSOCKET) /* 8 is the maximum number of events */
 
+#define IS_REPORT_API(cmdid) \
+  ( LTE_ISCMDGRP_EVENT(cmdid) || cmdid == LTE_CMDID_SETRESTART )
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -1143,19 +1146,49 @@ static void clear_callback(uint32_t cmdid)
 }
 
 /****************************************************************************
+ * Name: errno2result
+ ****************************************************************************/
+
+static void errno2result(FAR int32_t *result_ptr)
+{
+  if (result_ptr && *result_ptr < 0)
+    {
+      if (*result_ptr == -ECANCELED)
+        {
+          *result_ptr = LTE_RESULT_CANCEL;
+        }
+      else
+        {
+          *result_ptr = LTE_RESULT_ERROR;
+        }
+    }
+}
+
+/****************************************************************************
  * Name: exec_callback
  ****************************************************************************/
 
 static uint64_t exec_callback(uint32_t cmdid,
-  uint64_t (*func)(FAR void *cb, FAR void *arg), FAR void *arg)
+  uint64_t (*func)(FAR void *cb, FAR void **arg), FAR void **arg)
 {
   int i;
   uint64_t evtbitmap = 0ULL;
+  FAR int32_t *result = NULL;
 
   for (i = 0; i < ARRAY_SZ(g_cbtable); i++)
     {
+      /* APIs that have result as a callback argument
+       * change the value before execution.
+       */
+
       if (g_cbtable[i].cmdid == cmdid)
         {
+          if (!IS_REPORT_API(cmdid))
+            {
+              result = (int32_t *)arg[0];
+              errno2result(result);
+            }
+
           evtbitmap = func(g_cbtable[i].cb, arg);
           return evtbitmap;
         }
@@ -1177,7 +1210,7 @@ static uint64_t exec_callback(uint32_t cmdid,
  * Name: get_evtarg
  ****************************************************************************/
 
-static FAR void *get_evtarg(int idx)
+static FAR void **get_evtarg(int idx)
 {
   FAR alt_evtbuf_inst_t *inst = &g_evtbuffers[idx];
 
@@ -1259,7 +1292,7 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
 {
   int idx;
   uint64_t l_evtbitmap = 0ULL;
-  uint64_t (*func)(FAR void *cb, FAR void *arg);
+  uint64_t (*func)(FAR void *cb, FAR void **arg);
 
   for (idx = 0; idx < ARRAY_SZ(g_evtbuffers); idx++)
     {
