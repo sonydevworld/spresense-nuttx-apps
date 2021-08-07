@@ -29,9 +29,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <mqueue.h>
 #include <time.h>
 #include <fcntl.h>
@@ -42,13 +39,11 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_util.h"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-#ifndef ARRAY_SZ
-#  define ARRAY_SZ(array) (sizeof(array)/sizeof(array[0]))
-#endif
 
 #define EVENT_MAX 64
 

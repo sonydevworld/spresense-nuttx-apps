@@ -96,19 +96,7 @@
 #define RET_TERM     (1)
 #define RET_NOTAVAIL (2)
 
-#define SOCKET_PARAM_MAX 3
-#define CLOSE_PARAM_MAX 1
-#define CONNECT_PARAM_MAX 3
-#define SENDTO_PARAM_MAX 6
-#define RECVFROM_PARAM_MAX 4
-#define BIND_PARAM_MAX 3
-#define LISTEN_PARAM_MAX 2
-#define ACCEPT_PARAM_MAX 2
-#define SETSOCKOPT_PARAM_MAX 5
-#define GETSOCKOPT_PARAM_MAX 4
-#define GETSOCKNAME_PARAM_MAX 2
-#define SELECT_PARAM_MAX 7
-#define FCNTL_PARAM_MAX 3
+#define GETSOCKOPT_PARAM_NUM 4
 
 #define READSET_BIT   (1 << 0)
 #define WRITESET_BIT  (1 << 1)
@@ -200,7 +188,7 @@ struct usock_s
   uint8_t value[OPTVAL_LEN_MAX];
   uint16_t max_buflen;
   FAR void *out[OUTPUT_ARG_MAX];
-  FAR void *outgetopt[GETSOCKOPT_PARAM_MAX];
+  FAR void *outgetopt[GETSOCKOPT_PARAM_NUM];
   uint32_t o_addlen;
   struct sockaddr_storage o_addr;
   uint8_t *o_buf;
@@ -401,17 +389,6 @@ static struct alt_container_s g_container[CONTAINER_MAX];
  ****************************************************************************/
 
 /****************************************************************************
- * Name: get_scnt
- ****************************************************************************/
-
-static inline int32_t get_scnt(FAR struct alt1250_s *dev)
-{
-  dev->scnt++;
-
-  return (dev->scnt & 0x7fffffff);
-}
-
-/****************************************************************************
  * Name: is_synccmd
  ****************************************************************************/
 
@@ -525,10 +502,10 @@ static FAR struct alt_container_s *get_container(int16_t usockid,
 }
 
 /****************************************************************************
- * Name: add_container
+ * Name: free_container
  ****************************************************************************/
 
-static void add_container(FAR struct alt1250_s *dev,
+static void free_container(FAR struct alt1250_s *dev,
   FAR struct alt_container_s *container)
 {
   sq_addlast(&container->node, &dev->freecontainer);
@@ -927,7 +904,9 @@ static int send_commonreq(uint32_t cmdid, FAR void *in[], size_t icnt,
       ret = write_to_altdev(dev, container);
       if ((ret < 0) || (out == NULL))
         {
-          add_container(dev, container);
+          /* an error is ocuured or no need to wait response */
+
+          free_container(dev, container);
         }
     }
   else
@@ -943,18 +922,16 @@ static int send_commonreq(uint32_t cmdid, FAR void *in[], size_t icnt,
  ****************************************************************************/
 
 static int send_socketreq(int16_t domain, int16_t type, int16_t protocol,
-  FAR void *out[], size_t ocnt, int16_t usockid,
-  waithdlr_t hdlr, unsigned long priv, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[SOCKET_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[3];
 
-  in[icnt++] = &domain;
-  in[icnt++] = &type;
-  in[icnt++] = &protocol;
+  in[0] = &domain;
+  in[1] = &type;
+  in[2] = &protocol;
 
-  return send_commonreq(LTE_CMDID_SOCKET, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_SOCKET, in, 3, out, ocnt,
+    usockid, waitevt_socket, 0, dev);
 }
 
 /****************************************************************************
@@ -962,16 +939,14 @@ static int send_socketreq(int16_t domain, int16_t type, int16_t protocol,
  ****************************************************************************/
 
 static int send_closereq(int32_t altsock, FAR void *out[], size_t ocnt,
-  int16_t usockid, waithdlr_t hdlr, unsigned long priv,
-  FAR struct alt1250_s *dev)
+  int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[CLOSE_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[1];
 
-  in[icnt++] = &altsock;
+  in[0] = &altsock;
 
-  return send_commonreq(LTE_CMDID_CLOSE, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_CLOSE, in, 1, out, ocnt,
+    usockid, waitevt_sockcommon, 0, dev);
 }
 
 /****************************************************************************
@@ -980,17 +955,16 @@ static int send_closereq(int32_t altsock, FAR void *out[], size_t ocnt,
 
 static int send_fctlreq(int32_t altsock, int32_t cmd, int32_t val,
   FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev)
 {
-  FAR void *in[FCNTL_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[3];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &cmd;
-  in[icnt++] = &val;
+  in[0] = &altsock;
+  in[1] = &cmd;
+  in[2] = &val;
 
-  return send_commonreq(LTE_CMDID_FCNTL, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_FCNTL, in, 3, out, ocnt,
+    usockid, hdlr, 0, dev);
 }
 
 /****************************************************************************
@@ -999,18 +973,16 @@ static int send_fctlreq(int32_t altsock, int32_t cmd, int32_t val,
 
 static int send_connectreq(int32_t altsock, int16_t addrlen,
   struct sockaddr_storage *addr, FAR void *out[], size_t ocnt,
-  int16_t usockid, waithdlr_t hdlr, unsigned long priv,
-  FAR struct alt1250_s *dev)
+  int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[CONNECT_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[3];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &addrlen;
-  in[icnt++] = addr;
+  in[0] = &altsock;
+  in[1] = &addrlen;
+  in[2] = addr;
 
-  return send_commonreq(LTE_CMDID_CONNECT, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_CONNECT, in, 3, out, ocnt,
+    usockid, waitevt_connect, 0, dev);
 }
 
 /****************************************************************************
@@ -1019,21 +991,19 @@ static int send_connectreq(int32_t altsock, int16_t addrlen,
 
 static int send_sendtoreq(int32_t altsock, int32_t flags, int16_t addrlen,
   uint16_t buflen, struct sockaddr_storage *to, uint8_t *buf,
-  FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[SENDTO_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[6];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &flags;
-  in[icnt++] = &addrlen;
-  in[icnt++] = &buflen;
-  in[icnt++] = to;
-  in[icnt++] = buf;
+  in[0] = &altsock;
+  in[1] = &flags;
+  in[2] = &addrlen;
+  in[3] = &buflen;
+  in[4] = to;
+  in[5] = buf;
 
-  return send_commonreq(LTE_CMDID_SENDTO, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_SENDTO, in, 6, out, ocnt,
+    usockid, waitevt_sockcommon, 0, dev);
 }
 
 /****************************************************************************
@@ -1042,18 +1012,17 @@ static int send_sendtoreq(int32_t altsock, int32_t flags, int16_t addrlen,
 
 static int send_recvfromreq(int32_t altsock, int32_t flags, int16_t buflen,
   uint16_t addrlen, FAR void *out[], size_t ocnt, int16_t usockid,
-  waithdlr_t hdlr, unsigned long priv, FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev)
 {
-  FAR void *in[RECVFROM_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[4];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &flags;
-  in[icnt++] = &buflen;
-  in[icnt++] = &addrlen;
+  in[0] = &altsock;
+  in[1] = &flags;
+  in[2] = &buflen;
+  in[3] = &addrlen;
 
-  return send_commonreq(LTE_CMDID_RECVFROM, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_RECVFROM, in, 4, out, ocnt,
+    usockid, waitevt_recvfrom, 0, dev);
 }
 
 /****************************************************************************
@@ -1062,18 +1031,16 @@ static int send_recvfromreq(int32_t altsock, int32_t flags, int16_t buflen,
 
 static int send_bindreq(int32_t altsock, uint16_t addrlen,
   struct sockaddr_storage *addr, FAR void *out[], size_t ocnt,
-  int16_t usockid, waithdlr_t hdlr, unsigned long priv,
-  FAR struct alt1250_s *dev)
+  int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[BIND_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[3];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &addrlen;
-  in[icnt++] = addr;
+  in[0] = &altsock;
+  in[1] = &addrlen;
+  in[2] = addr;
 
-  return send_commonreq(LTE_CMDID_BIND, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_BIND, in, 3, out, ocnt,
+    usockid, waitevt_sockcommon, 0, dev);
 }
 
 /****************************************************************************
@@ -1081,17 +1048,15 @@ static int send_bindreq(int32_t altsock, uint16_t addrlen,
  ****************************************************************************/
 
 static int send_listenreq(int32_t altsock, uint16_t backlog,
-  FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[LISTEN_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[2];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &backlog;
+  in[0] = &altsock;
+  in[1] = &backlog;
 
-  return send_commonreq(LTE_CMDID_LISTEN, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_LISTEN, in, 2, out, ocnt,
+    usockid, waitevt_sockcommon, 0, dev);
 }
 
 /****************************************************************************
@@ -1099,17 +1064,15 @@ static int send_listenreq(int32_t altsock, uint16_t backlog,
  ****************************************************************************/
 
 static int send_acceptreq(int32_t altsock, uint16_t addrlen,
-  FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[ACCEPT_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[2];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &addrlen;
+  in[0] = &altsock;
+  in[1] = &addrlen;
 
-  return send_commonreq(LTE_CMDID_ACCEPT, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_ACCEPT, in, 2, out, ocnt,
+    usockid, waitevt_accept, 0, dev);
 }
 
 /****************************************************************************
@@ -1118,20 +1081,18 @@ static int send_acceptreq(int32_t altsock, uint16_t addrlen,
 
 static int send_setsockoptreq(int32_t altsock, uint16_t level,
   uint16_t option, uint16_t valuelen, FAR uint8_t *value,
-  FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[SETSOCKOPT_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[5];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &level;
-  in[icnt++] = &option;
-  in[icnt++] = &valuelen;
-  in[icnt++] = value;
+  in[0] = &altsock;
+  in[1] = &level;
+  in[2] = &option;
+  in[3] = &valuelen;
+  in[4] = value;
 
-  return send_commonreq(LTE_CMDID_SETSOCKOPT, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_SETSOCKOPT, in, 5, out, ocnt,
+    usockid, waitevt_sockcommon, 0, dev);
 }
 
 /****************************************************************************
@@ -1140,19 +1101,17 @@ static int send_setsockoptreq(int32_t altsock, uint16_t level,
 
 static int send_getsockoptreq(int32_t altsock, uint16_t level,
   uint16_t option, uint16_t valuelen, FAR void *out[], size_t ocnt,
-  int16_t usockid, waithdlr_t hdlr, unsigned long priv,
-  FAR struct alt1250_s *dev)
+  int16_t usockid, waithdlr_t hdlr, FAR struct alt1250_s *dev)
 {
-  FAR void *in[GETSOCKOPT_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[GETSOCKOPT_PARAM_NUM];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &level;
-  in[icnt++] = &option;
-  in[icnt++] = &valuelen;
+  in[0] = &altsock;
+  in[1] = &level;
+  in[2] = &option;
+  in[3] = &valuelen;
 
-  return send_commonreq(LTE_CMDID_GETSOCKOPT, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_GETSOCKOPT, in, GETSOCKOPT_PARAM_NUM,
+      out, ocnt, usockid, hdlr, 0, dev);
 }
 
 /****************************************************************************
@@ -1160,17 +1119,15 @@ static int send_getsockoptreq(int32_t altsock, uint16_t level,
  ****************************************************************************/
 
 static int send_getsocknamereq(int32_t altsock, uint16_t addrlen,
-  FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[GETSOCKNAME_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[2];
 
-  in[icnt++] = &altsock;
-  in[icnt++] = &addrlen;
+  in[0] = &altsock;
+  in[1] = &addrlen;
 
-  return send_commonreq(LTE_CMDID_GETSOCKNAME, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_GETSOCKNAME, in, 2, out, ocnt,
+    usockid, waitevt_getsockname, 0, dev);
 }
 
 /****************************************************************************
@@ -1181,8 +1138,7 @@ static int send_selectreq(int32_t mode, int32_t id, int32_t maxfds,
   FAR altcom_fd_set *readset, FAR altcom_fd_set *writeset,
   FAR altcom_fd_set *exceptset, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[SELECT_PARAM_MAX];
-  int icnt = 0;
+  FAR void *in[7];
   uint16_t used_setbit = 0;
 
   if (readset)
@@ -1195,15 +1151,15 @@ static int send_selectreq(int32_t mode, int32_t id, int32_t maxfds,
       used_setbit |= WRITESET_BIT;
     }
 
-  in[icnt++] = &mode;
-  in[icnt++] = &id;
-  in[icnt++] = &maxfds;
-  in[icnt++] = &used_setbit;
-  in[icnt++] = readset;
-  in[icnt++] = writeset;
-  in[icnt++] = exceptset;
+  in[0] = &mode;
+  in[1] = &id;
+  in[2] = &maxfds;
+  in[3] = &used_setbit;
+  in[4] = readset;
+  in[5] = writeset;
+  in[6] = exceptset;
 
-  return send_commonreq(LTE_CMDID_SELECT, in, icnt, NULL, 0,
+  return send_commonreq(LTE_CMDID_SELECT, in, 7, NULL, 0,
     usockid, NULL, 0, dev);
 }
 
@@ -1212,10 +1168,10 @@ static int send_selectreq(int32_t mode, int32_t id, int32_t maxfds,
  ****************************************************************************/
 
 static int send_radioonreq(FAR void *out[], size_t ocnt, int16_t usockid,
-  waithdlr_t hdlr, unsigned long priv, FAR struct alt1250_s *dev)
+   FAR struct alt1250_s *dev)
 {
   return send_commonreq(LTE_CMDID_RADIOON, NULL, 0, out, ocnt,
-    usockid, hdlr, priv, dev);
+    usockid, waitevt_radioon, 0, dev);
 }
 
 /****************************************************************************
@@ -1223,10 +1179,10 @@ static int send_radioonreq(FAR void *out[], size_t ocnt, int16_t usockid,
  ****************************************************************************/
 
 static int send_radiooffreq(FAR void *out[], size_t ocnt, int16_t usockid,
-  waithdlr_t hdlr, unsigned long priv, FAR struct alt1250_s *dev)
+   FAR struct alt1250_s *dev)
 {
   return send_commonreq(LTE_CMDID_RADIOOFF, NULL, 0, out, ocnt,
-    usockid, hdlr, priv, dev);
+    usockid, waitevt_radiooff, 0, dev);
 }
 
 /****************************************************************************
@@ -1234,20 +1190,14 @@ static int send_radiooffreq(FAR void *out[], size_t ocnt, int16_t usockid,
  ****************************************************************************/
 
 static int send_actpdnreq(FAR lte_apn_setting_t *apn, FAR void *out[],
-  size_t ocnt, int16_t usockid, waithdlr_t hdlr, unsigned long priv,
-  FAR struct alt1250_s *dev)
+  size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
 {
-  FAR void *in[] =
-    {
-      NULL
-    };
+  FAR void *in[1];
 
-  int icnt = 0;
+  in[0] = apn;
 
-  in[icnt++] = apn;
-
-  return send_commonreq(LTE_CMDID_ACTPDN, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_ACTPDN, in, 1, out, ocnt,
+    usockid, waitevt_actpdn, 0, dev);
 }
 
 /****************************************************************************
@@ -1255,28 +1205,23 @@ static int send_actpdnreq(FAR lte_apn_setting_t *apn, FAR void *out[],
  ****************************************************************************/
 
 static int send_repnetinforeq(FAR void *out[], size_t ocnt, int16_t usockid,
-  waithdlr_t hdlr, unsigned long priv, FAR struct alt1250_s *dev)
+   FAR struct alt1250_s *dev)
 {
-  FAR void *in[] =
-    {
-      NULL
-    };
+  FAR void *in[1];
 
-  int icnt = 0;
   uint8_t enable = 1;
 
-  in[icnt++] = &enable;
+  in[0] = &enable;
 
-  return send_commonreq(LTE_CMDID_REPNETINFO, in, icnt, out, ocnt,
-    usockid, hdlr, priv, dev);
+  return send_commonreq(LTE_CMDID_REPNETINFO, in, 1, out, ocnt,
+    usockid, waitevt_repnetinfo, 0, dev);
 }
 
 /****************************************************************************
  * Name: select_cancel
  ****************************************************************************/
 
-static int select_cancel(int32_t id, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+static int select_cancel(uint16_t usockid, FAR struct alt1250_s *dev)
 {
   int ret = 0;
   int32_t maxfds = 0;
@@ -1284,9 +1229,9 @@ static int select_cancel(int32_t id, uint16_t usockid,
   altcom_fd_set writeset;
   altcom_fd_set exceptset;
 
-  if (id != -1)
+  if (dev->sid != -1)
     {
-      ret = send_selectreq(SELECT_MODE_BLOCKCANCEL, id, maxfds, &readset,
+      ret = send_selectreq(SELECT_MODE_BLOCKCANCEL, dev->sid, maxfds, &readset,
         &writeset, &exceptset, usockid, dev);
       dev->sid = -1;
     }
@@ -1298,8 +1243,7 @@ static int select_cancel(int32_t id, uint16_t usockid,
  * Name: select_start
  ****************************************************************************/
 
-static int select_start(int32_t id, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+static int select_start(uint16_t usockid, FAR struct alt1250_s *dev)
 {
   int ret = 0;
   int32_t maxfds = -1;
@@ -1308,6 +1252,8 @@ static int select_start(int32_t id, uint16_t usockid,
   altcom_fd_set exceptset;
   FAR struct usock_s *usock;
   int i;
+
+  dev->sid = (++dev->scnt & 0x7fffffff);
 
   ALTCOM_FD_ZERO(&readset);
   ALTCOM_FD_ZERO(&writeset);
@@ -1337,7 +1283,7 @@ static int select_start(int32_t id, uint16_t usockid,
 
   if (maxfds != -1)
     {
-      ret = send_selectreq(SELECT_MODE_BLOCK, id, maxfds + 1, &readset,
+      ret = send_selectreq(SELECT_MODE_BLOCK, dev->sid, maxfds + 1, &readset,
         &writeset, &exceptset, usockid, dev);
     }
 
@@ -1410,8 +1356,11 @@ static int setup_internalevent(FAR struct alt1250_s *dev)
 
       usock->out[ocnt++] = &usock->ret;
 
-      ret = send_repnetinforeq(usock->out, ocnt, usockid,
-        waitevt_repnetinfo, 0, dev);
+      ret = send_repnetinforeq(usock->out, ocnt, usockid, dev);
+      if (ret < 0)
+        {
+          alt1250_socket_free(dev, usockid);
+        }
     }
 
   return ret;
@@ -1428,9 +1377,7 @@ static int socket_request(int fd, FAR struct alt1250_s *dev,
   struct usrsock_message_req_ack_s resp;
   FAR struct usock_s *usock;
   int16_t usockid;
-  int ret = OK;
-  bool is_ack = true;
-  size_t ocnt = 0;
+  int ret = -1;
 
   alt1250_printf("start type=%d \n", req->type);
 
@@ -1458,45 +1405,42 @@ static int socket_request(int fd, FAR struct alt1250_s *dev,
       usock = alt1250_socket_get(dev, usockid);
       if (usock)
         {
-          usock->out[ocnt++] = &usock->ret;
-          usock->out[ocnt++] = &usock->errcode;
+          usock->out[0] = &usock->ret;
+          usock->out[1] = &usock->errcode;
 
           ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-            usock->out, ocnt, usockid, waitevt_socket, 0, dev);
+            usock->out, 2, usockid, dev);
           if (ret >= 0)
             {
               if (ret == 0)
                 {
+                  /* Only zero means success */
+
                   memcpy(&usock->req, &req->head, sizeof(usock->req));
                   usock->state = OPEN;
                 }
-
-              is_ack = false;
             }
           else
             {
+              alt1250_socket_free(dev, usockid);
               usockid = ret;
             }
         }
       else
         {
+          alt1250_socket_free(dev, usockid);
           usockid = -EBADFD;
         }
     }
 
 sendack:
-  if (is_ack)
+  if (ret < 0)
     {
-      /* Send ACK response */
+      /* Send ACK response in error case */
 
       memset(&resp, 0, sizeof(resp));
       resp.result = usockid;
       _send_ack_common(fd, req->head.xid, &resp);
-    }
-
-  if (usockid < 0)
-    {
-      alt1250_socket_free(dev, usockid);
     }
 
   alt1250_printf("end\n");
@@ -1515,8 +1459,7 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
   struct usrsock_message_req_ack_s resp;
   FAR struct usock_s *usock;
   int result = 0;
-  int ret = 0;
-  bool is_ack = true;
+  int ret = -1;
   size_t ocnt = 0;
 
   alt1250_printf("start\n");
@@ -1546,13 +1489,12 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
     {
       /* Cancels the target fd before closing it */
 
-      select_cancel(dev->sid, req->usockid, dev);
+      select_cancel(req->usockid, dev);
 
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->errcode;
 
-      ret = send_closereq(usock->altsock, usock->out, ocnt, req->usockid,
-        waitevt_sockcommon, 0, dev);
+      ret = send_closereq(usock->altsock, usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -1560,8 +1502,6 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
                memcpy(&usock->req, &req->head, sizeof(usock->req));
                usock->state = CLOSING;
             }
-
-          is_ack = false;
         }
       else
         {
@@ -1570,7 +1510,7 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
     }
 
 sendack:
-  if (is_ack)
+  if (ret < 0)
     {
       /* Send ACK response */
 
@@ -1644,7 +1584,7 @@ static int connect_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-        usock->out, ocnt, req->usockid, waitevt_socket, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -1664,7 +1604,7 @@ static int connect_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_connectreq(usock->altsock, req->addrlen, &addr, usock->out,
-        ocnt, req->usockid, waitevt_connect, 0, dev);
+        ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -1787,8 +1727,7 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_sendtoreq(usock->altsock, req->flags, req->addrlen,
-        req->buflen, pto, sendbuf, usock->out, ocnt, req->usockid,
-        waitevt_sockcommon, 0, dev);
+        req->buflen, pto, sendbuf, usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -1803,9 +1742,8 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
     {
       result = 0;
       usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
-      select_cancel(dev->sid, req->usockid, dev);
-      dev->sid = get_scnt(dev);
-      select_start(dev->sid, req->usockid, dev);
+      select_cancel(req->usockid, dev);
+      select_start(req->usockid, dev);
     }
 
 sendack:
@@ -1841,7 +1779,6 @@ static int recvfrom_request(int fd, FAR struct alt1250_s *dev,
   FAR struct usrsock_request_recvfrom_s *req = hdrbuf;
   struct usrsock_message_req_ack_s resp;
   FAR struct usock_s *usock = NULL;
-  FAR struct socklen_s *socklen = NULL;
   int ret = 0;
   int result = 0;
   bool is_ack = true;
@@ -1906,8 +1843,7 @@ static int recvfrom_request(int fd, FAR struct alt1250_s *dev,
   usock->out[ocnt++] = usock->o_buf;
 
   ret = send_recvfromreq(usock->altsock, req->flags, req->max_buflen,
-    addrlen, usock->out, ocnt, req->usockid, waitevt_recvfrom,
-    (unsigned long)socklen, dev);
+    addrlen, usock->out, ocnt, req->usockid, dev);
   if (ret >= 0)
     {
       memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -1997,7 +1933,7 @@ static int bind_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-        usock->out, ocnt, req->usockid, waitevt_socket, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -2018,7 +1954,7 @@ static int bind_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_bindreq(usock->altsock, req->addrlen, &addr, usock->out,
-        ocnt, req->usockid, waitevt_sockcommon, 0, dev);
+        ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -2091,7 +2027,7 @@ static int listen_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-        usock->out, ocnt, req->usockid, waitevt_socket, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -2111,7 +2047,7 @@ static int listen_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_listenreq(usock->altsock, req->backlog, usock->out, ocnt,
-        req->usockid, waitevt_sockcommon, 0, dev);
+        req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2191,7 +2127,7 @@ static int accept_request(int fd, FAR struct alt1250_s *dev,
   usock->out[ocnt++] = &usock->o_addr;
 
   ret = send_acceptreq(usock->altsock, addrlen, usock->out, ocnt,
-    req->usockid, waitevt_accept, 0, dev);
+    req->usockid, dev);
   if (ret >= 0)
     {
       if (ret == 0)
@@ -2286,7 +2222,7 @@ static int setsockopt_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-        usock->out, ocnt, req->usockid, waitevt_socket, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2312,8 +2248,7 @@ static int setsockopt_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_setsockoptreq(usock->altsock, req->level, req->option,
-        req->valuelen, usock->value, usock->out, ocnt, req->usockid,
-        waitevt_sockcommon, 0, dev);
+        req->valuelen, usock->value, usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2390,7 +2325,7 @@ static int getsockopt_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-        usock->out, ocnt, req->usockid, waitevt_socket, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2419,7 +2354,7 @@ static int getsockopt_request(int fd, FAR struct alt1250_s *dev,
 
       ret = send_getsockoptreq(usock->altsock, req->level, req->option,
         req->max_valuelen, usock->out, ocnt, req->usockid,
-        waitevt_getsockopt, 0, dev);
+        waitevt_getsockopt, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2489,7 +2424,7 @@ static int getsockname_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_socketreq(usock->domain, usock->type, usock->protocol,
-        usock->out, ocnt, req->usockid, waitevt_socket, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2523,7 +2458,7 @@ static int getsockname_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->o_addr;
 
       ret = send_getsocknamereq(usock->altsock, addrlen,
-        usock->out, ocnt, req->usockid, waitevt_getsockname, 0, dev);
+        usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -3031,7 +2966,7 @@ static int do_connectseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_connectreq(usock->altsock, usock->addrlen, &usock->addr,
-    usock->out, ocnt, usockid, waitevt_connect, 0, dev);
+    usock->out, ocnt, usockid, dev);
   if (ret >= 0)
     {
       if (ret == 0)
@@ -3057,7 +2992,7 @@ static int do_bindseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_bindreq(usock->altsock, usock->addrlen, &usock->addr,
-    usock->out, ocnt, usockid, waitevt_sockcommon, 0, dev);
+    usock->out, ocnt, usockid, dev);
 
   return ret;
 }
@@ -3076,7 +3011,7 @@ static int do_listenseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_listenreq(usock->altsock, usock->backlog, usock->out, ocnt,
-    usockid, waitevt_sockcommon, 0, dev);
+    usockid, dev);
 
   return ret;
 }
@@ -3095,8 +3030,7 @@ static int do_setsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_setsockoptreq(usock->altsock, usock->level, usock->option,
-    usock->valuelen, usock->value, usock->out, ocnt, usockid,
-    waitevt_sockcommon, 0, dev);
+    usock->valuelen, usock->value, usock->out, ocnt, usockid, dev);
 
   return ret;
 }
@@ -3117,7 +3051,7 @@ static int do_getsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = usock->o_value;
 
   ret = send_getsockoptreq(usock->altsock, usock->level, usock->option,
-    usock->valuelen, usock->out, ocnt, usockid, waitevt_getsockopt, 0, dev);
+    usock->valuelen, usock->out, ocnt, usockid, waitevt_getsockopt, dev);
 
   return ret;
 }
@@ -3138,7 +3072,7 @@ static int do_getsocknameseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->o_addr;
 
   ret = send_getsocknamereq(usock->altsock, usock->addrlen, usock->out, ocnt,
-    usockid, waitevt_getsockname, 0, dev);
+    usockid, dev);
 
   return ret;
 }
@@ -3203,7 +3137,7 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
 
                       ret = send_getsockoptreq(usock->altsock, SOL_SOCKET,
                         SO_ERROR, sizeof(int), usock->out, ocnt, i,
-                        waitevt_getsockopt_conn, 0, dev);
+                        waitevt_getsockopt_conn, dev);
 
                       alt1250_printf("writeset is set. usockid: %d\n",
                         SOCKID(i));
@@ -3219,9 +3153,7 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
 
       alt1250_setevtarg_writable(LTE_CMDID_SELECT);
 
-      dev->sid = get_scnt(dev);
-
-      ret = select_start(dev->sid, 0, dev);
+      ret = select_start(0, dev);
     }
 
   return ret;
@@ -3245,7 +3177,7 @@ static int handle_ifup(int16_t usockid, FAR struct alt1250_s *dev)
 
   usock->out[ocnt++] = &usock->ret;
 
-  ret = send_radioonreq(usock->out, ocnt, usockid, waitevt_radioon, 0, dev);
+  ret = send_radioonreq(usock->out, ocnt, usockid, dev);
 
   return ret;
 }
@@ -3268,8 +3200,7 @@ static int handle_ifdown(int16_t usockid, FAR struct alt1250_s *dev)
 
   usock->out[ocnt++] = &usock->ret;
 
-  ret = send_radiooffreq(usock->out, ocnt, usockid, waitevt_radiooff, 0,
-    dev);
+  ret = send_radiooffreq(usock->out, ocnt, usockid, dev);
 
   return ret;
 }
@@ -3284,6 +3215,7 @@ static int handle_modemreset(int fd, FAR struct alt_container_s *reply,
   int ret;
   FAR struct usock_s *usock;
   struct usrsock_message_req_ack_s resp;
+  FAR struct waithdlr_s *ctx = (FAR struct waithdlr_s *)reply->priv;
 
   usock = alt1250_socket_get(dev, reply->sock);
   if (usock == NULL)
@@ -3291,9 +3223,8 @@ static int handle_modemreset(int fd, FAR struct alt_container_s *reply,
       return -EINVAL;
     }
 
-  if (reply->priv)
+  if (ctx && ctx->hdlr)
     {
-      FAR struct waithdlr_s *ctx = (FAR struct waithdlr_s *)reply->priv;
       ret = ctx->hdlr(EVENT_RESET, ctx->priv, reply, usock, dev);
     }
 
@@ -3374,16 +3305,14 @@ static int waitevt_sockcommon(uint8_t event, unsigned long priv,
   if ((usock->req.reqid == USRSOCK_REQUEST_SENDTO) && (ret >= 0))
     {
       usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
-      select_cancel(dev->sid, reply->sock, dev);
-      dev->sid = get_scnt(dev);
-      select_start(dev->sid, reply->sock, dev);
+      select_cancel(reply->sock, dev);
+      select_start(reply->sock, dev);
     }
 
   if (usock->req.reqid == USRSOCK_REQUEST_CLOSE)
     {
       alt1250_socket_free(dev, reply->sock);
-      dev->sid = get_scnt(dev);
-      select_start(dev->sid, reply->sock, dev);
+      select_start(reply->sock, dev);
     }
 
   /* Send ACK response */
@@ -3433,7 +3362,7 @@ static int waitevt_socket(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_fctlreq(usock->altsock, cmd, val, usock->out, ocnt,
-        reply->sock, waitevt_getfl, 0, dev);
+        reply->sock, waitevt_getfl, dev);
     }
   else
     {
@@ -3547,9 +3476,8 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
             USRSOCK_EVENT_REMOTE_CLOSED);
         }
 
-      select_cancel(dev->sid, reply->sock, dev);
-      dev->sid = get_scnt(dev);
-      select_start(dev->sid, reply->sock, dev);
+      select_cancel(reply->sock, dev);
+      select_start(reply->sock, dev);
     }
   else
     {
@@ -3642,10 +3570,9 @@ static int waitevt_accept(uint8_t event, unsigned long priv,
           newusock->altsock = altsock;
           newusock->state = CONNECTED;
 
-          select_cancel(dev->sid, reply->sock, dev);
+          select_cancel(reply->sock, dev);
 
-          dev->sid = get_scnt(dev);
-          ret = select_start(dev->sid, usockid, dev);
+          ret = select_start(usockid, dev);
           if (ret < 0)
             {
               /* rollback */
@@ -3653,8 +3580,8 @@ static int waitevt_accept(uint8_t event, unsigned long priv,
               newusock->out[ocnt++] = &usock->ret;
               newusock->out[ocnt++] = &usock->errcode;
 
-              ret = send_closereq(newusock->altsock, newusock->out, ocnt,
-                usockid, waitevt_sockcommon, 0, dev);
+              ret = send_closereq(newusock->altsock,
+                  newusock->out, ocnt, usockid, dev);
               if (ret >= 0)
                 {
                   if (ret == 0)
@@ -3913,7 +3840,7 @@ static int waitevt_getfl(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_fctlreq(usock->altsock, cmd, val, usock->out, ocnt,
-        reply->sock, waitevt_setfl, 0, dev);
+        reply->sock, waitevt_setfl, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -3929,8 +3856,7 @@ static int waitevt_getfl(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->errcode;
 
-      ret = send_closereq(usock->altsock, usock->out, ocnt, reply->sock,
-        waitevt_sockcommon, 0, dev);
+      ret = send_closereq(usock->altsock, usock->out, ocnt, reply->sock, dev);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -3970,9 +3896,8 @@ static int waitevt_setfl(uint8_t event, unsigned long priv,
     {
       usock->state = OPENED;
 
-      select_cancel(dev->sid, reply->sock, dev);
-      dev->sid = get_scnt(dev);
-      select_start(dev->sid, reply->sock, dev);
+      select_cancel(reply->sock, dev);
+      select_start(reply->sock, dev);
 
       switch (usock->req.reqid)
         {
@@ -4065,8 +3990,7 @@ static int waitevt_radioon(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->o_pdn;
 
-      ret = send_actpdnreq(&dev->apn, usock->out, ocnt, reply->sock,
-        waitevt_actpdn, 0, dev);
+      ret = send_actpdnreq(&dev->apn, usock->out, ocnt, reply->sock, dev);
     }
 
 errout:
@@ -4249,7 +4173,7 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
           if (head)
             {
-              add_container(dev, head);
+              free_container(dev, head);
             }
         }
 
@@ -4303,7 +4227,7 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
               if (ret == 0)
                 {
-                  add_container(dev, container);
+                  free_container(dev, container);
                 }
               else
                 {
@@ -4480,28 +4404,26 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
 
           com_hdr = (FAR struct usrsock_request_common_s *)buf;
           ret = handlers[com_hdr->reqid].fn(dev->usockfd, dev, buf);
-          if (ret == OK)
+          switch(ret)
             {
-              /* Now that ALT1250 has accepted the request,
-               * it is ready to accept new requests from usersock.
-               */
+              case RET_TERM:
+                is_running = false;
+                break;
 
-              is_usockrcvd = false;
-            }
-          else if (ret == RET_TERM)
-            {
-              /* receive terminate request */
+              case RET_NOTAVAIL:
 
-              is_running = false;
-            }
-          else if (ret == RET_NOTAVAIL)
-            {
-              /* The request from usersock is accepted,
-               * but ALT1250 is unable to accept the request,
-               * so it will not accept new requests from usersock.
-               */
+                /* Since the request couldn't be processed,
+                 * it will be carried over to next time.
+                 * So keep the request.
+                 */
 
-              is_usockrcvd = true;
+                is_usockrcvd = true;
+                break;
+
+              default:
+                is_usockrcvd = false;
+                break;
+
             }
         }
     }
