@@ -109,6 +109,11 @@
 #define EVENT_RESET (1)
 #define EVENT_REPLY (2)
 
+/* FIXME: Buffer size must fit altcom payload size */
+
+#define TX_BUFF_SIZE  (4096)
+#define RX_BUFF_SIZE  (4096)
+
 /****************************************************************************
  * Private Data Types
  ****************************************************************************/
@@ -186,19 +191,19 @@ struct usock_s
   /* input parameter for setsockopt */
 
   uint8_t value[OPTVAL_LEN_MAX];
-  uint16_t max_buflen;
+
   FAR void *out[OUTPUT_ARG_MAX];
   FAR void *outgetopt[GETSOCKOPT_PARAM_NUM];
+
   uint32_t o_addlen;
   struct sockaddr_storage o_addr;
-  uint8_t *o_buf;
+
   uint32_t o_optlen;
   uint8_t o_value[OPTVAL_LEN_MAX];
   int32_t o_getoptret;
   int32_t o_getopterr;
   int32_t o_getoptlen;
   uint8_t o_getoptval[OPTVAL_LEN_MAX];
-  lte_pdn_t o_pdn;
 };
 
 struct alt1250_s
@@ -217,6 +222,8 @@ struct alt1250_s
   char user_name[LTE_APN_USER_NAME_LEN];
   char pass[LTE_APN_PASSWD_LEN];
   struct usock_s sockets[SOCKET_COUNT];
+  lte_pdn_t o_pdn;
+  bool recvfrom_processing;
 };
 
 typedef int (*waithdlr_t)(uint8_t event, unsigned long priv,
@@ -383,6 +390,11 @@ handlers[USRSOCK_REQUEST__MAX] =
 
 static struct alt1250_s *g_daemon;
 static struct alt_container_s g_container[CONTAINER_MAX];
+static struct waithdlr_s g_waithdlrs[CONTAINER_MAX];
+
+static uint8_t _tx_buff[TX_BUFF_SIZE];
+static uint8_t _rx_buff[RX_BUFF_SIZE];
+static uint16_t _rx_max_buflen;
 
 /****************************************************************************
  * Private Functions
@@ -454,8 +466,21 @@ static void init_container(FAR struct alt1250_s *dev)
 
   for (i = 0; i < TABLE_NUM(g_container); i++)
     {
+      g_container[i].priv = (unsigned long)&g_waithdlrs[i];
       sq_addlast(&g_container[i].node, &dev->freecontainer);
     }
+}
+
+/****************************************************************************
+ * Name: clear_container
+ ****************************************************************************/
+
+static void clear_container(FAR struct alt_container_s *container)
+{
+  unsigned long priv = container->priv;
+
+  memset(container, 0, sizeof(struct alt_container_s));
+  container->priv = priv;
 }
 
 /****************************************************************************
@@ -473,25 +498,16 @@ static FAR struct alt_container_s *get_container(int16_t usockid,
   if (ret)
     {
       sq_rem(&ret->node, &dev->freecontainer);
+      clear_container(ret);
 
-      memset(ret, 0, sizeof(struct alt_container_s));
-      ret->priv = (unsigned long)malloc(sizeof(struct waithdlr_s));
-      if (!ret->priv)
-        {
-          sq_addlast(&ret->node, &dev->freecontainer);
-          ret = NULL;
-        }
-      else
-        {
-          ret->sock = usockid;
-          ret->cmdid = cmdid;
-          ret->inparam = inp;
-          ret->inparamlen = insz;
-          ret->outparam = outp;
-          ret->outparamlen = outsz;
-          ((FAR struct waithdlr_s *)ret->priv)->hdlr = hdlr;
-          ((FAR struct waithdlr_s *)ret->priv)->priv = priv;
-        }
+      ret->sock = usockid;
+      ret->cmdid = cmdid;
+      ret->inparam = inp;
+      ret->inparamlen = insz;
+      ret->outparam = outp;
+      ret->outparamlen = outsz;
+      ((FAR struct waithdlr_s *)ret->priv)->hdlr = hdlr;
+      ((FAR struct waithdlr_s *)ret->priv)->priv = priv;
     }
   else
     {
@@ -509,11 +525,6 @@ static void free_container(FAR struct alt1250_s *dev,
   FAR struct alt_container_s *container)
 {
   sq_addlast(&container->node, &dev->freecontainer);
-  if (container->priv)
-    {
-      free((FAR void *)container->priv);
-      container->priv = 0;
-    }
 }
 
 /****************************************************************************
@@ -1650,7 +1661,6 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
   FAR struct usock_s *usock;
   struct sockaddr_storage to;
   FAR struct sockaddr_storage *pto = NULL;
-  uint8_t *sendbuf = NULL;
   ssize_t rlen;
   int ret = 0;
   int result = 0;
@@ -1705,17 +1715,11 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
 
   if (req->buflen > 0)
     {
-      sendbuf = calloc(1, req->buflen);
-      if (!sendbuf)
-        {
-          result = -ENOMEM;
-          alt1250_printf("Failed to allocate addrinfo\n");
-          goto sendack;
-        }
+      req->buflen =  MIN(req->buflen, TX_BUFF_SIZE);
 
       /* Read data from usrsock. */
 
-      rlen = read(fd, sendbuf, req->buflen);
+      rlen = read(fd, _tx_buff, req->buflen);
       if ((rlen < 0) || (rlen < req->buflen))
         {
           result = -EFAULT;
@@ -1727,7 +1731,7 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_sendtoreq(usock->altsock, req->flags, req->addrlen,
-        req->buflen, pto, sendbuf, usock->out, ocnt, req->usockid, dev);
+        req->buflen, pto, _tx_buff, usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -1747,11 +1751,6 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
     }
 
 sendack:
-
-  if (sendbuf)
-    {
-      free(sendbuf);
-    }
 
   if (is_ack)
     {
@@ -1816,17 +1815,6 @@ static int recvfrom_request(int fd, FAR struct alt1250_s *dev,
       goto noack;
     }
 
-  if (req->max_buflen > 0)
-    {
-      usock->o_buf = calloc(1, req->max_buflen);
-      if (!usock->o_buf)
-        {
-          result = -ENOMEM;
-          alt1250_printf("Failed to allocate recv buffer\n");
-          goto sendack;
-        }
-    }
-
   if (usock->domain == AF_INET)
     {
       addrlen = sizeof(struct sockaddr_in);
@@ -1840,15 +1828,16 @@ static int recvfrom_request(int fd, FAR struct alt1250_s *dev,
   usock->out[ocnt++] = &usock->errcode;
   usock->out[ocnt++] = &usock->o_addlen;
   usock->out[ocnt++] = &usock->o_addr;
-  usock->out[ocnt++] = usock->o_buf;
+  usock->out[ocnt++] = _rx_buff;
+  _rx_max_buflen = MIN(req->max_buflen, RX_BUFF_SIZE);
 
-  ret = send_recvfromreq(usock->altsock, req->flags, req->max_buflen,
+  ret = send_recvfromreq(usock->altsock, req->flags, _rx_max_buflen,
     addrlen, usock->out, ocnt, req->usockid, dev);
   if (ret >= 0)
     {
       memcpy(&usock->req, &req->head, sizeof(usock->req));
       usock->addrlen = req->max_addrlen;
-      usock->max_buflen = req->max_buflen;
+      dev->recvfrom_processing = true;
       is_ack = false;
     }
   else
@@ -1860,11 +1849,6 @@ sendack:
 
   if (is_ack)
     {
-      if (usock && usock->o_buf)
-        {
-          free(usock->o_buf);
-        }
-
       /* Send ACK response. */
 
       memset(&resp, 0, sizeof(resp));
@@ -2147,11 +2131,6 @@ sendack:
 
   if (is_ack)
     {
-      if (usock && usock->o_buf)
-        {
-          free(usock->o_buf);
-        }
-
       /* Send ACK response. */
 
       memset(&resp, 0, sizeof(resp));
@@ -3453,6 +3432,8 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
 
   alt1250_printf("start, event:%u\n", event);
 
+  dev->recvfrom_processing = false;
+
   if (event == EVENT_RESET)
     {
       goto errout;
@@ -3470,7 +3451,7 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
   if (size >= 0)
     {
       usock->sockflags &= ~USRSOCK_EVENT_RECVFROM_AVAIL;
-      if ((size == 0) && (usock->max_buflen != 0))
+      if ((size == 0) && (_rx_max_buflen != 0))
         {
           usock_send_event(dev->usockfd, dev, usock,
             USRSOCK_EVENT_REMOTE_CLOSED);
@@ -3481,6 +3462,10 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
     }
   else
     {
+      /* FIXME: This is error case in recvfrom,
+       * but no ack is sent to usrsock.
+       */
+
       ret = size;
       goto errout;
     }
@@ -3505,18 +3490,12 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
         resp.valuelen);
     }
 
-  if (resp.reqack.result > 0)
+  if (size > 0)
     {
-      _write_to_usock(dev->usockfd, reply->outparam[4], resp.reqack.result);
+      _write_to_usock(dev->usockfd, reply->outparam[4], size);
     }
 
 errout:
-  if (usock->o_buf)
-    {
-      free(usock->o_buf);
-      usock->o_buf = NULL;
-    }
-
   alt1250_printf("end\n");
 
   return ret;
@@ -3988,7 +3967,7 @@ static int waitevt_radioon(uint8_t event, unsigned long priv,
   if (ret == 0)
     {
       usock->out[ocnt++] = &usock->ret;
-      usock->out[ocnt++] = &usock->o_pdn;
+      usock->out[ocnt++] = &dev->o_pdn;
 
       ret = send_actpdnreq(&dev->apn, usock->out, ocnt, reply->sock, dev);
     }
@@ -4133,6 +4112,7 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
       alt1250_printf("Reset packet received\n");
 
+      dev->recvfrom_processing = false;
       dev->net_dev.d_flags = IFF_DOWN;
 #ifdef CONFIG_NET_IPv4
       memset(&dev->net_dev.d_ipaddr, 0, sizeof(dev->net_dev.d_ipaddr));
@@ -4377,7 +4357,7 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
       fds[ALTFD].events = POLLIN;
       nfds = 1;
 
-      if (!is_usockrcvd)
+      if (!is_usockrcvd && !dev->recvfrom_processing)
         {
           /* Check events from usersock */
 
@@ -4394,7 +4374,8 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
           ret = alt1250_request(dev->usockfd, dev);
         }
 
-      if ((fds[USOCKFD].revents & POLLIN) || is_usockrcvd)
+      if ((!dev->recvfrom_processing)
+          && ((fds[USOCKFD].revents & POLLIN) || is_usockrcvd))
         {
           if (!is_usockrcvd)
             {
