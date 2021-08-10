@@ -181,6 +181,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <nuttx/wireless/lte/lte.h>
@@ -568,12 +570,17 @@ int32_t lte_get_version(get_ver_cb_t callback);
  *                It is terminated with '\0'.
  *                The maximum number of phone number areas
  *                must be allocated. See LTE_PHONENO_LEN.
+ * [in] len:   Length of the buffer for storing phone number.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_phoneno_sync(int8_t *phoneno);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_phoneno_sync(char *phoneno);
+#else
+int32_t lte_get_phoneno_sync(char *phoneno, size_t len);
+#endif
 
 /* Get phone number from SIM.
  *
@@ -591,13 +598,18 @@ int32_t lte_get_phoneno(get_phoneno_cb_t callback);
  * [out] imsi: A character string indicating IMSI.
  *             It is terminated with '\0'.
  *             The maximum number of IMSI areas
- *             must be allocated. See LTE_SIMINFO_IMSI_LEN.
+ *             must be allocated. See LTE_IMSI_LEN.
+ * [in] len:   Length of the buffer for storing IMSI.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imsi_sync(int8_t *imsi);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_imsi_sync(char *imsi);
+#else
+int32_t lte_get_imsi_sync(char *imsi, size_t len);
+#endif
 
 /* Get International Mobile Subscriber Identity from SIM.
  *
@@ -616,12 +628,17 @@ int32_t lte_get_imsi(get_imsi_cb_t callback);
  *             It is terminated with '\0'.
  *             The maximum number of IMEI areas
  *             must be allocated. See LTE_IMEI_LEN.
+ * [in] len:   Length of the buffer for storing IMEI.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imei_sync(int8_t *imei);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_imei_sync(char *imei);
+#else
+int32_t lte_get_imei_sync(char *imei, size_t len);
+#endif
 
 /* Get International Mobile Equipment Identifier from the modem.
  *
@@ -853,12 +870,17 @@ int32_t lte_get_localtime(get_localtime_cb_t callback);
  *             the first character is '\0'.
  *             The maximum number of network operator areas
  *             must be allocated. See LTE_OPERATOR_LEN.
+ * [in] len:   Length of the buffer for storing network operator.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_operator_sync(int8_t *oper);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_operator_sync(char *oper);
+#else
+int32_t lte_get_operator_sync(char *oper, size_t len);
+#endif
 
 /* Get connected network operator information.
  *

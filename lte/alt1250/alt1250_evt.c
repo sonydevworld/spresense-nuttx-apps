@@ -192,29 +192,50 @@ static void *g_imscapargs[] =
 
 static int32_t g_getphoneret;
 static uint8_t g_getphoneerrcause;
-static int8_t g_phoneno[LTE_PHONENO_LEN];
+static char g_phoneno[LTE_PHONENO_LEN];
+#ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+static size_t g_phonenolen = LTE_PHONENO_LEN;
+#endif
 static void *g_getphoneargs[] =
 {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
   &g_getphoneret, &g_getphoneerrcause, g_phoneno
+#else
+  &g_getphoneret, &g_getphoneerrcause, g_phoneno, &g_phonenolen
+#endif
 };
 
 /* event argument for LTE_CMDID_GETIMSI */
 
 static int32_t g_getimsiret;
 static uint8_t g_getimsierrcause;
-static int8_t g_imsi[LTE_SIMINFO_IMSI_LEN];
+static char g_imsi[LTE_SIMINFO_IMSI_LEN];
+#ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+static size_t g_imsilen = LTE_SIMINFO_IMSI_LEN;
+#endif
 static void *g_getimsiargs[] =
 {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
   &g_getimsiret, &g_getimsierrcause, g_imsi
+#else
+  &g_getimsiret, &g_getimsierrcause, g_imsi, &g_imsilen
+#endif
 };
 
 /* event argument for LTE_CMDID_GETIMEI */
 
 static int32_t g_getimeiret;
-static int8_t g_imei[LTE_IMEI_LEN];
+static char g_imei[LTE_IMEI_LEN];
+#ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+static size_t g_imeilen = LTE_IMEI_LEN;
+#endif
 static void *g_getimeiargs[] =
 {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
   &g_getimeiret, g_imei
+#else
+  &g_getimeiret, g_imei, &g_imeilen
+#endif
 };
 
 /* event argument for LTE_CMDID_GETPINSET */
@@ -266,10 +287,17 @@ static void *g_getltimeargs[] =
 /* event argument for LTE_CMDID_GETOPER */
 
 static int32_t g_getoperret;
-static int8_t g_oper[LTE_OPERATOR_LEN];
+static char g_oper[LTE_OPERATOR_LEN];
+#ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+static size_t g_operlen = LTE_OPERATOR_LEN;
+#endif
 static void *g_getoperargs[] =
 {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
   &g_getoperret, g_oper
+#else
+  &g_getoperret, g_oper, &g_operlen
+#endif
 };
 
 /* event argument for LTE_CMDID_GETEDRX */

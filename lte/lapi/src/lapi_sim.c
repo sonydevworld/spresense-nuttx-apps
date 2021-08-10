@@ -123,14 +123,22 @@ int32_t lte_get_imscap_sync(bool *imscap)
   return ret;
 }
 
-int32_t lte_get_imsi_sync(int8_t *imsi)
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_imsi_sync(char *imsi)
+#else
+int32_t lte_get_imsi_sync(char *imsi, size_t len)
+#endif
 {
   int32_t ret;
   int32_t result;
   uint8_t errcause;
   FAR void *outarg[] =
     {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
       &result, &errcause, imsi
+#else
+      &result, &errcause, imsi, &len
+#endif
     };
 
   if (imsi == NULL)
@@ -150,13 +158,21 @@ int32_t lte_get_imsi_sync(int8_t *imsi)
   return ret;
 }
 
-int32_t lte_get_imei_sync(int8_t *imei)
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_imei_sync(char *imei)
+#else
+int32_t lte_get_imei_sync(char *imei, size_t len)
+#endif
 {
   int32_t ret;
   int32_t result;
   FAR void *outarg[] =
     {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
       &result, imei
+#else
+      &result, imei, &len
+#endif
     };
 
   if (imei == NULL)
@@ -176,14 +192,22 @@ int32_t lte_get_imei_sync(int8_t *imei)
   return ret;
 }
 
-int32_t lte_get_phoneno_sync(int8_t *phoneno)
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_phoneno_sync(char *phoneno)
+#else
+int32_t lte_get_phoneno_sync(char *phoneno, size_t len)
+#endif
 {
   int32_t ret;
   int32_t result;
   uint8_t errcause;
   FAR void *outarg[] =
     {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
       &result, &errcause, phoneno
+#else
+      &result, &errcause, phoneno, &len
+#endif
     };
 
   if (phoneno == NULL)

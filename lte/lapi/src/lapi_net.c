@@ -170,13 +170,21 @@ int32_t lte_get_localtime_sync(lte_localtime_t *localtime)
   return ret;
 }
 
-int32_t lte_get_operator_sync(int8_t *oper)
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int32_t lte_get_operator_sync(char *oper)
+#else
+int32_t lte_get_operator_sync(char *oper, size_t len)
+#endif
 {
   int32_t ret;
   int32_t result;
   FAR void *outarg[] =
     {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
       &result, oper
+#else
+      &result, oper, &len
+#endif
     };
 
   if (oper == NULL)
