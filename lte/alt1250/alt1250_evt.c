@@ -698,7 +698,7 @@ static uint64_t lte_get_phoneno_exec_cb(FAR void *cb, FAR void **cbarg)
   get_phoneno_cb_t callback = (get_phoneno_cb_t)cb;
   FAR uint32_t *result = (FAR uint32_t *)cbarg[0];
   FAR uint8_t *errcause = (FAR uint8_t *)cbarg[1];
-  FAR int8_t *phoneno = (FAR int8_t *)cbarg[2];
+  FAR char *phoneno = (FAR char *)cbarg[2];
 
   if (callback)
     {
@@ -713,7 +713,7 @@ static uint64_t lte_get_imsi_exec_cb(FAR void *cb, FAR void **cbarg)
   get_imsi_cb_t callback = (get_imsi_cb_t)cb;
   FAR uint32_t *result = (FAR uint32_t *)cbarg[0];
   FAR uint8_t *errcause = (FAR uint8_t *)cbarg[1];
-  FAR int8_t *imsi = (FAR int8_t *)cbarg[2];
+  FAR char *imsi = (FAR char *)cbarg[2];
 
   if (callback)
     {
@@ -727,7 +727,7 @@ static uint64_t lte_get_imei_exec_cb(FAR void *cb, FAR void **cbarg)
 {
   get_imei_cb_t callback = (get_imei_cb_t)cb;
   FAR uint32_t *result = (FAR uint32_t *)cbarg[0];
-  FAR int8_t *imei = (FAR int8_t *)cbarg[1];
+  FAR char *imei = (FAR char *)cbarg[1];
 
   if (callback)
     {
@@ -812,7 +812,7 @@ static uint64_t lte_get_operator_exec_cb(FAR void *cb, FAR void **cbarg)
 {
   get_operator_cb_t callback = (get_operator_cb_t)cb;
   FAR uint32_t *result = (FAR uint32_t *)cbarg[0];
-  FAR int8_t *oper = (FAR int8_t *)cbarg[1];
+  FAR char *oper = (FAR char *)cbarg[1];
 
   if (callback)
     {

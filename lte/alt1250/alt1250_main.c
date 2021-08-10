@@ -436,9 +436,9 @@ static void saveapn(FAR struct alt1250_s *dev, FAR lte_apn_setting_t *apn)
         LTE_APN_PASSWD_LEN);
     }
 
-  dev->apn.apn = (FAR int8_t *)dev->apn_name;
-  dev->apn.user_name = (FAR int8_t *)dev->user_name;
-  dev->apn.password = (FAR int8_t *)dev->pass;
+  dev->apn.apn = dev->apn_name;
+  dev->apn.user_name = dev->user_name;
+  dev->apn.password = dev->pass;
 }
 
 /****************************************************************************

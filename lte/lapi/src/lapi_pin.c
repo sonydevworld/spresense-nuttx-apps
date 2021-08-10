@@ -54,8 +54,8 @@
  * Private Functions
  ****************************************************************************/
 
-static int lte_change_pin_inparam_check(int8_t target_pin, int8_t *pincode,
-  int8_t *new_pincode)
+static int lte_change_pin_inparam_check(int8_t target_pin, char *pincode,
+  char *new_pincode)
 {
   uint8_t pinlen = 0;
 
@@ -71,13 +71,13 @@ static int lte_change_pin_inparam_check(int8_t target_pin, int8_t *pincode,
       return -EINVAL;
     }
 
-  pinlen = strnlen((FAR char *)pincode, SETPIN_MAX_PIN_LEN);
+  pinlen = strnlen(pincode, SETPIN_MAX_PIN_LEN);
   if (pinlen < SETPIN_MIN_PIN_LEN || SETPIN_MAX_PIN_LEN < pinlen)
     {
       return -EINVAL;
     }
 
-  pinlen = strnlen((FAR char *)new_pincode, SETPIN_MAX_PIN_LEN);
+  pinlen = strnlen(new_pincode, SETPIN_MAX_PIN_LEN);
   if (pinlen < SETPIN_MIN_PIN_LEN || SETPIN_MAX_PIN_LEN < pinlen)
     {
       return -EINVAL;
@@ -86,7 +86,7 @@ static int lte_change_pin_inparam_check(int8_t target_pin, int8_t *pincode,
   return OK;
 }
 
-static int lte_enter_pin_inparam_check(int8_t *pincode, int8_t *new_pincode)
+static int lte_enter_pin_inparam_check(char *pincode, char *new_pincode)
 {
   uint8_t pinlen = 0;
 
@@ -96,7 +96,7 @@ static int lte_enter_pin_inparam_check(int8_t *pincode, int8_t *new_pincode)
       return -EINVAL;
     }
 
-  pinlen = strnlen((FAR char *)pincode, ENTERPIN_MAX_PIN_LEN);
+  pinlen = strnlen(pincode, ENTERPIN_MAX_PIN_LEN);
   if (pinlen < ENTERPIN_MIN_PIN_LEN || ENTERPIN_MAX_PIN_LEN < pinlen)
     {
       printf("Invalid PIN code length.length:%d\n", pinlen);
@@ -113,7 +113,7 @@ static int lte_enter_pin_inparam_check(int8_t *pincode, int8_t *new_pincode)
   return OK;
 }
 
-static int lte_set_pinenable_inparam_check(bool enable, int8_t *pincode)
+static int lte_set_pinenable_inparam_check(bool enable, char *pincode)
 {
   uint8_t pinlen = 0;
 
@@ -123,7 +123,7 @@ static int lte_set_pinenable_inparam_check(bool enable, int8_t *pincode)
       return -EINVAL;
     }
 
-  pinlen = strnlen((FAR char *)pincode, SETPIN_MAX_PIN_LEN);
+  pinlen = strnlen(pincode, SETPIN_MAX_PIN_LEN);
   if (pinlen < SETPIN_MIN_PIN_LEN || SETPIN_MAX_PIN_LEN < pinlen)
     {
       return -EINVAL;
@@ -164,7 +164,7 @@ int32_t lte_get_pinset_sync(lte_getpin_t *pinset)
   return ret;
 }
 
-int32_t lte_set_pinenable_sync(bool enable, int8_t *pincode,
+int32_t lte_set_pinenable_sync(bool enable, char *pincode,
   uint8_t *attemptsleft)
 {
   int32_t ret;
@@ -197,8 +197,8 @@ int32_t lte_set_pinenable_sync(bool enable, int8_t *pincode,
   return ret;
 }
 
-int32_t lte_change_pin_sync(int8_t target_pin, int8_t *pincode,
-  int8_t *new_pincode, uint8_t *attemptsleft)
+int32_t lte_change_pin_sync(int8_t target_pin, char *pincode,
+  char *new_pincode, uint8_t *attemptsleft)
 {
   int32_t ret;
   int32_t result;
@@ -230,7 +230,7 @@ int32_t lte_change_pin_sync(int8_t target_pin, int8_t *pincode,
   return ret;
 }
 
-int32_t lte_enter_pin_sync(int8_t *pincode, int8_t *new_pincode,
+int32_t lte_enter_pin_sync(char *pincode, char *new_pincode,
   uint8_t *simstat, uint8_t *attemptsleft)
 {
   int32_t ret;
@@ -328,7 +328,7 @@ int32_t lte_get_pinset(get_pinset_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_set_pinenable(bool enable, int8_t *pincode,
+int32_t lte_set_pinenable(bool enable, char *pincode,
   set_pinenable_cb_t callback)
 {
   FAR void *inarg[] =
@@ -351,8 +351,8 @@ int32_t lte_set_pinenable(bool enable, int8_t *pincode,
                   NULL, 0, callback);
 }
 
-int32_t lte_change_pin(int8_t target_pin, int8_t *pincode,
-  int8_t *new_pincode, change_pin_cb_t callback)
+int32_t lte_change_pin(int8_t target_pin, char *pincode,
+  char *new_pincode, change_pin_cb_t callback)
 {
   FAR void *inarg[] =
     {
@@ -374,7 +374,7 @@ int32_t lte_change_pin(int8_t target_pin, int8_t *pincode,
                   NULL, 0, callback);
 }
 
-int32_t lte_enter_pin(int8_t *pincode, int8_t *new_pincode,
+int32_t lte_enter_pin(char *pincode, char *new_pincode,
   enter_pin_cb_t callback)
 {
   FAR void *inarg[] =
