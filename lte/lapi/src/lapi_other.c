@@ -96,25 +96,25 @@ int lapi_req(uint32_t cmdid, FAR void *inp, size_t ilen, FAR void *outp,
   return ret;
 }
 
-int32_t lte_data_allow_sync(uint8_t session_id, uint8_t allow,
-                            uint8_t roaming_allow)
+int lte_data_allow_sync(uint8_t session_id, uint8_t allow,
+                        uint8_t roaming_allow)
 {
   printf("lte_data_allow_sync() is not supported.\n");
 
   return -EOPNOTSUPP;
 }
 
-int32_t lte_data_allow(uint8_t session_id, uint8_t allow,
-                       uint8_t roaming_allow, data_allow_cb_t callback)
+int lte_data_allow(uint8_t session_id, uint8_t allow,
+                   uint8_t roaming_allow, data_allow_cb_t callback)
 {
   printf("lte_data_allow() is not supported.\n");
 
   return -EOPNOTSUPP;
 }
 
-int32_t lte_get_errinfo(lte_errinfo_t *info)
+int lte_get_errinfo(lte_errinfo_t *info)
 {
-  int32_t ret;
+  int ret;
 
   FAR void *outarg[] =
     {

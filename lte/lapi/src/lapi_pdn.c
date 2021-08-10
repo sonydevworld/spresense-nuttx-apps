@@ -129,10 +129,10 @@ static int lte_deactivate_pdn_inparam_check(uint8_t session_id)
 
 /* Synchronous APIs */
 
-int32_t lte_activate_pdn_sync(lte_apn_setting_t *apn, lte_pdn_t *pdn)
+int lte_activate_pdn_sync(lte_apn_setting_t *apn, lte_pdn_t *pdn)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       apn
@@ -160,10 +160,10 @@ int32_t lte_activate_pdn_sync(lte_apn_setting_t *apn, lte_pdn_t *pdn)
   return ret;
 }
 
-int32_t lte_deactivate_pdn_sync(uint8_t session_id)
+int lte_deactivate_pdn_sync(uint8_t session_id)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       &session_id
@@ -193,7 +193,7 @@ int32_t lte_deactivate_pdn_sync(uint8_t session_id)
 
 /* Asynchronous APIs */
 
-int32_t lte_activate_pdn(lte_apn_setting_t *apn, activate_pdn_cb_t callback)
+int lte_activate_pdn(lte_apn_setting_t *apn, activate_pdn_cb_t callback)
 {
   FAR void *inarg[] =
     {
@@ -215,7 +215,7 @@ int32_t lte_activate_pdn(lte_apn_setting_t *apn, activate_pdn_cb_t callback)
                   NULL, 0, callback);
 }
 
-int32_t lte_deactivate_pdn(uint8_t session_id, deactivate_pdn_cb_t callback)
+int lte_deactivate_pdn(uint8_t session_id, deactivate_pdn_cb_t callback)
 {
   FAR void *inarg[] =
     {
@@ -237,10 +237,10 @@ int32_t lte_deactivate_pdn(uint8_t session_id, deactivate_pdn_cb_t callback)
                   NULL, 0, callback);
 }
 
-int32_t lte_activate_pdn_cancel(void)
+int lte_activate_pdn_cancel(void)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result

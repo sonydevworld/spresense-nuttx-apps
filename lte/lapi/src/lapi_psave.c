@@ -211,10 +211,10 @@ static int lte_set_psm_inparam_check(lte_psm_setting_t *settings)
 
 /* Synchronous APIs */
 
-int32_t lte_get_edrx_sync(lte_edrx_setting_t *settings)
+int lte_get_edrx_sync(lte_edrx_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   bool    is_edrxevt;
   FAR void *outarg[] =
     {
@@ -238,10 +238,10 @@ int32_t lte_get_edrx_sync(lte_edrx_setting_t *settings)
   return ret;
 }
 
-int32_t lte_set_edrx_sync(lte_edrx_setting_t *settings)
+int lte_set_edrx_sync(lte_edrx_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       settings
@@ -270,10 +270,10 @@ int32_t lte_set_edrx_sync(lte_edrx_setting_t *settings)
   return ret;
 }
 
-int32_t lte_get_psm_sync(lte_psm_setting_t *settings)
+int lte_get_psm_sync(lte_psm_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   int32_t id = LTE_CMDID_GETPSM;
   bool    is_psmevt;
   FAR void *inarg[] =
@@ -303,10 +303,10 @@ int32_t lte_get_psm_sync(lte_psm_setting_t *settings)
   return ret;
 }
 
-int32_t lte_set_psm_sync(lte_psm_setting_t *settings)
+int lte_set_psm_sync(lte_psm_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       settings
@@ -334,10 +334,10 @@ int32_t lte_set_psm_sync(lte_psm_setting_t *settings)
   return ret;
 }
 
-int32_t lte_get_ce_sync(lte_ce_setting_t *settings)
+int lte_get_ce_sync(lte_ce_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, settings
@@ -360,10 +360,10 @@ int32_t lte_get_ce_sync(lte_ce_setting_t *settings)
   return ret;
 }
 
-int32_t lte_set_ce_sync(lte_ce_setting_t *settings)
+int lte_set_ce_sync(lte_ce_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       settings
@@ -391,10 +391,10 @@ int32_t lte_set_ce_sync(lte_ce_setting_t *settings)
   return ret;
 }
 
-int32_t lte_get_current_edrx_sync(lte_edrx_setting_t *settings)
+int lte_get_current_edrx_sync(lte_edrx_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   bool    is_getcedrxevt;
   FAR void *outarg[] =
     {
@@ -418,10 +418,10 @@ int32_t lte_get_current_edrx_sync(lte_edrx_setting_t *settings)
   return ret;
 }
 
-int32_t lte_get_current_psm_sync(lte_psm_setting_t *settings)
+int lte_get_current_psm_sync(lte_psm_setting_t *settings)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   bool    is_getcpsmevt;
   FAR void *outarg[] =
     {
@@ -447,7 +447,7 @@ int32_t lte_get_current_psm_sync(lte_psm_setting_t *settings)
 
 /* Asynchronous APIs */
 
-int32_t lte_get_edrx(get_edrx_cb_t callback)
+int lte_get_edrx(get_edrx_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -458,9 +458,9 @@ int32_t lte_get_edrx(get_edrx_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_set_edrx(lte_edrx_setting_t *settings, set_edrx_cb_t callback)
+int lte_set_edrx(lte_edrx_setting_t *settings, set_edrx_cb_t callback)
 {
-  int32_t ret;
+  int ret;
   FAR void *inarg[] =
     {
       settings
@@ -482,7 +482,7 @@ int32_t lte_set_edrx(lte_edrx_setting_t *settings, set_edrx_cb_t callback)
                   NULL, 0, callback);
 }
 
-int32_t lte_get_psm(get_psm_cb_t callback)
+int lte_get_psm(get_psm_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -493,7 +493,7 @@ int32_t lte_get_psm(get_psm_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_set_psm(lte_psm_setting_t *settings, set_psm_cb_t callback)
+int lte_set_psm(lte_psm_setting_t *settings, set_psm_cb_t callback)
 {
   FAR void *inarg[] =
     {
@@ -515,7 +515,7 @@ int32_t lte_set_psm(lte_psm_setting_t *settings, set_psm_cb_t callback)
                   NULL, 0, callback);
 }
 
-int32_t lte_get_ce(get_ce_cb_t callback)
+int lte_get_ce(get_ce_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -526,7 +526,7 @@ int32_t lte_get_ce(get_ce_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_set_ce(lte_ce_setting_t *settings, set_ce_cb_t callback)
+int lte_set_ce(lte_ce_setting_t *settings, set_ce_cb_t callback)
 {
   FAR void *inarg[] =
     {
@@ -543,7 +543,7 @@ int32_t lte_set_ce(lte_ce_setting_t *settings, set_ce_cb_t callback)
                   NULL, 0, callback);
 }
 
-int32_t lte_get_current_edrx(get_current_edrx_cb_t callback)
+int lte_get_current_edrx(get_current_edrx_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -554,12 +554,12 @@ int32_t lte_get_current_edrx(get_current_edrx_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_dynamic_edrx_param(get_dynamic_edrx_param_cb_t callback)
+int lte_get_dynamic_edrx_param(get_dynamic_edrx_param_cb_t callback)
 {
   return lte_get_current_edrx(callback);
 }
 
-int32_t lte_get_current_psm(get_current_psm_cb_t callback)
+int lte_get_current_psm(get_current_psm_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -570,7 +570,7 @@ int32_t lte_get_current_psm(get_current_psm_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_dynamic_psm_param(get_dynamic_psm_param_cb_t callback)
+int lte_get_dynamic_psm_param(get_dynamic_psm_param_cb_t callback)
 {
   return lte_get_current_psm(callback);
 }

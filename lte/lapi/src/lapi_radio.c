@@ -41,10 +41,10 @@
  * Public Functions
  ****************************************************************************/
 
-int32_t lte_radio_on_sync(void)
+int lte_radio_on_sync(void)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result
@@ -62,10 +62,10 @@ int32_t lte_radio_on_sync(void)
   return ret;
 }
 
-int32_t lte_radio_off_sync(void)
+int lte_radio_off_sync(void)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result
@@ -83,7 +83,7 @@ int32_t lte_radio_off_sync(void)
   return ret;
 }
 
-int32_t lte_radio_on(radio_on_cb_t callback)
+int lte_radio_on(radio_on_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -94,7 +94,7 @@ int32_t lte_radio_on(radio_on_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_radio_off(radio_off_cb_t callback)
+int lte_radio_off(radio_off_cb_t callback)
 {
   if (callback == NULL)
     {

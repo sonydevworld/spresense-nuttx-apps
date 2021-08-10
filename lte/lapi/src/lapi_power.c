@@ -129,9 +129,9 @@ static bool is_daemon_running(void)
  * Name: lte_initialize
  ****************************************************************************/
 
-int32_t lte_initialize(void)
+int lte_initialize(void)
 {
-  int32_t ret = 0;
+  int ret = 0;
 
   lapi_lock(&g_lock);
 
@@ -179,7 +179,7 @@ int32_t lte_initialize(void)
  * Name: lte_finalize
  ****************************************************************************/
 
-int32_t lte_finalize(void)
+int lte_finalize(void)
 {
   return lapi_req(LTE_CMDID_FIN, NULL, 0, NULL, 0, NULL);
 }
@@ -188,7 +188,7 @@ int32_t lte_finalize(void)
  * Name: lte_set_report_restart
  ****************************************************************************/
 
-int32_t lte_set_report_restart(restart_report_cb_t callback)
+int lte_set_report_restart(restart_report_cb_t callback)
 {
   return lapi_req(LTE_CMDID_SETRESTART, NULL, 0, NULL, 0, callback);
 }
@@ -197,7 +197,7 @@ int32_t lte_set_report_restart(restart_report_cb_t callback)
  * Name: lte_power_on
  ****************************************************************************/
 
-int32_t lte_power_on(void)
+int lte_power_on(void)
 {
   return lapi_req(LTE_CMDID_POWERON, NULL, 0, NULL, 0, NULL);
 }
@@ -206,7 +206,7 @@ int32_t lte_power_on(void)
  * Name: lte_power_off
  ****************************************************************************/
 
-int32_t lte_power_off(void)
+int lte_power_off(void)
 {
   return lapi_req(LTE_CMDID_POWEROFF, NULL, 0, NULL, 0, NULL);
 }

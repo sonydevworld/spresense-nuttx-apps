@@ -48,10 +48,10 @@
 
 /* Synchronous APIs */
 
-int32_t lte_get_version_sync(lte_version_t *version)
+int lte_get_version_sync(lte_version_t *version)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, version
@@ -76,7 +76,7 @@ int32_t lte_get_version_sync(lte_version_t *version)
 
 /* Asynchronous APIs */
 
-int32_t lte_get_version(get_ver_cb_t callback)
+int lte_get_version(get_ver_cb_t callback)
 {
   if (callback == NULL)
     {

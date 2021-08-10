@@ -138,10 +138,10 @@ static int lte_set_pinenable_inparam_check(bool enable, char *pincode)
 
 /* Synchronous APIs */
 
-int32_t lte_get_pinset_sync(lte_getpin_t *pinset)
+int lte_get_pinset_sync(lte_getpin_t *pinset)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, pinset
@@ -164,11 +164,11 @@ int32_t lte_get_pinset_sync(lte_getpin_t *pinset)
   return ret;
 }
 
-int32_t lte_set_pinenable_sync(bool enable, char *pincode,
+int lte_set_pinenable_sync(bool enable, char *pincode,
   uint8_t *attemptsleft)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       &enable, pincode
@@ -197,11 +197,11 @@ int32_t lte_set_pinenable_sync(bool enable, char *pincode,
   return ret;
 }
 
-int32_t lte_change_pin_sync(int8_t target_pin, char *pincode,
+int lte_change_pin_sync(int8_t target_pin, char *pincode,
   char *new_pincode, uint8_t *attemptsleft)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       &target_pin, pincode, new_pincode
@@ -230,11 +230,11 @@ int32_t lte_change_pin_sync(int8_t target_pin, char *pincode,
   return ret;
 }
 
-int32_t lte_enter_pin_sync(char *pincode, char *new_pincode,
+int lte_enter_pin_sync(char *pincode, char *new_pincode,
   uint8_t *simstat, uint8_t *attemptsleft)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       pincode, new_pincode
@@ -259,7 +259,7 @@ int32_t lte_enter_pin_sync(char *pincode, char *new_pincode,
   ret = lte_get_pinset_sync(&pinset);
   if (ret < 0)
     {
-      printf("Failed to get pinset.%ld\n", ret);
+      printf("Failed to get pinset.%d\n", ret);
       return ret;
     }
 
@@ -317,7 +317,7 @@ int32_t lte_enter_pin_sync(char *pincode, char *new_pincode,
 
 /* Asynchronous APIs */
 
-int32_t lte_get_pinset(get_pinset_cb_t callback)
+int lte_get_pinset(get_pinset_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -328,7 +328,7 @@ int32_t lte_get_pinset(get_pinset_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_set_pinenable(bool enable, char *pincode,
+int lte_set_pinenable(bool enable, char *pincode,
   set_pinenable_cb_t callback)
 {
   FAR void *inarg[] =
@@ -351,7 +351,7 @@ int32_t lte_set_pinenable(bool enable, char *pincode,
                   NULL, 0, callback);
 }
 
-int32_t lte_change_pin(int8_t target_pin, char *pincode,
+int lte_change_pin(int8_t target_pin, char *pincode,
   char *new_pincode, change_pin_cb_t callback)
 {
   FAR void *inarg[] =
@@ -374,7 +374,7 @@ int32_t lte_change_pin(int8_t target_pin, char *pincode,
                   NULL, 0, callback);
 }
 
-int32_t lte_enter_pin(char *pincode, char *new_pincode,
+int lte_enter_pin(char *pincode, char *new_pincode,
   enter_pin_cb_t callback)
 {
   FAR void *inarg[] =

@@ -124,7 +124,7 @@ static void *g_setrestartargs[] =
 
 /* event argument for LTE_CMDID_GETVER */
 
-static int32_t g_getverret;
+static int g_getverret;
 static lte_version_t g_ver;
 static void *g_getverargs[] =
 {
@@ -133,7 +133,7 @@ static void *g_getverargs[] =
 
 /* event argument for LTE_CMDID_RADIOON */
 
-static int32_t g_radioonret;
+static int g_radioonret;
 static void *g_radioonargs[] =
 {
   &g_radioonret
@@ -141,7 +141,7 @@ static void *g_radioonargs[] =
 
 /* event argument for LTE_CMDID_RADIOOFF */
 
-static int32_t g_radiooffret;
+static int g_radiooffret;
 static void *g_radiooffargs[] =
 {
   &g_radiooffret
@@ -149,7 +149,7 @@ static void *g_radiooffargs[] =
 
 /* event argument for LTE_CMDID_ACTPDN */
 
-static int32_t g_actpdnret;
+static int g_actpdnret;
 static lte_pdn_t g_pdn;
 static void *g_actpdnargs[] =
 {
@@ -158,7 +158,7 @@ static void *g_actpdnargs[] =
 
 /* event argument for LTE_CMDID_DEACTPDN */
 
-static int32_t g_deactpdnret;
+static int g_deactpdnret;
 static void *g_deactpdnargs[] =
 {
   &g_deactpdnret
@@ -166,7 +166,7 @@ static void *g_deactpdnargs[] =
 
 /* event argument for LTE_CMDID_GETNETINFO */
 
-static int32_t g_getnetinforet;
+static int g_getnetinforet;
 static lte_pdn_t g_pdninfo[LTE_SESSION_ID_MAX];
 static lte_netinfo_t g_netinfo =
 {
@@ -181,7 +181,7 @@ static void *g_netinfoargs[] =
 
 /* event argument for LTE_CMDID_IMSCAP */
 
-static int32_t g_imscapret;
+static int g_imscapret;
 static bool g_imscap;
 static void *g_imscapargs[] =
 {
@@ -190,7 +190,7 @@ static void *g_imscapargs[] =
 
 /* event argument for LTE_CMDID_GETPHONE */
 
-static int32_t g_getphoneret;
+static int g_getphoneret;
 static uint8_t g_getphoneerrcause;
 static char g_phoneno[LTE_PHONENO_LEN];
 #ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
@@ -207,7 +207,7 @@ static void *g_getphoneargs[] =
 
 /* event argument for LTE_CMDID_GETIMSI */
 
-static int32_t g_getimsiret;
+static int g_getimsiret;
 static uint8_t g_getimsierrcause;
 static char g_imsi[LTE_SIMINFO_IMSI_LEN];
 #ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
@@ -224,7 +224,7 @@ static void *g_getimsiargs[] =
 
 /* event argument for LTE_CMDID_GETIMEI */
 
-static int32_t g_getimeiret;
+static int g_getimeiret;
 static char g_imei[LTE_IMEI_LEN];
 #ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
 static size_t g_imeilen = LTE_IMEI_LEN;
@@ -240,7 +240,7 @@ static void *g_getimeiargs[] =
 
 /* event argument for LTE_CMDID_GETPINSET */
 
-static int32_t g_getpinsetret;
+static int g_getpinsetret;
 static lte_getpin_t g_pinset;
 static void *g_getpinsetargs[] =
 {
@@ -249,7 +249,7 @@ static void *g_getpinsetargs[] =
 
 /* event argument for LTE_CMDID_PINENABLE */
 
-static int32_t g_pinenableret;
+static int g_pinenableret;
 static uint8_t g_pineattleft;
 static void *g_pinenableargs[] =
 {
@@ -258,7 +258,7 @@ static void *g_pinenableargs[] =
 
 /* event argument for LTE_CMDID_CHANGEPIN */
 
-static int32_t g_changepinret;
+static int g_changepinret;
 static uint8_t g_chanattleft;
 static void *g_changepinargs[] =
 {
@@ -267,7 +267,7 @@ static void *g_changepinargs[] =
 
 /* event argument for LTE_CMDID_ENTERPIN */
 
-static int32_t g_enterpinret;
+static int g_enterpinret;
 static uint8_t g_entpinsimstat;
 static uint8_t g_entpinattleft;
 static void *g_enterpinargs[] =
@@ -277,7 +277,7 @@ static void *g_enterpinargs[] =
 
 /* event argument for LTE_CMDID_GETLTIME */
 
-static int32_t g_getltimeret;
+static int g_getltimeret;
 static lte_localtime_t g_ltime;
 static void *g_getltimeargs[] =
 {
@@ -286,7 +286,7 @@ static void *g_getltimeargs[] =
 
 /* event argument for LTE_CMDID_GETOPER */
 
-static int32_t g_getoperret;
+static int g_getoperret;
 static char g_oper[LTE_OPERATOR_LEN];
 #ifndef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
 static size_t g_operlen = LTE_OPERATOR_LEN;
@@ -302,7 +302,7 @@ static void *g_getoperargs[] =
 
 /* event argument for LTE_CMDID_GETEDRX */
 
-static int32_t g_getedrxret;
+static int g_getedrxret;
 static lte_edrx_setting_t g_getedrx;
 static bool g_is_getedrxevt;
 static void *g_getedrxargs[] =
@@ -312,7 +312,7 @@ static void *g_getedrxargs[] =
 
 /* event argument for LTE_CMDID_SETEDRX */
 
-static int32_t g_setedrxret;
+static int g_setedrxret;
 static void *g_setedrxargs[] =
 {
   &g_setedrxret
@@ -320,7 +320,7 @@ static void *g_setedrxargs[] =
 
 /* event argument for LTE_CMDID_GETPSM */
 
-static int32_t g_getpsmret;
+static int g_getpsmret;
 static lte_psm_setting_t g_getpsm;
 static bool g_is_getpsmevt;
 static void *g_getpsmargs[] =
@@ -330,7 +330,7 @@ static void *g_getpsmargs[] =
 
 /* event argument for LTE_CMDID_SETPSM */
 
-static int32_t g_setpsmret;
+static int g_setpsmret;
 static void *g_setpsmargs[] =
 {
   &g_setpsmret
@@ -338,7 +338,7 @@ static void *g_setpsmargs[] =
 
 /* event argument for LTE_CMDID_GETCE */
 
-static int32_t g_getceret;
+static int g_getceret;
 static lte_ce_setting_t g_getce;
 static void *g_getceargs[] =
 {
@@ -347,7 +347,7 @@ static void *g_getceargs[] =
 
 /* event argument for LTE_CMDID_SETCE */
 
-static int32_t g_setceret;
+static int g_setceret;
 static void *g_setceargs[] =
 {
   &g_setceret
@@ -355,7 +355,7 @@ static void *g_setceargs[] =
 
 /* event argument for LTE_CMDID_GETSIMINFO */
 
-static int32_t g_setsiminforet;
+static int g_setsiminforet;
 static lte_siminfo_t g_siminfo;
 static void *g_getsiminfoargs[] =
 {
@@ -364,7 +364,7 @@ static void *g_getsiminfoargs[] =
 
 /* event argument for LTE_CMDID_GETCEDRX */
 
-static int32_t g_getcedrxret;
+static int g_getcedrxret;
 static lte_edrx_setting_t g_getcedrx;
 static bool g_is_getcedrxevt;
 static void *g_getcedrxargs[] =
@@ -374,7 +374,7 @@ static void *g_getcedrxargs[] =
 
 /* event argument for LTE_CMDID_GETCPSM */
 
-static int32_t g_getcpsmret;
+static int g_getcpsmret;
 static lte_psm_setting_t g_getcpsm;
 static bool g_is_getcpsmevt;
 static void *g_getcpsmargs[] =
@@ -384,7 +384,7 @@ static void *g_getcpsmargs[] =
 
 /* event argument for LTE_CMDID_GETQUAL */
 
-static int32_t g_getqualret;
+static int g_getqualret;
 static lte_quality_t g_getqual;
 static void *g_getqualargs[] =
 {
@@ -393,7 +393,7 @@ static void *g_getqualargs[] =
 
 /* event argument for LTE_CMDID_GETCELL */
 
-static int32_t g_getcellret;
+static int g_getcellret;
 static lte_neighbor_cell_t g_neighbors[LTE_NEIGHBOR_CELL_MAX];
 static lte_cellinfo_t g_getcell =
 {
@@ -407,7 +407,7 @@ static void *g_getcellargs[] =
 
 /* event argument for LTE_CMDID_GETRAT */
 
-static int32_t g_getratret;
+static int g_getratret;
 static void *g_getratargs[] =
 {
   &g_getratret
@@ -415,7 +415,7 @@ static void *g_getratargs[] =
 
 /* event argument for LTE_CMDID_SETRAT */
 
-static int32_t g_setratret;
+static int g_setratret;
 static void *g_setratargs[] =
 {
   &g_setratret
@@ -423,7 +423,7 @@ static void *g_setratargs[] =
 
 /* event argument for LTE_CMDID_GETRATINFO */
 
-static int32_t g_getratinforet;
+static int g_getratinforet;
 static lte_ratinfo_t g_ratinfo;
 static void *g_getratinfoargs[] =
 {

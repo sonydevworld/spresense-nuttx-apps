@@ -66,10 +66,10 @@ static int lte_get_siminfo_inparam_check(uint32_t option)
 
 /* Synchronous APIs */
 
-int32_t lte_get_siminfo_sync(uint32_t option, lte_siminfo_t *siminfo)
+int lte_get_siminfo_sync(uint32_t option, lte_siminfo_t *siminfo)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       &option
@@ -97,10 +97,10 @@ int32_t lte_get_siminfo_sync(uint32_t option, lte_siminfo_t *siminfo)
   return ret;
 }
 
-int32_t lte_get_imscap_sync(bool *imscap)
+int lte_get_imscap_sync(bool *imscap)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, imscap
@@ -124,13 +124,13 @@ int32_t lte_get_imscap_sync(bool *imscap)
 }
 
 #ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
-int32_t lte_get_imsi_sync(char *imsi)
+int lte_get_imsi_sync(char *imsi)
 #else
-int32_t lte_get_imsi_sync(char *imsi, size_t len)
+int lte_get_imsi_sync(char *imsi, size_t len)
 #endif
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   uint8_t errcause;
   FAR void *outarg[] =
     {
@@ -159,13 +159,13 @@ int32_t lte_get_imsi_sync(char *imsi, size_t len)
 }
 
 #ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
-int32_t lte_get_imei_sync(char *imei)
+int lte_get_imei_sync(char *imei)
 #else
-int32_t lte_get_imei_sync(char *imei, size_t len)
+int lte_get_imei_sync(char *imei, size_t len)
 #endif
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
 #ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
@@ -193,13 +193,13 @@ int32_t lte_get_imei_sync(char *imei, size_t len)
 }
 
 #ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
-int32_t lte_get_phoneno_sync(char *phoneno)
+int lte_get_phoneno_sync(char *phoneno)
 #else
-int32_t lte_get_phoneno_sync(char *phoneno, size_t len)
+int lte_get_phoneno_sync(char *phoneno, size_t len)
 #endif
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   uint8_t errcause;
   FAR void *outarg[] =
     {
@@ -227,10 +227,10 @@ int32_t lte_get_phoneno_sync(char *phoneno, size_t len)
   return ret;
 }
 
-int32_t lte_set_report_simstat(simstat_report_cb_t callback)
+int lte_set_report_simstat(simstat_report_cb_t callback)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   int32_t id = LTE_CMDID_REPSIMSTAT;
   FAR void *inarg[] =
     {
@@ -256,7 +256,7 @@ int32_t lte_set_report_simstat(simstat_report_cb_t callback)
 
 /* Asynchronous APIs */
 
-int32_t lte_get_siminfo(uint32_t option, get_siminfo_cb_t callback)
+int lte_get_siminfo(uint32_t option, get_siminfo_cb_t callback)
 {
   FAR void *inarg[] =
     {
@@ -278,7 +278,7 @@ int32_t lte_get_siminfo(uint32_t option, get_siminfo_cb_t callback)
                   NULL, 0, callback);
 }
 
-int32_t lte_get_imscap(get_imscap_cb_t callback)
+int lte_get_imscap(get_imscap_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -289,7 +289,7 @@ int32_t lte_get_imscap(get_imscap_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_imsi(get_imsi_cb_t callback)
+int lte_get_imsi(get_imsi_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -300,7 +300,7 @@ int32_t lte_get_imsi(get_imsi_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_imei(get_imei_cb_t callback)
+int lte_get_imei(get_imei_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -311,7 +311,7 @@ int32_t lte_get_imei(get_imei_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_phoneno(get_phoneno_cb_t callback)
+int lte_get_phoneno(get_phoneno_cb_t callback)
 {
   if (callback == NULL)
     {
