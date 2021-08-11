@@ -260,33 +260,6 @@ static int lte_get_siminfo_inparam_check(uint32_t option)
   return OK;
 }
 
-static int lte_set_ce_inparam_check(lte_ce_setting_t *settings)
-{
-  if (!settings)
-    {
-      printf("Input argument is NULL.\n");
-      return -EINVAL;
-    }
-
-  if (settings->mode_a_enable == LTE_ENABLE ||
-      settings->mode_a_enable == LTE_DISABLE)
-    {
-      printf("mode_a_enable is invalid. mode_a_enable=%d\n",
-        settings->mode_a_enable);
-      return -EINVAL;
-    }
-
-  if (settings->mode_b_enable == LTE_ENABLE ||
-      settings->mode_b_enable == LTE_DISABLE)
-    {
-      printf("mode_b_enable is invalid. mode_b_enable=%d\n",
-        settings->mode_b_enable);
-      return -EINVAL;
-    }
-
-  return OK;
-}
-
 static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
 {
   int32_t ret = 0;
@@ -1160,7 +1133,7 @@ int32_t lte_set_ce_sync(lte_ce_setting_t *settings)
       &result
     };
 
-  if (lte_set_ce_inparam_check(settings))
+  if (settings == NULL)
     {
       return -EINVAL;
     }
@@ -1742,12 +1715,7 @@ int32_t lte_set_ce(lte_ce_setting_t *settings, set_ce_cb_t callback)
       settings
     };
 
-  if (callback == NULL)
-    {
-      return -EINVAL;
-    }
-
-  if (lte_set_ce_inparam_check(settings))
+  if (settings == NULL || callback == NULL)
     {
       return -EINVAL;
     }
