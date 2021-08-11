@@ -109,10 +109,8 @@
 #define EVENT_RESET (1)
 #define EVENT_REPLY (2)
 
-/* FIXME: Buffer size must fit altcom payload size */
-
-#define TX_BUFF_SIZE  (4096)
-#define RX_BUFF_SIZE  (4096)
+#define TX_BUFF_SIZE  (1500)
+#define RX_BUFF_SIZE  (1500)
 
 /****************************************************************************
  * Private Data Types
