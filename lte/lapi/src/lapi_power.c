@@ -28,15 +28,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <strings.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <errno.h>
+#include <strings.h>
 #include <nuttx/wireless/lte/lte_ioctl.h>
 
 #include "lte/lte_api.h"
+#include "lte/lapi.h"
+
+#include "lapi_util.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -125,45 +124,6 @@ static bool is_daemon_running(void)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: lapi_req
- ****************************************************************************/
-
-int lapi_req(uint32_t cmdid, FAR void *inp, size_t ilen, FAR void *outp,
-  size_t olen, FAR void *cb)
-{
-  int ret;
-  int sock;
-  struct lte_ioctl_data_s cmd;
-
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0)
-    {
-      ret = -errno;
-      printf("failed to open socket:%d\n", errno);
-    }
-  else
-    {
-      cmd.cmdid = cmdid;
-      cmd.inparam = inp;
-      cmd.inparamlen = ilen;
-      cmd.outparam = outp;
-      cmd.outparamlen = olen;
-      cmd.cb = cb;
-
-      ret = ioctl(sock, SIOCLTECMD, (unsigned long)&cmd);
-      if (ret < 0)
-        {
-          ret = -errno;
-          printf("failed to ioctl:%d\n", errno);
-        }
-
-      close(sock);
-    }
-
-  return ret;
-}
 
 /****************************************************************************
  * Name: lte_initialize
