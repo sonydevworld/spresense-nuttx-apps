@@ -181,6 +181,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <nuttx/wireless/lte/lte.h>
@@ -203,7 +205,7 @@ extern "C"
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_initialize(void);
+int lte_initialize(void);
 
 /* Release resources used in LTE API.
  *
@@ -211,7 +213,7 @@ int32_t lte_initialize(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_finalize(void);
+int lte_finalize(void);
 
 /* Register the callback to notify that the modem has started up.
  *
@@ -243,7 +245,7 @@ int32_t lte_finalize(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_report_restart(restart_report_cb_t restart_callback);
+int lte_set_report_restart(restart_report_cb_t restart_callback);
 
 /* Power on the modem.
  *
@@ -256,7 +258,7 @@ int32_t lte_set_report_restart(restart_report_cb_t restart_callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_power_on(void);
+int lte_power_on(void);
 
 /* Power off the modem
  *
@@ -273,7 +275,7 @@ int32_t lte_power_on(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_power_off(void);
+int lte_power_off(void);
 
 /* With the radio on, to start the LTE network search.
  *
@@ -284,7 +286,7 @@ int32_t lte_power_off(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_radio_on_sync(void);
+int lte_radio_on_sync(void);
 
 /* With the radio on, to start the LTE network search.
  *
@@ -298,7 +300,7 @@ int32_t lte_radio_on_sync(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_radio_on(radio_on_cb_t callback);
+int lte_radio_on(radio_on_cb_t callback);
 
 /* Exit LTE network searches with the radio off.
  *
@@ -309,7 +311,7 @@ int32_t lte_radio_on(radio_on_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_radio_off_sync(void);
+int lte_radio_off_sync(void);
 
 /* Exit LTE network searches with the radio off.
  *
@@ -323,7 +325,7 @@ int32_t lte_radio_off_sync(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_radio_off(radio_off_cb_t callback);
+int lte_radio_off(radio_off_cb_t callback);
 
 /* Get LTE network information.
  *
@@ -348,7 +350,7 @@ int32_t lte_radio_off(radio_off_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_netinfo_sync(uint8_t pdn_num, lte_netinfo_t *info);
+int lte_get_netinfo_sync(uint8_t pdn_num, lte_netinfo_t *info);
 
 /* Get LTE network information.
  *
@@ -366,7 +368,7 @@ int32_t lte_get_netinfo_sync(uint8_t pdn_num, lte_netinfo_t *info);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_netinfo(get_netinfo_cb_t callback);
+int lte_get_netinfo(get_netinfo_cb_t callback);
 
 /* Constructs a PDN with the specified APN settings.
  *
@@ -393,7 +395,7 @@ int32_t lte_get_netinfo(get_netinfo_cb_t callback);
  * If canceling, -ECANCELED is returned.
  */
 
-int32_t lte_activate_pdn_sync(lte_apn_setting_t *apn, lte_pdn_t *pdn);
+int lte_activate_pdn_sync(lte_apn_setting_t *apn, lte_pdn_t *pdn);
 
 /* Constructs a PDN with the specified APN settings.
  *
@@ -420,7 +422,7 @@ int32_t lte_activate_pdn_sync(lte_apn_setting_t *apn, lte_pdn_t *pdn);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_activate_pdn(lte_apn_setting_t *apn, activate_pdn_cb_t callback);
+int lte_activate_pdn(lte_apn_setting_t *apn, activate_pdn_cb_t callback);
 
 /* Cancel PDN construction.
  *
@@ -428,7 +430,7 @@ int32_t lte_activate_pdn(lte_apn_setting_t *apn, activate_pdn_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_activate_pdn_cancel(void);
+int lte_activate_pdn_cancel(void);
 
 /* Discard the constructed PDN.
  *
@@ -445,7 +447,7 @@ int32_t lte_activate_pdn_cancel(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_deactivate_pdn_sync(uint8_t session_id);
+int lte_deactivate_pdn_sync(uint8_t session_id);
 
 /* Discard the constructed PDN.
  *
@@ -465,7 +467,7 @@ int32_t lte_deactivate_pdn_sync(uint8_t session_id);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_deactivate_pdn(uint8_t session_id, deactivate_pdn_cb_t callback);
+int lte_deactivate_pdn(uint8_t session_id, deactivate_pdn_cb_t callback);
 
 /* Allow or disallow to data communication for specified PDN.
  *
@@ -487,8 +489,8 @@ int32_t lte_deactivate_pdn(uint8_t session_id, deactivate_pdn_cb_t callback);
  * -EOPNOTSUPP is returned.
  */
 
-int32_t lte_data_allow_sync(uint8_t session_id, uint8_t allow,
-                            uint8_t roaming_allow);
+int lte_data_allow_sync(uint8_t session_id, uint8_t allow,
+                        uint8_t roaming_allow);
 
 /* Allow or disallow to data communication for specified PDN.
  *
@@ -513,8 +515,8 @@ int32_t lte_data_allow_sync(uint8_t session_id, uint8_t allow,
  * -EOPNOTSUPP is returned.
  */
 
-int32_t lte_data_allow(uint8_t session_id, uint8_t allow,
-                       uint8_t roaming_allow, data_allow_cb_t callback);
+int lte_data_allow(uint8_t session_id, uint8_t allow,
+                   uint8_t roaming_allow, data_allow_cb_t callback);
 
 /* Get whether the modem supports IMS or not.
  *
@@ -527,7 +529,7 @@ int32_t lte_data_allow(uint8_t session_id, uint8_t allow,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imscap_sync(bool *imscap);
+int lte_get_imscap_sync(bool *imscap);
 
 /* Get whether the modem supports IMS or not.
  *
@@ -538,7 +540,7 @@ int32_t lte_get_imscap_sync(bool *imscap);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imscap(get_imscap_cb_t callback);
+int lte_get_imscap(get_imscap_cb_t callback);
 
 /* Acquires the FW version information of the modem.
  *
@@ -549,7 +551,7 @@ int32_t lte_get_imscap(get_imscap_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_version_sync(lte_version_t *version);
+int lte_get_version_sync(lte_version_t *version);
 
 /* Acquires the FW version information of the modem.
  *
@@ -560,7 +562,7 @@ int32_t lte_get_version_sync(lte_version_t *version);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_version(get_ver_cb_t callback);
+int lte_get_version(get_ver_cb_t callback);
 
 /* Get phone number from SIM.
  *
@@ -568,12 +570,17 @@ int32_t lte_get_version(get_ver_cb_t callback);
  *                It is terminated with '\0'.
  *                The maximum number of phone number areas
  *                must be allocated. See LTE_PHONENO_LEN.
+ * [in] len:   Length of the buffer for storing phone number.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_phoneno_sync(int8_t *phoneno);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int lte_get_phoneno_sync(char *phoneno);
+#else
+int lte_get_phoneno_sync(char *phoneno, size_t len);
+#endif
 
 /* Get phone number from SIM.
  *
@@ -584,20 +591,25 @@ int32_t lte_get_phoneno_sync(int8_t *phoneno);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_phoneno(get_phoneno_cb_t callback);
+int lte_get_phoneno(get_phoneno_cb_t callback);
 
 /* Get International Mobile Subscriber Identity from SIM.
  *
  * [out] imsi: A character string indicating IMSI.
  *             It is terminated with '\0'.
  *             The maximum number of IMSI areas
- *             must be allocated. See LTE_SIMINFO_IMSI_LEN.
+ *             must be allocated. See LTE_IMSI_LEN.
+ * [in] len:   Length of the buffer for storing IMSI.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imsi_sync(int8_t *imsi);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int lte_get_imsi_sync(char *imsi);
+#else
+int lte_get_imsi_sync(char *imsi, size_t len);
+#endif
 
 /* Get International Mobile Subscriber Identity from SIM.
  *
@@ -608,7 +620,7 @@ int32_t lte_get_imsi_sync(int8_t *imsi);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imsi(get_imsi_cb_t callback);
+int lte_get_imsi(get_imsi_cb_t callback);
 
 /* Get International Mobile Equipment Identifier from the modem.
  *
@@ -616,12 +628,17 @@ int32_t lte_get_imsi(get_imsi_cb_t callback);
  *             It is terminated with '\0'.
  *             The maximum number of IMEI areas
  *             must be allocated. See LTE_IMEI_LEN.
+ * [in] len:   Length of the buffer for storing IMEI.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imei_sync(int8_t *imei);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int lte_get_imei_sync(char *imei);
+#else
+int lte_get_imei_sync(char *imei, size_t len);
+#endif
 
 /* Get International Mobile Equipment Identifier from the modem.
  *
@@ -632,7 +649,7 @@ int32_t lte_get_imei_sync(int8_t *imei);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_imei(get_imei_cb_t callback);
+int lte_get_imei(get_imei_cb_t callback);
 
 /* Get Personal Identification Number settings.
  *
@@ -643,7 +660,7 @@ int32_t lte_get_imei(get_imei_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_pinset_sync(lte_getpin_t *pinset);
+int lte_get_pinset_sync(lte_getpin_t *pinset);
 
 /* Get Personal Identification Number settings.
  *
@@ -654,7 +671,7 @@ int32_t lte_get_pinset_sync(lte_getpin_t *pinset);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_pinset(get_pinset_cb_t callback);
+int lte_get_pinset(get_pinset_cb_t callback);
 
 /* Set Personal Identification Number enable.
  *
@@ -674,8 +691,8 @@ int32_t lte_get_pinset(get_pinset_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_pinenable_sync(bool enable, int8_t *pincode,
-                               uint8_t *attemptsleft);
+int lte_set_pinenable_sync(bool enable, char *pincode,
+                           uint8_t *attemptsleft);
 
 /* Set Personal Identification Number enable.
  *
@@ -695,8 +712,8 @@ int32_t lte_set_pinenable_sync(bool enable, int8_t *pincode,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_pinenable(bool enable, int8_t *pincode,
-                          set_pinenable_cb_t callback);
+int lte_set_pinenable(bool enable, char *pincode,
+                      set_pinenable_cb_t callback);
 
 /* Change Personal Identification Number.
  *
@@ -722,8 +739,8 @@ int32_t lte_set_pinenable(bool enable, int8_t *pincode,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_change_pin_sync(int8_t target_pin, int8_t *pincode,
-                            int8_t *new_pincode, uint8_t *attemptsleft);
+int lte_change_pin_sync(int8_t target_pin, char *pincode,
+                        char *new_pincode, uint8_t *attemptsleft);
 
 /* Change Personal Identification Number.
  *
@@ -749,8 +766,8 @@ int32_t lte_change_pin_sync(int8_t target_pin, int8_t *pincode,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_change_pin(int8_t target_pin, int8_t *pincode,
-                       int8_t *new_pincode, change_pin_cb_t callback);
+int lte_change_pin(int8_t target_pin, char *pincode,
+                   char *new_pincode, change_pin_cb_t callback);
 
 /* Enter Personal Identification Number.
  *
@@ -796,8 +813,8 @@ int32_t lte_change_pin(int8_t target_pin, int8_t *pincode,
  * deprecated This API will be removed in a future version
  */
 
-int32_t lte_enter_pin_sync(int8_t *pincode, int8_t *new_pincode,
-                           uint8_t *simstat, uint8_t *attemptsleft);
+int lte_enter_pin_sync(char *pincode, char *new_pincode,
+                       uint8_t *simstat, uint8_t *attemptsleft);
 
 /* Enter Personal Identification Number.
  *
@@ -822,8 +839,8 @@ int32_t lte_enter_pin_sync(int8_t *pincode, int8_t *new_pincode,
  * deprecated This API will be removed in a future version
  */
 
-int32_t lte_enter_pin(int8_t *pincode, int8_t *new_pincode,
-                      enter_pin_cb_t callback);
+int lte_enter_pin(char *pincode, char *new_pincode,
+                  enter_pin_cb_t callback);
 
 /* Get local time.
  *
@@ -833,7 +850,7 @@ int32_t lte_enter_pin(int8_t *pincode, int8_t *new_pincode,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_localtime_sync(lte_localtime_t *localtime);
+int lte_get_localtime_sync(lte_localtime_t *localtime);
 
 /* Get local time.
  *
@@ -844,7 +861,7 @@ int32_t lte_get_localtime_sync(lte_localtime_t *localtime);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_localtime(get_localtime_cb_t callback);
+int lte_get_localtime(get_localtime_cb_t callback);
 
 /* Get connected network operator information.
  *
@@ -853,12 +870,17 @@ int32_t lte_get_localtime(get_localtime_cb_t callback);
  *             the first character is '\0'.
  *             The maximum number of network operator areas
  *             must be allocated. See LTE_OPERATOR_LEN.
+ * [in] len:   Length of the buffer for storing network operator.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_operator_sync(int8_t *oper);
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int lte_get_operator_sync(char *oper);
+#else
+int lte_get_operator_sync(char *oper, size_t len);
+#endif
 
 /* Get connected network operator information.
  *
@@ -869,7 +891,7 @@ int32_t lte_get_operator_sync(int8_t *oper);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_operator(get_operator_cb_t callback);
+int lte_get_operator(get_operator_cb_t callback);
 
 /* Get eDRX settings.
  *
@@ -879,7 +901,7 @@ int32_t lte_get_operator(get_operator_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_edrx_sync(lte_edrx_setting_t *settings);
+int lte_get_edrx_sync(lte_edrx_setting_t *settings);
 
 /* Get eDRX settings.
  *
@@ -890,7 +912,7 @@ int32_t lte_get_edrx_sync(lte_edrx_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_edrx(get_edrx_cb_t callback);
+int lte_get_edrx(get_edrx_cb_t callback);
 
 /* Set eDRX settings.
  *
@@ -900,7 +922,7 @@ int32_t lte_get_edrx(get_edrx_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_edrx_sync(lte_edrx_setting_t *settings);
+int lte_set_edrx_sync(lte_edrx_setting_t *settings);
 
 /* Set eDRX settings.
  *
@@ -913,8 +935,7 @@ int32_t lte_set_edrx_sync(lte_edrx_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_edrx(lte_edrx_setting_t *settings,
-                     set_edrx_cb_t callback);
+int lte_set_edrx(lte_edrx_setting_t *settings, set_edrx_cb_t callback);
 
 /* Get PSM settings.
  *
@@ -924,7 +945,7 @@ int32_t lte_set_edrx(lte_edrx_setting_t *settings,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_psm_sync(lte_psm_setting_t *settings);
+int lte_get_psm_sync(lte_psm_setting_t *settings);
 
 /* Get PSM settings.
  *
@@ -935,7 +956,7 @@ int32_t lte_get_psm_sync(lte_psm_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_psm(get_psm_cb_t callback);
+int lte_get_psm(get_psm_cb_t callback);
 
 /* Set PSM settings.
  *
@@ -945,7 +966,7 @@ int32_t lte_get_psm(get_psm_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_psm_sync(lte_psm_setting_t *settings);
+int lte_set_psm_sync(lte_psm_setting_t *settings);
 
 /* Set PSM settings.
  *
@@ -958,8 +979,7 @@ int32_t lte_set_psm_sync(lte_psm_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_psm(lte_psm_setting_t *settings,
-                    set_psm_cb_t callback);
+int lte_set_psm(lte_psm_setting_t *settings, set_psm_cb_t callback);
 
 /* Get CE settings.
  *
@@ -969,7 +989,7 @@ int32_t lte_set_psm(lte_psm_setting_t *settings,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_ce_sync(lte_ce_setting_t *settings);
+int lte_get_ce_sync(lte_ce_setting_t *settings);
 
 /* Get CE settings.
  *
@@ -980,7 +1000,7 @@ int32_t lte_get_ce_sync(lte_ce_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_ce(get_ce_cb_t callback);
+int lte_get_ce(get_ce_cb_t callback);
 
 /* Set CE settings.
  *
@@ -990,7 +1010,7 @@ int32_t lte_get_ce(get_ce_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_ce_sync(lte_ce_setting_t *settings);
+int lte_set_ce_sync(lte_ce_setting_t *settings);
 
 /* Set CE settings.
  *
@@ -1003,8 +1023,7 @@ int32_t lte_set_ce_sync(lte_ce_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_ce(lte_ce_setting_t *settings,
-                   set_ce_cb_t callback);
+int lte_set_ce(lte_ce_setting_t *settings, set_ce_cb_t callback);
 
 /* Notifies the SIM status to the application.
  *
@@ -1018,7 +1037,7 @@ int32_t lte_set_ce(lte_ce_setting_t *settings,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_report_simstat(simstat_report_cb_t simstat_callback);
+int lte_set_report_simstat(simstat_report_cb_t simstat_callback);
 
 /* Notifies the Local time to the application.
  *
@@ -1032,7 +1051,7 @@ int32_t lte_set_report_simstat(simstat_report_cb_t simstat_callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_report_localtime(localtime_report_cb_t localtime_callback);
+int lte_set_report_localtime(localtime_report_cb_t localtime_callback);
 
 /* Notifies the communication quality information to the application.
  *
@@ -1052,8 +1071,8 @@ int32_t lte_set_report_localtime(localtime_report_cb_t localtime_callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_report_quality(quality_report_cb_t quality_callback,
-                               uint32_t period);
+int lte_set_report_quality(quality_report_cb_t quality_callback,
+                           uint32_t period);
 
 /* Notifies the LTE network cell information to the application.
  *
@@ -1073,8 +1092,8 @@ int32_t lte_set_report_quality(quality_report_cb_t quality_callback,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_report_cellinfo(cellinfo_report_cb_t cellinfo_callback,
-                                uint32_t period);
+int lte_set_report_cellinfo(cellinfo_report_cb_t cellinfo_callback,
+                            uint32_t period);
 
 /* Notifies the LTE network status to the application.
  *
@@ -1088,7 +1107,7 @@ int32_t lte_set_report_cellinfo(cellinfo_report_cb_t cellinfo_callback,
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_report_netinfo(netinfo_report_cb_t netinfo_callback);
+int lte_set_report_netinfo(netinfo_report_cb_t netinfo_callback);
 
 /* Get LTE API last error information.
  *
@@ -1101,7 +1120,7 @@ int32_t lte_set_report_netinfo(netinfo_report_cb_t netinfo_callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_errinfo(lte_errinfo_t *info);
+int lte_get_errinfo(lte_errinfo_t *info);
 
 /* Get SIM information such as Mobile Country Code/Mobile Network Code.
  *
@@ -1120,7 +1139,7 @@ int32_t lte_get_errinfo(lte_errinfo_t *info);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_siminfo_sync(uint32_t option, lte_siminfo_t *siminfo);
+int lte_get_siminfo_sync(uint32_t option, lte_siminfo_t *siminfo);
 
 /* Get SIM information such as Mobile Country Code/Mobile Network Code.
  *
@@ -1140,7 +1159,7 @@ int32_t lte_get_siminfo_sync(uint32_t option, lte_siminfo_t *siminfo);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_siminfo(uint32_t option, get_siminfo_cb_t callback);
+int lte_get_siminfo(uint32_t option, get_siminfo_cb_t callback);
 
 /* Get eDRX dynamic parameter.
  *
@@ -1156,7 +1175,7 @@ int32_t lte_get_siminfo(uint32_t option, get_siminfo_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_dynamic_edrx_param(get_dynamic_edrx_param_cb_t callback);
+int lte_get_dynamic_edrx_param(get_dynamic_edrx_param_cb_t callback);
 
 /* Get current eDRX settings.
  *
@@ -1172,7 +1191,7 @@ int32_t lte_get_dynamic_edrx_param(get_dynamic_edrx_param_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_current_edrx_sync(lte_edrx_setting_t *settings);
+int lte_get_current_edrx_sync(lte_edrx_setting_t *settings);
 
 /* Get current eDRX settings.
  *
@@ -1188,7 +1207,7 @@ int32_t lte_get_current_edrx_sync(lte_edrx_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_current_edrx(get_current_edrx_cb_t callback);
+int lte_get_current_edrx(get_current_edrx_cb_t callback);
 
 /* Get PSM dynamic parameter.
  *
@@ -1204,7 +1223,7 @@ int32_t lte_get_current_edrx(get_current_edrx_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_dynamic_psm_param(get_dynamic_psm_param_cb_t callback);
+int lte_get_dynamic_psm_param(get_dynamic_psm_param_cb_t callback);
 
 /* Get current PSM settings.
  *
@@ -1220,7 +1239,7 @@ int32_t lte_get_dynamic_psm_param(get_dynamic_psm_param_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_current_psm_sync(lte_psm_setting_t *settings);
+int lte_get_current_psm_sync(lte_psm_setting_t *settings);
 
 /* Get current PSM settings.
  *
@@ -1236,7 +1255,7 @@ int32_t lte_get_current_psm_sync(lte_psm_setting_t *settings);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_current_psm(get_current_psm_cb_t callback);
+int lte_get_current_psm(get_current_psm_cb_t callback);
 
 /* Get communication quality information.
  *
@@ -1246,7 +1265,7 @@ int32_t lte_get_current_psm(get_current_psm_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_quality_sync(lte_quality_t *quality);
+int lte_get_quality_sync(lte_quality_t *quality);
 
 /* Get communication quality information.
  *
@@ -1257,7 +1276,7 @@ int32_t lte_get_quality_sync(lte_quality_t *quality);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_quality(get_quality_cb_t callback);
+int lte_get_quality(get_quality_cb_t callback);
 
 /* Get LTE network cell information.
  *
@@ -1270,7 +1289,7 @@ int32_t lte_get_quality(get_quality_cb_t callback);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_cellinfo_sync(lte_cellinfo_t *cellinfo);
+int lte_get_cellinfo_sync(lte_cellinfo_t *cellinfo);
 
 /* Get RAT type
  *
@@ -1280,7 +1299,7 @@ int32_t lte_get_cellinfo_sync(lte_cellinfo_t *cellinfo);
  * On failure, negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_rat_sync(void);
+int lte_get_rat_sync(void);
 
 /* Set RAT setting
  *
@@ -1297,7 +1316,7 @@ int32_t lte_get_rat_sync(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_set_rat_sync(uint8_t rat, bool persistent);
+int lte_set_rat_sync(uint8_t rat, bool persistent);
 
 /* Get RAT information
  *
@@ -1309,7 +1328,7 @@ int32_t lte_set_rat_sync(uint8_t rat, bool persistent);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t lte_get_ratinfo_sync(lte_ratinfo_t *info);
+int lte_get_ratinfo_sync(lte_ratinfo_t *info);
 
 /* Acquire the modem wakelock. If any wakelock is acquired, modem can't
  * enter to the sleep state.

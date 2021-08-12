@@ -9,3 +9,18 @@ menuconfig LTE_LAPI
 	---help---
 		Enable the LTE Configuration Library.
 
+if LTE_LAPI
+
+config LTE_LAPI_KEEP_COMPATIBILITY
+	bool "Keep the LTE library compatible."
+	default n
+	---help---
+		lte_get_operator_sync, lte_get_imsi_sync, lte_get_imei_sync, lte_get_phoneno_sync,
+		these functions have changed their specifications to specify the length of the 
+		argument string. Functions in the old spec will be discarded, but enabling this
+		option makes you be able to use them.
+		Furthermore, this option will be removed in the near future, and functions in
+		the old spec will be completely discarded.
+
+endif
+

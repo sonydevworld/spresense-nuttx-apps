@@ -113,10 +113,10 @@ static int lte_set_report_quality_inparam_check(quality_report_cb_t callback,
 
 /* Synchronous APIs */
 
-int32_t lte_get_netinfo_sync(uint8_t pdn_num, lte_netinfo_t *info)
+int lte_get_netinfo_sync(uint8_t pdn_num, lte_netinfo_t *info)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       &pdn_num
@@ -144,10 +144,10 @@ int32_t lte_get_netinfo_sync(uint8_t pdn_num, lte_netinfo_t *info)
   return ret;
 }
 
-int32_t lte_get_localtime_sync(lte_localtime_t *localtime)
+int lte_get_localtime_sync(lte_localtime_t *localtime)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, localtime
@@ -170,13 +170,21 @@ int32_t lte_get_localtime_sync(lte_localtime_t *localtime)
   return ret;
 }
 
-int32_t lte_get_operator_sync(int8_t *oper)
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
+int lte_get_operator_sync(char *oper)
+#else
+int lte_get_operator_sync(char *oper, size_t len)
+#endif
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
+#ifdef CONFIG_LTE_LAPI_KEEP_COMPATIBILITY
       &result, oper
+#else
+      &result, oper, &len
+#endif
     };
 
   if (oper == NULL)
@@ -196,10 +204,10 @@ int32_t lte_get_operator_sync(int8_t *oper)
   return ret;
 }
 
-int32_t lte_get_quality_sync(lte_quality_t *quality)
+int lte_get_quality_sync(lte_quality_t *quality)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, quality
@@ -222,10 +230,10 @@ int32_t lte_get_quality_sync(lte_quality_t *quality)
   return ret;
 }
 
-int32_t lte_get_cellinfo_sync(lte_cellinfo_t *cellinfo)
+int lte_get_cellinfo_sync(lte_cellinfo_t *cellinfo)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, cellinfo
@@ -248,10 +256,10 @@ int32_t lte_get_cellinfo_sync(lte_cellinfo_t *cellinfo)
   return ret;
 }
 
-int32_t lte_get_rat_sync(void)
+int lte_get_rat_sync(void)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   lte_ratinfo_t ratinfo;
   FAR void *outarg[] =
     {
@@ -270,10 +278,10 @@ int32_t lte_get_rat_sync(void)
   return ret;
 }
 
-int32_t lte_set_rat_sync(uint8_t rat, bool persistent)
+int lte_set_rat_sync(uint8_t rat, bool persistent)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       &rat, &persistent
@@ -301,10 +309,10 @@ int32_t lte_set_rat_sync(uint8_t rat, bool persistent)
   return ret;
 }
 
-int32_t lte_get_ratinfo_sync(lte_ratinfo_t *info)
+int lte_get_ratinfo_sync(lte_ratinfo_t *info)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *outarg[] =
     {
       &result, info
@@ -329,7 +337,7 @@ int32_t lte_get_ratinfo_sync(lte_ratinfo_t *info)
 
 /* Asynchronous APIs */
 
-int32_t lte_get_netinfo(get_netinfo_cb_t callback)
+int lte_get_netinfo(get_netinfo_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -340,7 +348,7 @@ int32_t lte_get_netinfo(get_netinfo_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_localtime(get_localtime_cb_t callback)
+int lte_get_localtime(get_localtime_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -351,7 +359,7 @@ int32_t lte_get_localtime(get_localtime_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_operator(get_operator_cb_t callback)
+int lte_get_operator(get_operator_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -362,7 +370,7 @@ int32_t lte_get_operator(get_operator_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_get_quality(get_quality_cb_t callback)
+int lte_get_quality(get_quality_cb_t callback)
 {
   if (callback == NULL)
     {
@@ -373,10 +381,10 @@ int32_t lte_get_quality(get_quality_cb_t callback)
                   NULL, 0, NULL, 0, callback);
 }
 
-int32_t lte_set_report_netinfo(netinfo_report_cb_t callback)
+int lte_set_report_netinfo(netinfo_report_cb_t callback)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       callback
@@ -399,10 +407,10 @@ int32_t lte_set_report_netinfo(netinfo_report_cb_t callback)
   return ret;
 }
 
-int32_t lte_set_report_localtime(localtime_report_cb_t callback)
+int lte_set_report_localtime(localtime_report_cb_t callback)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   int32_t id = LTE_CMDID_REPLTIME;
   FAR void *inarg[] =
     {
@@ -426,10 +434,10 @@ int32_t lte_set_report_localtime(localtime_report_cb_t callback)
   return ret;
 }
 
-int32_t lte_set_report_quality(quality_report_cb_t callback, uint32_t period)
+int lte_set_report_quality(quality_report_cb_t callback, uint32_t period)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       callback, &period
@@ -457,11 +465,11 @@ int32_t lte_set_report_quality(quality_report_cb_t callback, uint32_t period)
   return ret;
 }
 
-int32_t lte_set_report_cellinfo(cellinfo_report_cb_t callback,
+int lte_set_report_cellinfo(cellinfo_report_cb_t callback,
   uint32_t period)
 {
-  int32_t ret;
-  int32_t result;
+  int ret;
+  int result;
   FAR void *inarg[] =
     {
       callback, &period
