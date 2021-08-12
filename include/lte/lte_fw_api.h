@@ -44,32 +44,6 @@
 
 #include "lte_fw_def.h"
 
-/****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/* Definition of delta image setting to inject.
- */
-
-struct ltefw_injectdata_s
-{
-  /* The pointer of delta image to inject */
-
-  uint8_t  *data;
-
-  /* The length of image to inject. */
-
-  uint32_t data_len;
-
-  /* Delta image injection mode.
-   *  As below value stored.
-   *  - LTEFW_INJECTION_MODE_NEW
-   *  - LTEFW_INJECTION_MODE_APPEND
-   */
-
-  uint8_t  inject_mode;
-};
-
 #ifdef __cplusplus
 #define EXTERN extern "C"
 extern "C"
