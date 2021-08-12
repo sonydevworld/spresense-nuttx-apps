@@ -41,6 +41,7 @@
  ****************************************************************************/
 
 #include <stdint.h>
+#include <nuttx/wireless/lte/lte.h>
 
 #include "lte_fw_def.h"
 
@@ -71,7 +72,7 @@ extern "C"
  * injected length will be returned. Negative values follow <errno.h>.
  */
 
-int32_t ltefw_inject_deltaimage(const struct ltefw_injectdata_s *inject_data,
+int ltefw_inject_deltaimage(const struct ltefw_injectdata_s *inject_data,
   uint16_t *ltefw_result);
 
 /* Get length of injected delta image file.
@@ -80,7 +81,7 @@ int32_t ltefw_inject_deltaimage(const struct ltefw_injectdata_s *inject_data,
  * On failure, a negative value is returned according to <errno.h>.
  */
 
-int32_t ltefw_get_deltaimage_len(void);
+int ltefw_get_deltaimage_len(void);
 
 /* Execute delta update.
  * attention When this function is executed, the modem is automatically
@@ -101,7 +102,7 @@ int32_t ltefw_get_deltaimage_len(void);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t ltefw_exec_deltaupdate(uint16_t *ltefw_result);
+int ltefw_exec_deltaupdate(uint16_t *ltefw_result);
 
 /* Get the result of delta update.
  * Execute this function after LTE_RESTART_MODEM_UPDATED is
@@ -117,7 +118,7 @@ int32_t ltefw_exec_deltaupdate(uint16_t *ltefw_result);
  * negative value is returned according to <errno.h>.
  */
 
-int32_t ltefw_get_deltaupdate_result(uint16_t *ltefw_result);
+int ltefw_get_deltaupdate_result(uint16_t *ltefw_result);
 
 #undef EXTERN
 #ifdef __cplusplus
