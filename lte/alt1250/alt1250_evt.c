@@ -1430,16 +1430,9 @@ int alt1250_regevtcb(uint32_t cmdid, FAR void *cb)
     }
   else
     {
-      /* Not found my ID */
-
-      if (myidx == -1)
-        {
-          ret = -EALREADY;
-        }
-
       /* Found my ID */
 
-      else
+      if (myidx != -1)
         {
           g_cbtable[myidx].cmdid = 0;
           g_cbtable[myidx].cb = NULL;
