@@ -41,7 +41,7 @@ config LTE_ALT1250_EVENT_TASK_PRIORITY
 
 config LTE_ALT1250_EVENT_TASK_STACKSIZE
 	int "internal task stack size"
-	default 1024
+	default 2048
 
 endif
 
