@@ -4480,8 +4480,9 @@ int main(int argc, FAR char *argv[])
   if (argc > 1)
     {
       /* The format is "-sXXXXXXXX".
-       * XXXXXXXXX indicates the address of the semaphore for
-       * synchronization.
+       * XXXXXXXXX indicates the pointer address to the semaphore
+       * that will be posted at the timing when the daemon opens the
+       * usersock device.
        */
 
       if (!(strncmp(argv[1], SYNC_CMD_PREFIX, strlen(SYNC_CMD_PREFIX))))
