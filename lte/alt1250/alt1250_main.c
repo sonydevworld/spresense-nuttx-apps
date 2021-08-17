@@ -805,10 +805,15 @@ static int read_usockreq(int fd, FAR uint8_t *buf, size_t sz)
       return -EMSGSIZE;
     }
 
-  if (com_hdr->reqid >= USRSOCK_REQUEST__MAX ||
-      !handlers[com_hdr->reqid].fn)
+  if (com_hdr->reqid >= USRSOCK_REQUEST__MAX || com_hdr->reqid < 0)
     {
       alt1250_printf("unexpected reqid: %d\n", com_hdr->reqid);
+      return -1;
+    }
+  else if (!handlers[com_hdr->reqid].fn)
+    {
+      alt1250_printf("No handler has been registered. reqid: %d\n",
+        com_hdr->reqid);
       return -1;
     }
 
@@ -824,10 +829,10 @@ static int read_usockreq(int fd, FAR uint8_t *buf, size_t sz)
       return ret;
     }
 
-  if (rlen + sizeof(*com_hdr) != handlers[com_hdr->reqid].hdrlen)
+  if (rlen != handlers[com_hdr->reqid].hdrlen - sizeof(*com_hdr))
     {
       alt1250_printf("unexpected read size: %d expected: %lu\n",
-        rlen + sizeof(*com_hdr), handlers[com_hdr->reqid].hdrlen);
+        rlen, handlers[com_hdr->reqid].hdrlen - sizeof(*com_hdr));
       return -EMSGSIZE;
     }
 
