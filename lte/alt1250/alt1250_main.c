@@ -275,7 +275,7 @@ static int ioctl_lte_nomdm(int fd, FAR struct alt1250_s *dev,
 static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
   FAR struct lte_ioctl_data_s *cm, FAR uint16_t usockid);
 static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
-  FAR struct lte_ioctl_data_s *cmd, FAR uint16_t usockid);
+  FAR struct lte_ioctl_data_s *cmd, FAR uint16_t usockid, int8_t *flags);
 
 static int waitevt_sockcommon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
@@ -2502,6 +2502,7 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
   struct usrsock_message_req_ack_s resp;
   FAR struct usock_s *usock;
   bool is_ack = false;
+  int8_t flags = 0;
 
   alt1250_printf("start: req->arglen=%u\n", req->arglen);
 
@@ -2540,7 +2541,7 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
 
           if (LTE_ISCMDGRP_NORMAL(ltecmd.cmdid))
             {
-              ret = ioctl_lte_normal(fd, dev, &ltecmd, req->usockid);
+              ret = ioctl_lte_normal(fd, dev, &ltecmd, req->usockid, &flags);
               if (ret == OK)
                 {
                   if (!is_synccmd(ltecmd.cmdid))
@@ -2658,12 +2659,9 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
 sendack:
   if ((result < 0) || (is_ack))
     {
-      int8_t flags = 0;
 
-      if (result == -EINPROGRESS)
+      if (flags & USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS)
         {
-          flags |= USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
-
           /* save request parameter for delayed ack */
 
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -2857,7 +2855,7 @@ errout:
  ****************************************************************************/
 
 static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
-  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid)
+  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, int8_t *flags)
 {
   int ret = OK;
   FAR struct usock_s *usock = NULL;
@@ -2924,6 +2922,7 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
 
           if (cmd->cmdid == LTE_CMDID_ACTPDN)
             {
+              *flags |= USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
               ret = -EINPROGRESS;
             }
         }

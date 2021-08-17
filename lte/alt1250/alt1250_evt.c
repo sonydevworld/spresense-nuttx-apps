@@ -1515,7 +1515,14 @@ int alt1250_regevtcb(uint32_t cmdid, FAR void *cb)
 
       if (myidx != -1)
         {
-          ret = -EALREADY;
+          if (IS_REPORT_API(cmdid))
+            {
+              ret = -EALREADY;
+            }
+          else
+            {
+              ret = -EINPROGRESS;
+            }
         }
 
       /* No free index at table? */
