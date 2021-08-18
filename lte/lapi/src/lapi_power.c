@@ -35,6 +35,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -155,7 +156,7 @@ int lte_initialize(void)
       if (ret < 0)
         {
           ret = -errno;
-          printf("failed to create task:%d\n", errno);
+          lapi_printf("failed to create task:%d\n", errno);
         }
       else
         {

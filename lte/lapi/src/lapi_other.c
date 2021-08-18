@@ -38,6 +38,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -72,7 +73,7 @@ int lapi_req(uint32_t cmdid, FAR void *inp, size_t ilen, FAR void *outp,
   if (sock < 0)
     {
       ret = -errno;
-      printf("failed to open socket:%d\n", errno);
+      lapi_printf("failed to open socket:%d\n", errno);
     }
   else
     {
@@ -87,7 +88,7 @@ int lapi_req(uint32_t cmdid, FAR void *inp, size_t ilen, FAR void *outp,
       if (ret < 0)
         {
           ret = -errno;
-          printf("failed to ioctl:%d\n", errno);
+          lapi_printf("failed to ioctl:%d\n", errno);
         }
 
       close(sock);
@@ -99,7 +100,7 @@ int lapi_req(uint32_t cmdid, FAR void *inp, size_t ilen, FAR void *outp,
 int lte_data_allow_sync(uint8_t session_id, uint8_t allow,
                         uint8_t roaming_allow)
 {
-  printf("lte_data_allow_sync() is not supported.\n");
+  lapi_printf("lte_data_allow_sync() is not supported.\n");
 
   return -EOPNOTSUPP;
 }
@@ -107,7 +108,7 @@ int lte_data_allow_sync(uint8_t session_id, uint8_t allow,
 int lte_data_allow(uint8_t session_id, uint8_t allow,
                    uint8_t roaming_allow, data_allow_cb_t callback)
 {
-  printf("lte_data_allow() is not supported.\n");
+  lapi_printf("lte_data_allow() is not supported.\n");
 
   return -EOPNOTSUPP;
 }

@@ -11,6 +11,11 @@ menuconfig LTE_LAPI
 
 if LTE_LAPI
 
+config LTE_LAPI_DEBUG_MSG
+	bool "Enable debug output messages"
+	default n
+	depends on DEBUG_NET_ERROR
+
 config LTE_LAPI_KEEP_COMPATIBILITY
 	bool "Keep the LTE library compatible."
 	default n

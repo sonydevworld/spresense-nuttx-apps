@@ -39,6 +39,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -88,7 +89,7 @@ int lapi_evtinit(FAR const char *mqname)
   g_mqd = mq_open(mqname, O_CREAT | O_RDONLY | O_EXCL, 0666, &attr);
   if (g_mqd == (mqd_t)-1)
     {
-      printf("failed to open mq(%s): %d\n", mqname, errno);
+      lapi_printf("failed to open mq(%s): %d\n", mqname, errno);
       return -errno;
     }
 
@@ -99,7 +100,7 @@ int lapi_evtinit(FAR const char *mqname)
     (FAR void *)outarg, ARRAY_SZ(outarg), NULL);
   if (ret < 0)
     {
-      printf("failed to lapi request: %d\n", ret);
+      lapi_printf("failed to lapi request: %d\n", ret);
       mq_close(g_mqd);
       mq_unlink(mqname);
     }
@@ -149,7 +150,7 @@ int lapi_evtyield(int timeout_ms)
               ret = -errno;
               if (errno != ETIMEDOUT)
                 {
-                  printf("failed to mq_receive: %d\n", errno);
+                  lapi_printf("failed to mq_receive: %d\n", errno);
                 }
 
               is_exit = true;
@@ -162,7 +163,7 @@ int lapi_evtyield(int timeout_ms)
           if (sz < 0)
             {
               ret = -errno;
-              printf("failed to mq_receive: %d\n", errno);
+              lapi_printf("failed to mq_receive: %d\n", errno);
               is_exit = true;
               continue;
             }
@@ -194,7 +195,7 @@ int lapi_evtsend(uint64_t evtbitmap)
   if (ret < 0)
     {
       ret = -errno;
-      printf("failed to send mq(%s): %d\n", g_mqname, errno);
+      lapi_printf("failed to send mq(%s): %d\n", g_mqname, errno);
     }
 
   return ret;
