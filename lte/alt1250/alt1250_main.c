@@ -877,18 +877,15 @@ static int write_to_altdev(FAR struct alt1250_s *dev,
 {
   int ret = OK;
 
-  if (container->cmdid & LTE_CMDOPT_ASYNC_BIT)
-    {
-      container->outparam = alt1250_getevtarg(
-        container->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
-      DEBUGASSERT(container->outparam != NULL);
-    }
-
   ret = ioctl(dev->altfd, ALT1250_IOC_SEND, (unsigned long)container);
   if (ret < 0)
     {
       ret = -errno;
       alt1250_printf("ioctl failed: %d\n", errno);
+    }
+  else
+    {
+      alt1250_printf("write to alt1250 success: %d\n", ret);
     }
 
   return ret;
@@ -2815,7 +2812,7 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
 {
   int ret = OK;
   FAR struct usock_s *usock = NULL;
-  FAR struct alt_container_s *container;
+  FAR struct alt_container_s *container = NULL;
 
   usock = alt1250_socket_get(dev, usockid);
   if (!usock)
@@ -2837,6 +2834,7 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
       ret = alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, cmd->cb);
       if (ret < 0)
         {
+          free_container(dev, container);
           goto errout;
         }
     }
@@ -2847,6 +2845,7 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
       /* clear callback */
 
       alt1250_regevtcb(cmd->cmdid, NULL);
+      free_container(dev, container);
     }
 
 errout:
@@ -2879,13 +2878,17 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
       goto errout;
     }
 
-  if (cmd->cmdid & LTE_CMDOPT_ASYNC_BIT)
+  if ((cmd->cmdid & LTE_CMDOPT_ASYNC_BIT) && (cmd->cb != NULL))
     {
       ret = alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, cmd->cb);
       if (ret < 0)
         {
+          free_container(dev, container);
           goto errout;
         }
+
+      container->outparam = alt1250_getevtarg(
+        container->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
     }
 
   if (cmd->cmdid == LTE_CMDID_TLS_SSL_BIO)
@@ -2901,6 +2904,7 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
       /* clear callback */
 
       alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, NULL);
+      free_container(dev, container);
     }
   else
     {
@@ -2922,6 +2926,15 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
             {
               ret = -EINPROGRESS;
             }
+        }
+      else if (cmd->cmdid == LTE_CMDID_TLS_SSL_HANDSHAKE)
+        {
+          /* The request from usersock cannot be accepted until the handshake
+           * response is returned, so the EINPROGRESS is returned so that
+           * the request can be accepted.
+           */
+
+          ret = -EINPROGRESS;
         }
     }
 
