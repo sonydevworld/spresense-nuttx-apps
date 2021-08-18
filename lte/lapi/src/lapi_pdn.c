@@ -32,6 +32,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -48,27 +49,27 @@ static int lte_activate_pdn_inparam_check(lte_apn_setting_t *apn)
 
   if (!apn)
     {
-      printf("apn is null.\n");
+      lapi_printf("apn is null.\n");
       return -EINVAL;
     }
 
   if ((!apn->apn) || (strnlen((char *)apn->apn, LTE_APN_LEN) >= LTE_APN_LEN))
     {
-      printf("apn is length overflow.\n");
+      lapi_printf("apn is length overflow.\n");
       return  -EINVAL;
     }
 
   if ((apn->ip_type < LTE_IPTYPE_V4) ||
       (apn->ip_type > LTE_IPTYPE_V4V6))
     {
-      printf("ip type is invalid. iptype=%d\n", apn->ip_type);
+      lapi_printf("ip type is invalid. iptype=%d\n", apn->ip_type);
       return -EINVAL;
     }
 
   if ((apn->auth_type < LTE_APN_AUTHTYPE_NONE) ||
       (apn->auth_type > LTE_APN_AUTHTYPE_CHAP))
     {
-      printf("auth type is invalid. authtype=%d\n", apn->auth_type);
+      lapi_printf("auth type is invalid. authtype=%d\n", apn->auth_type);
       return -EINVAL;
     }
 
@@ -77,14 +78,14 @@ static int lte_activate_pdn_inparam_check(lte_apn_setting_t *apn)
       if (strnlen((char *)apn->user_name, LTE_APN_USER_NAME_LEN) >=
         LTE_APN_USER_NAME_LEN)
         {
-          printf("username is length overflow.\n");
+          lapi_printf("username is length overflow.\n");
           return -EINVAL;
         }
 
       if (strnlen((char *)apn->password, LTE_APN_PASSWD_LEN) >=
         LTE_APN_PASSWD_LEN)
         {
-          printf("password is length overflow.\n");
+          lapi_printf("password is length overflow.\n");
           return  -EINVAL;
         }
     }
@@ -92,7 +93,7 @@ static int lte_activate_pdn_inparam_check(lte_apn_setting_t *apn)
     {
       if (apn->auth_type != LTE_APN_AUTHTYPE_NONE)
         {
-          printf("authentication information is invalid.\n");
+          lapi_printf("authentication information is invalid.\n");
           return -EINVAL;
         }
     }
@@ -103,7 +104,7 @@ static int lte_activate_pdn_inparam_check(lte_apn_setting_t *apn)
     LTE_APN_TYPE_CBS | LTE_APN_TYPE_IA | LTE_APN_TYPE_EMERGENCY);
   if (0 == (apn->apn_type & mask))
     {
-      printf("apn type is invalid. apntype=%08ld / mask=%08ld \n",
+      lapi_printf("apn type is invalid. apntype=%08ld / mask=%08ld \n",
         apn->apn_type, mask);
       return -EINVAL;
     }
@@ -116,7 +117,7 @@ static int lte_deactivate_pdn_inparam_check(uint8_t session_id)
   if (LTE_SESSION_ID_MIN > session_id ||
       LTE_SESSION_ID_MAX < session_id)
     {
-      printf("Invalid session id %d.\n", session_id);
+      lapi_printf("Invalid session id %d.\n", session_id);
       return -EINVAL;
     }
 

@@ -32,6 +32,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -63,14 +64,14 @@ static int lte_set_rat_inparam_check(uint8_t rat, bool persistent)
   if (rat != LTE_RAT_CATM &&
       rat != LTE_RAT_NBIOT)
     {
-      printf("RAT type is invalid [%d].\n", rat);
+      lapi_printf("RAT type is invalid [%d].\n", rat);
       return -EINVAL;
     }
 
   if (persistent != LTE_ENABLE &&
       persistent != LTE_DISABLE)
     {
-      printf("persistent is invalid [%d].\n", persistent);
+      lapi_printf("persistent is invalid [%d].\n", persistent);
       return -EINVAL;
     }
 
@@ -84,7 +85,7 @@ static int lte_set_report_cellinfo_inparam_check(
     {
       if (CELLINFO_PERIOD_MIN > period || CELLINFO_PERIOD_MAX < period)
         {
-          printf("Invalid parameter.\n");
+          lapi_printf("Invalid parameter.\n");
           return -EINVAL;
         }
     }
@@ -99,7 +100,7 @@ static int lte_set_report_quality_inparam_check(quality_report_cb_t callback,
     {
       if (QUALITY_PERIOD_MIN > period || QUALITY_PERIOD_MAX < period)
         {
-          printf("Invalid parameter.\n");
+          lapi_printf("Invalid parameter.\n");
           return -EINVAL;
         }
     }

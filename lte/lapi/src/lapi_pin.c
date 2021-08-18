@@ -32,6 +32,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -61,13 +62,13 @@ static int lte_change_pin_inparam_check(int8_t target_pin, char *pincode,
 
   if (!pincode || !new_pincode)
     {
-      printf("Input argument is NULL.\n");
+      lapi_printf("Input argument is NULL.\n");
       return -EINVAL;
     }
 
   if (SETPIN_TARGETPIN_MIN > target_pin || SETPIN_TARGETPIN_MAX < target_pin)
     {
-      printf("Unsupport change type. type:%d\n", target_pin);
+      lapi_printf("Unsupport change type. type:%d\n", target_pin);
       return -EINVAL;
     }
 
@@ -92,21 +93,21 @@ static int lte_enter_pin_inparam_check(char *pincode, char *new_pincode)
 
   if (!pincode)
     {
-      printf("Input argument is NULL.\n");
+      lapi_printf("Input argument is NULL.\n");
       return -EINVAL;
     }
 
   pinlen = strnlen(pincode, APICMD_SETPINLOCK_PINCODE_LEN);
   if (pinlen < ENTERPIN_MIN_PIN_LEN || ENTERPIN_MAX_PIN_LEN < pinlen)
     {
-      printf("Invalid PIN code length.length:%d\n", pinlen);
+      lapi_printf("Invalid PIN code length.length:%d\n", pinlen);
       return -EINVAL;
     }
 
   if (new_pincode)
     {
-      printf("lte_enter_pin() doesn't support entering PUK code.\n");
-      printf("lte_enter_pin_sync() doesn't support entering PUK code.\n");
+      lapi_printf("lte_enter_pin() doesn't support entering PUK code.\n");
+      lapi_printf("lte_enter_pin_sync() doesn't support entering PUK code.\n");
       return -EINVAL;
     }
 
@@ -119,7 +120,7 @@ static int lte_set_pinenable_inparam_check(bool enable, char *pincode)
 
   if (!pincode)
     {
-      printf("Input argument is NULL.\n");
+      lapi_printf("Input argument is NULL.\n");
       return -EINVAL;
     }
 
@@ -259,7 +260,7 @@ int lte_enter_pin_sync(char *pincode, char *new_pincode,
   ret = lte_get_pinset_sync(&pinset);
   if (ret < 0)
     {
-      printf("Failed to get pinset.%d\n", ret);
+      lapi_printf("Failed to get pinset.%d\n", ret);
       return ret;
     }
 
@@ -282,7 +283,7 @@ int lte_enter_pin_sync(char *pincode, char *new_pincode,
 
   if (pinset.enable == LTE_DISABLE)
     {
-      printf(
+      lapi_printf(
         "PIN lock is disable. Don't need to run lte_enter_pin_sync().\n");
       return -EPERM;
     }
@@ -290,12 +291,12 @@ int lte_enter_pin_sync(char *pincode, char *new_pincode,
     {
       if (pinset.status == LTE_PINSTAT_SIM_PUK)
         {
-          printf(
+          lapi_printf(
             "This SIM is PUK locked. lte_enter_pin_sync() can't be used.\n");
         }
       else
         {
-          printf("PIN is already unlocked. "
+          lapi_printf("PIN is already unlocked. "
             "Don't need to run lte_enter_pin_sync(). status:%d\n",
             pinset.status);
         }

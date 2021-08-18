@@ -32,6 +32,7 @@
 #include "lte/lte_api.h"
 #include "lte/lapi.h"
 
+#include "lapi_dbg.h"
 #include "lapi_util.h"
 
 /****************************************************************************
@@ -69,7 +70,7 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
 
   if (!settings)
     {
-      printf("Input argument is NULL.\n");
+      lapi_printf("Input argument is NULL.\n");
       return -EINVAL;
     }
 
@@ -80,14 +81,14 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
       settings->act_type != LTE_EDRX_ACTTYPE_IU &&
       settings->act_type != LTE_EDRX_ACTTYPE_NOTUSE)
     {
-      printf("Input argument act_type is invalid.\n");
+      lapi_printf("Input argument act_type is invalid.\n");
       return -EINVAL;
     }
 
   ret = lte_get_rat_sync();
   if (ret < 0 && ret != -ENOTSUP)
     {
-      printf("Unable to read RAT setting from the device. ret: [%ld].\n",
+      lapi_printf("Unable to read RAT setting from the device. ret: [%ld].\n",
         ret);
       return ret;
     }
@@ -98,7 +99,7 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
       if (LTE_EDRX_ACTTYPE_NOTUSE != settings->act_type &&
           LTE_EDRX_ACTTYPE_WBS1   != settings->act_type)
         {
-          printf("Operation is not allowed[act_type : %d].\n",
+          lapi_printf("Operation is not allowed[act_type : %d].\n",
             settings->act_type);
           return -EPERM;
         }
@@ -113,7 +114,7 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
              && settings->act_type == LTE_EDRX_ACTTYPE_NBS1) ||
             (settings->act_type == LTE_EDRX_ACTTYPE_NOTUSE)))
         {
-          printf("Operation is not allowed[act_type : %d, RAT : %ld].\n",
+          lapi_printf("Operation is not allowed[act_type : %d, RAT : %ld].\n",
             settings->act_type, ret);
           return -EPERM;
         }
@@ -126,14 +127,14 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
           if (!(ALTCOMBS_EDRX_CYCLE_WBS1_MIN <= settings->edrx_cycle &&
             settings->edrx_cycle <= ALTCOMBS_EDRX_CYCLE_WBS1_MAX))
             {
-              printf("Input argument edrx_cycle is invalid.\n");
+              lapi_printf("Input argument edrx_cycle is invalid.\n");
               return -EINVAL;
             }
 
           if (!(ALTCOMBS_EDRX_PTW_WBS1_MIN <= settings->ptw_val &&
             settings->ptw_val <= ALTCOMBS_EDRX_PTW_WBS1_MAX))
             {
-              printf("Input argument ptw is invalid.\n");
+              lapi_printf("Input argument ptw is invalid.\n");
               return -EINVAL;
             }
         }
@@ -143,14 +144,14 @@ static int lte_set_edrx_inparam_check(lte_edrx_setting_t *settings)
           if (!(ALTCOMBS_EDRX_CYCLE_NBS1_MIN <= settings->edrx_cycle &&
               settings->edrx_cycle <= ALTCOMBS_EDRX_CYCLE_NBS1_MAX))
             {
-              printf("Input argument edrx_cycle is invalid.\n");
+              lapi_printf("Input argument edrx_cycle is invalid.\n");
               return -EINVAL;
             }
 
           if (!(ALTCOMBS_EDRX_PTW_NBS1_MIN <= settings->ptw_val &&
               settings->ptw_val <= ALTCOMBS_EDRX_PTW_NBS1_MAX))
             {
-              printf("Input argument ptw is invalid.\n");
+              lapi_printf("Input argument ptw is invalid.\n");
               return -EINVAL;
             }
         }
@@ -163,7 +164,7 @@ static int lte_set_psm_inparam_check(lte_psm_setting_t *settings)
 {
   if (!settings)
     {
-      printf("Input argument is NULL.\n");
+      lapi_printf("Input argument is NULL.\n");
       return -EINVAL;
     }
 
@@ -172,7 +173,7 @@ static int lte_set_psm_inparam_check(lte_psm_setting_t *settings)
       if (settings->req_active_time.unit < LTE_PSM_T3324_UNIT_2SEC ||
           settings->req_active_time.unit > LTE_PSM_T3324_UNIT_DEACT)
         {
-          printf("Invalid rat_time unit :%d\n",
+          lapi_printf("Invalid rat_time unit :%d\n",
             settings->req_active_time.unit);
           return -EINVAL;
         }
@@ -180,7 +181,7 @@ static int lte_set_psm_inparam_check(lte_psm_setting_t *settings)
       if (settings->req_active_time.time_val < LTE_PSM_TIMEVAL_MIN ||
           settings->req_active_time.time_val > LTE_PSM_TIMEVAL_MAX)
         {
-          printf("Invalid rat_time time_val :%d\n",
+          lapi_printf("Invalid rat_time time_val :%d\n",
             settings->req_active_time.time_val);
           return -EINVAL;
         }
@@ -188,7 +189,7 @@ static int lte_set_psm_inparam_check(lte_psm_setting_t *settings)
       if (settings->ext_periodic_tau_time.unit < LTE_PSM_T3412_UNIT_2SEC ||
           settings->ext_periodic_tau_time.unit > LTE_PSM_T3412_UNIT_DEACT)
         {
-          printf("Invalid tau_time unit :%d\n",
+          lapi_printf("Invalid tau_time unit :%d\n",
             settings->ext_periodic_tau_time.unit);
           return -EINVAL;
         }
@@ -196,7 +197,7 @@ static int lte_set_psm_inparam_check(lte_psm_setting_t *settings)
       if (settings->ext_periodic_tau_time.time_val < LTE_PSM_TIMEVAL_MIN ||
           settings->ext_periodic_tau_time.time_val > LTE_PSM_TIMEVAL_MAX)
         {
-          printf("Invalid tau_time time_val :%d\n",
+          lapi_printf("Invalid tau_time time_val :%d\n",
             settings->ext_periodic_tau_time.time_val);
           return -EINVAL;
         }
