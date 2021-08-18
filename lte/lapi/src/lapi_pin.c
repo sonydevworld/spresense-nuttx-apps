@@ -71,13 +71,13 @@ static int lte_change_pin_inparam_check(int8_t target_pin, char *pincode,
       return -EINVAL;
     }
 
-  pinlen = strnlen(pincode, SETPIN_MAX_PIN_LEN);
+  pinlen = strnlen(pincode, APICMD_SETPINLOCK_PINCODE_LEN);
   if (pinlen < SETPIN_MIN_PIN_LEN || SETPIN_MAX_PIN_LEN < pinlen)
     {
       return -EINVAL;
     }
 
-  pinlen = strnlen(new_pincode, SETPIN_MAX_PIN_LEN);
+  pinlen = strnlen(new_pincode, APICMD_SETPINLOCK_PINCODE_LEN);
   if (pinlen < SETPIN_MIN_PIN_LEN || SETPIN_MAX_PIN_LEN < pinlen)
     {
       return -EINVAL;
@@ -96,7 +96,7 @@ static int lte_enter_pin_inparam_check(char *pincode, char *new_pincode)
       return -EINVAL;
     }
 
-  pinlen = strnlen(pincode, ENTERPIN_MAX_PIN_LEN);
+  pinlen = strnlen(pincode, APICMD_SETPINLOCK_PINCODE_LEN);
   if (pinlen < ENTERPIN_MIN_PIN_LEN || ENTERPIN_MAX_PIN_LEN < pinlen)
     {
       printf("Invalid PIN code length.length:%d\n", pinlen);
@@ -123,7 +123,7 @@ static int lte_set_pinenable_inparam_check(bool enable, char *pincode)
       return -EINVAL;
     }
 
-  pinlen = strnlen(pincode, SETPIN_MAX_PIN_LEN);
+  pinlen = strnlen(pincode, APICMD_SETPINLOCK_PINCODE_LEN);
   if (pinlen < SETPIN_MIN_PIN_LEN || SETPIN_MAX_PIN_LEN < pinlen)
     {
       return -EINVAL;
