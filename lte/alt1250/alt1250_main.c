@@ -4192,7 +4192,6 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
       alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
       alt1250_socket_allfree(dev);
-      setup_internalevent(dev);
 
       dev->net_dev.d_flags = IFF_DOWN;
 #ifdef CONFIG_NET_IPv4
@@ -4264,6 +4263,11 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
         (altcom_fd_set *)select_arg[4], (altcom_fd_set *)select_arg[5], dev);
 
       evtbitmap &= ~bit;
+    }
+
+  if (alt1250_checkcmdid(LTE_CMDID_SETRESTART, evtbitmap, &bit))
+    {
+      setup_internalevent(dev);
     }
 
   /* is normal event? */

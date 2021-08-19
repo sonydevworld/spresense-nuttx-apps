@@ -1294,10 +1294,12 @@ static uint64_t exec_callback(uint32_t cmdid,
     }
 
   /* When callback is not found,
-   * GETPSM and GETEDRX will execute func() and update the evtbitmap
+   * GETPSM and GETEDRX and REPNETINFO will execute func()
+   * and update the evtbitmap
    */
 
-  if (cmdid == LTE_CMDID_GETPSM || cmdid == LTE_CMDID_GETEDRX)
+  if (cmdid == LTE_CMDID_GETPSM || cmdid == LTE_CMDID_GETEDRX ||
+    cmdid == LTE_CMDID_REPNETINFO)
     {
       evtbitmap = func(NULL, arg, set_writable);
     }
