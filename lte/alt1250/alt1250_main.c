@@ -755,7 +755,6 @@ static int alt1250_socket_free(FAR struct alt1250_s *dev, int sockid)
 static int alt1250_socket_allfree(FAR struct alt1250_s *dev)
 {
   int i;
-  struct usrsock_message_req_ack_s resp;
   FAR struct usock_s *usock;
 
   for (i = 0; i < SOCKET_COUNT; i++)
@@ -763,15 +762,11 @@ static int alt1250_socket_allfree(FAR struct alt1250_s *dev)
       usock = alt1250_socket_get(dev, i);
       if (usock && usock->state != CLOSED)
         {
-          /* Send ACK response */
-
-          memset(&resp, 0, sizeof(resp));
-          resp.result = -ENETDOWN;
-          _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-
           alt1250_socket_free(dev, i);
         }
     }
+
+  ioctl(dev->usockfd, USRSOCK_IOC_REFLESH, 0);
 
   return 0;
 }
@@ -2665,7 +2660,6 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
 sendack:
   if ((result < 0) || (is_ack))
     {
-
       if (flags & USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS)
         {
           /* save request parameter for delayed ack */
@@ -2951,6 +2945,7 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
            * the request can be accepted.
            */
 
+          *flags |= USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
           ret = -EINPROGRESS;
         }
     }
@@ -3223,7 +3218,6 @@ static int handle_modemreset(int fd, FAR struct alt_container_s *reply,
 {
   int ret;
   FAR struct usock_s *usock;
-  struct usrsock_message_req_ack_s resp;
   FAR struct waithdlr_s *ctx = (FAR struct waithdlr_s *)reply->priv;
 
   usock = alt1250_socket_get(dev, reply->sock);
@@ -3236,14 +3230,6 @@ static int handle_modemreset(int fd, FAR struct alt_container_s *reply,
     {
       ret = ctx->hdlr(EVENT_RESET, ctx->priv, reply, usock, dev);
     }
-
-  /* Send ACK response */
-
-  memset(&resp, 0, sizeof(resp));
-  resp.result = -ENETDOWN;
-  ret = _send_ack_common(fd, usock->req.xid, &resp);
-
-  alt1250_socket_free(dev, reply->sock);
 
   return ret;
 }
