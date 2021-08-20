@@ -280,47 +280,47 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
 static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
   FAR struct lte_ioctl_data_s *cmd, FAR uint16_t usockid, int8_t *flags);
 
-static int waitevt_sockcommon(uint8_t event, unsigned long priv,
+static int handlereply_sockcommon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_socket(uint8_t event, unsigned long priv,
+static int handlereply_socket(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_connect(uint8_t event, unsigned long priv,
+static int handlereply_connect(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_recvfrom(uint8_t event, unsigned long priv,
+static int handlereply_recvfrom(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_accept(uint8_t event, unsigned long priv,
+static int handlereply_accept(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_getsockopt(uint8_t event, unsigned long priv,
+static int handlereply_getsockopt(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_getsockopt_conn(uint8_t event, unsigned long priv,
+static int handlereply_getsockopt_conn(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_getsockname(uint8_t event, unsigned long priv,
+static int handlereply_getsockname(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_getfl(uint8_t event, unsigned long priv,
+static int handlereply_getfl(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_setfl(uint8_t event, unsigned long priv,
+static int handlereply_setfl(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
 
-static int waitevt_repnetinfo(uint8_t event, unsigned long priv,
+static int handlereply_repnetinfo(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_radioon(uint8_t event, unsigned long priv,
+static int handlereply_radioon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_radiooff(uint8_t event, unsigned long priv,
+static int handlereply_radiooff(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
-static int waitevt_actpdn(uint8_t event, unsigned long priv,
+static int handlereply_actpdn(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
 
@@ -485,13 +485,48 @@ static void clear_container(FAR struct alt_container_s *container)
 }
 
 /****************************************************************************
+ * Name: set_container
+ ****************************************************************************/
+
+static void set_container(FAR struct alt_container_s *container,
+  int16_t usockid, uint32_t cmdid, FAR void *inp[], size_t insz,
+  FAR void *outp[], size_t outsz, waithdlr_t hdlr, unsigned long priv)
+{
+  clear_container(container);
+
+  container->sock = usockid;
+  container->cmdid = cmdid;
+  container->inparam = inp;
+  container->inparamlen = insz;
+  container->outparam = outp;
+  container->outparamlen = outsz;
+  ((FAR struct waithdlr_s *)container->priv)->hdlr = hdlr;
+  ((FAR struct waithdlr_s *)container->priv)->priv = priv;
+}
+
+/****************************************************************************
+ * Name: pick_containertop
+ ****************************************************************************/
+
+static FAR struct alt_container_s *
+  pick_containertop(FAR struct alt_container_s **head)
+{
+  FAR struct alt_container_s *ret = *head;
+
+  if (ret)
+    {
+      *head = (FAR struct alt_container_s *)sq_next(&ret->node);
+      sq_next(&ret->node) = NULL;
+    }
+
+  return ret;
+}
+
+/****************************************************************************
  * Name: get_container
  ****************************************************************************/
 
-static FAR struct alt_container_s *get_container(int16_t usockid,
-  uint32_t cmdid, FAR void *inp[], size_t insz, FAR void *outp[],
-  size_t outsz, waithdlr_t hdlr, unsigned long priv,
-  FAR struct alt1250_s *dev)
+static FAR struct alt_container_s *get_container(FAR struct alt1250_s *dev)
 {
   FAR struct alt_container_s *ret = NULL;
 
@@ -499,16 +534,6 @@ static FAR struct alt_container_s *get_container(int16_t usockid,
   if (ret)
     {
       sq_rem(&ret->node, &dev->freecontainer);
-      clear_container(ret);
-
-      ret->sock = usockid;
-      ret->cmdid = cmdid;
-      ret->inparam = inp;
-      ret->inparamlen = insz;
-      ret->outparam = outp;
-      ret->outparamlen = outsz;
-      ((FAR struct waithdlr_s *)ret->priv)->hdlr = hdlr;
-      ((FAR struct waithdlr_s *)ret->priv)->priv = priv;
     }
   else
     {
@@ -900,20 +925,21 @@ static int write_to_altdev(FAR struct alt1250_s *dev,
 
 static int send_commonreq(uint32_t cmdid, FAR void *in[], size_t icnt,
   FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  unsigned long priv, FAR struct alt1250_s *dev)
+  unsigned long priv, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   int ret = 0;
-  FAR struct alt_container_s *container;
 
-  container = get_container(usockid, cmdid, in, icnt, out, ocnt, hdlr,
-    priv, dev);
-
+  container = (container == NULL) ? get_container(dev) : container;
   if (container)
     {
+      set_container(container, usockid, cmdid, in, icnt, out, ocnt, hdlr,
+        priv);
+
       ret = write_to_altdev(dev, container);
-      if ((ret < 0) || (out == NULL))
+      if (((ret < 0) && (ret != -ENETRESET)) || (out == NULL))
         {
-          /* an error is ocuured or no need to wait response */
+          /* Non ENETRESET error is ocuured or no need to wait response */
 
           free_container(dev, container);
         }
@@ -940,7 +966,7 @@ static int send_socketreq(int16_t domain, int16_t type, int16_t protocol,
   in[2] = &protocol;
 
   return send_commonreq(LTE_CMDID_SOCKET, in, 3, out, ocnt,
-    usockid, waitevt_socket, 0, dev);
+    usockid, handlereply_socket, 0, dev, NULL);
 }
 
 /****************************************************************************
@@ -948,14 +974,15 @@ static int send_socketreq(int16_t domain, int16_t type, int16_t protocol,
  ****************************************************************************/
 
 static int send_closereq(int32_t altsock, FAR void *out[], size_t ocnt,
-  int16_t usockid, FAR struct alt1250_s *dev)
+  int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[1];
 
   in[0] = &altsock;
 
   return send_commonreq(LTE_CMDID_CLOSE, in, 1, out, ocnt,
-    usockid, waitevt_sockcommon, 0, dev);
+    usockid, handlereply_sockcommon, 0, dev, container);
 }
 
 /****************************************************************************
@@ -964,7 +991,7 @@ static int send_closereq(int32_t altsock, FAR void *out[], size_t ocnt,
 
 static int send_fctlreq(int32_t altsock, int32_t cmd, int32_t val,
   FAR void *out[], size_t ocnt, int16_t usockid, waithdlr_t hdlr,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   FAR void *in[3];
 
@@ -973,7 +1000,7 @@ static int send_fctlreq(int32_t altsock, int32_t cmd, int32_t val,
   in[2] = &val;
 
   return send_commonreq(LTE_CMDID_FCNTL, in, 3, out, ocnt,
-    usockid, hdlr, 0, dev);
+    usockid, hdlr, 0, dev, container);
 }
 
 /****************************************************************************
@@ -982,7 +1009,8 @@ static int send_fctlreq(int32_t altsock, int32_t cmd, int32_t val,
 
 static int send_connectreq(int32_t altsock, int16_t addrlen,
   struct sockaddr_storage *addr, FAR void *out[], size_t ocnt,
-  int16_t usockid, FAR struct alt1250_s *dev)
+  int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[3];
 
@@ -991,7 +1019,7 @@ static int send_connectreq(int32_t altsock, int16_t addrlen,
   in[2] = addr;
 
   return send_commonreq(LTE_CMDID_CONNECT, in, 3, out, ocnt,
-    usockid, waitevt_connect, 0, dev);
+    usockid, handlereply_connect, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1012,7 +1040,7 @@ static int send_sendtoreq(int32_t altsock, int32_t flags, int16_t addrlen,
   in[5] = buf;
 
   return send_commonreq(LTE_CMDID_SENDTO, in, 6, out, ocnt,
-    usockid, waitevt_sockcommon, 0, dev);
+    usockid, handlereply_sockcommon, 0, dev, NULL);
 }
 
 /****************************************************************************
@@ -1031,7 +1059,7 @@ static int send_recvfromreq(int32_t altsock, int32_t flags, int16_t buflen,
   in[3] = &addrlen;
 
   return send_commonreq(LTE_CMDID_RECVFROM, in, 4, out, ocnt,
-    usockid, waitevt_recvfrom, 0, dev);
+    usockid, handlereply_recvfrom, 0, dev, NULL);
 }
 
 /****************************************************************************
@@ -1040,7 +1068,8 @@ static int send_recvfromreq(int32_t altsock, int32_t flags, int16_t buflen,
 
 static int send_bindreq(int32_t altsock, uint16_t addrlen,
   struct sockaddr_storage *addr, FAR void *out[], size_t ocnt,
-  int16_t usockid, FAR struct alt1250_s *dev)
+  int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[3];
 
@@ -1049,7 +1078,7 @@ static int send_bindreq(int32_t altsock, uint16_t addrlen,
   in[2] = addr;
 
   return send_commonreq(LTE_CMDID_BIND, in, 3, out, ocnt,
-    usockid, waitevt_sockcommon, 0, dev);
+    usockid, handlereply_sockcommon, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1057,7 +1086,8 @@ static int send_bindreq(int32_t altsock, uint16_t addrlen,
  ****************************************************************************/
 
 static int send_listenreq(int32_t altsock, uint16_t backlog,
-  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[2];
 
@@ -1065,7 +1095,7 @@ static int send_listenreq(int32_t altsock, uint16_t backlog,
   in[1] = &backlog;
 
   return send_commonreq(LTE_CMDID_LISTEN, in, 2, out, ocnt,
-    usockid, waitevt_sockcommon, 0, dev);
+    usockid, handlereply_sockcommon, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1081,7 +1111,7 @@ static int send_acceptreq(int32_t altsock, uint16_t addrlen,
   in[1] = &addrlen;
 
   return send_commonreq(LTE_CMDID_ACCEPT, in, 2, out, ocnt,
-    usockid, waitevt_accept, 0, dev);
+    usockid, handlereply_accept, 0, dev, NULL);
 }
 
 /****************************************************************************
@@ -1090,7 +1120,8 @@ static int send_acceptreq(int32_t altsock, uint16_t addrlen,
 
 static int send_setsockoptreq(int32_t altsock, uint16_t level,
   uint16_t option, uint16_t valuelen, FAR uint8_t *value,
-  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[5];
 
@@ -1101,7 +1132,7 @@ static int send_setsockoptreq(int32_t altsock, uint16_t level,
   in[4] = value;
 
   return send_commonreq(LTE_CMDID_SETSOCKOPT, in, 5, out, ocnt,
-    usockid, waitevt_sockcommon, 0, dev);
+    usockid, handlereply_sockcommon, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1110,7 +1141,8 @@ static int send_setsockoptreq(int32_t altsock, uint16_t level,
 
 static int send_getsockoptreq(int32_t altsock, uint16_t level,
   uint16_t option, uint16_t valuelen, FAR void *out[], size_t ocnt,
-  int16_t usockid, waithdlr_t hdlr, FAR struct alt1250_s *dev)
+  int16_t usockid, waithdlr_t hdlr, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[GETSOCKOPT_PARAM_NUM];
 
@@ -1120,7 +1152,7 @@ static int send_getsockoptreq(int32_t altsock, uint16_t level,
   in[3] = &valuelen;
 
   return send_commonreq(LTE_CMDID_GETSOCKOPT, in, GETSOCKOPT_PARAM_NUM,
-      out, ocnt, usockid, hdlr, 0, dev);
+      out, ocnt, usockid, hdlr, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1128,7 +1160,8 @@ static int send_getsockoptreq(int32_t altsock, uint16_t level,
  ****************************************************************************/
 
 static int send_getsocknamereq(int32_t altsock, uint16_t addrlen,
-  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
+  FAR void *out[], size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[2];
 
@@ -1136,7 +1169,7 @@ static int send_getsocknamereq(int32_t altsock, uint16_t addrlen,
   in[1] = &addrlen;
 
   return send_commonreq(LTE_CMDID_GETSOCKNAME, in, 2, out, ocnt,
-    usockid, waitevt_getsockname, 0, dev);
+    usockid, handlereply_getsockname, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1145,7 +1178,8 @@ static int send_getsocknamereq(int32_t altsock, uint16_t addrlen,
 
 static int send_selectreq(int32_t mode, int32_t id, int32_t maxfds,
   FAR altcom_fd_set *readset, FAR altcom_fd_set *writeset,
-  FAR altcom_fd_set *exceptset, int16_t usockid, FAR struct alt1250_s *dev)
+  FAR altcom_fd_set *exceptset, int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[7];
   uint16_t used_setbit = 0;
@@ -1169,7 +1203,7 @@ static int send_selectreq(int32_t mode, int32_t id, int32_t maxfds,
   in[6] = exceptset;
 
   return send_commonreq(LTE_CMDID_SELECT, in, 7, NULL, 0,
-    usockid, NULL, 0, dev);
+    usockid, NULL, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1177,10 +1211,10 @@ static int send_selectreq(int32_t mode, int32_t id, int32_t maxfds,
  ****************************************************************************/
 
 static int send_radioonreq(FAR void *out[], size_t ocnt, int16_t usockid,
-   FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev)
 {
   return send_commonreq(LTE_CMDID_RADIOON, NULL, 0, out, ocnt,
-    usockid, waitevt_radioon, 0, dev);
+    usockid, handlereply_radioon, 0, dev, NULL);
 }
 
 /****************************************************************************
@@ -1188,10 +1222,10 @@ static int send_radioonreq(FAR void *out[], size_t ocnt, int16_t usockid,
  ****************************************************************************/
 
 static int send_radiooffreq(FAR void *out[], size_t ocnt, int16_t usockid,
-   FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev)
 {
   return send_commonreq(LTE_CMDID_RADIOOFF, NULL, 0, out, ocnt,
-    usockid, waitevt_radiooff, 0, dev);
+    usockid, handlereply_radiooff, 0, dev, NULL);
 }
 
 /****************************************************************************
@@ -1199,14 +1233,15 @@ static int send_radiooffreq(FAR void *out[], size_t ocnt, int16_t usockid,
  ****************************************************************************/
 
 static int send_actpdnreq(FAR lte_apn_setting_t *apn, FAR void *out[],
-  size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev)
+  size_t ocnt, int16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   FAR void *in[1];
 
   in[0] = apn;
 
   return send_commonreq(LTE_CMDID_ACTPDN, in, 1, out, ocnt,
-    usockid, waitevt_actpdn, 0, dev);
+    usockid, handlereply_actpdn, 0, dev, container);
 }
 
 /****************************************************************************
@@ -1214,7 +1249,7 @@ static int send_actpdnreq(FAR lte_apn_setting_t *apn, FAR void *out[],
  ****************************************************************************/
 
 static int send_repnetinforeq(FAR void *out[], size_t ocnt, int16_t usockid,
-   FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev)
 {
   FAR void *in[1];
 
@@ -1223,14 +1258,15 @@ static int send_repnetinforeq(FAR void *out[], size_t ocnt, int16_t usockid,
   in[0] = &enable;
 
   return send_commonreq(LTE_CMDID_REPNETINFO, in, 1, out, ocnt,
-    usockid, waitevt_repnetinfo, 0, dev);
+    usockid, handlereply_repnetinfo, 0, dev, NULL);
 }
 
 /****************************************************************************
  * Name: select_cancel
  ****************************************************************************/
 
-static int select_cancel(uint16_t usockid, FAR struct alt1250_s *dev)
+static int select_cancel(uint16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   int ret = 0;
   int32_t maxfds = 0;
@@ -1240,8 +1276,8 @@ static int select_cancel(uint16_t usockid, FAR struct alt1250_s *dev)
 
   if (dev->sid != -1)
     {
-      ret = send_selectreq(SELECT_MODE_BLOCKCANCEL, dev->sid, maxfds, &readset,
-        &writeset, &exceptset, usockid, dev);
+      ret = send_selectreq(SELECT_MODE_BLOCKCANCEL, dev->sid, maxfds,
+        &readset, &writeset, &exceptset, usockid, dev, container);
       dev->sid = -1;
     }
 
@@ -1252,7 +1288,8 @@ static int select_cancel(uint16_t usockid, FAR struct alt1250_s *dev)
  * Name: select_start
  ****************************************************************************/
 
-static int select_start(uint16_t usockid, FAR struct alt1250_s *dev)
+static int select_start(uint16_t usockid, FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *container)
 {
   int ret = 0;
   int32_t maxfds = -1;
@@ -1293,7 +1330,7 @@ static int select_start(uint16_t usockid, FAR struct alt1250_s *dev)
   if (maxfds != -1)
     {
       ret = send_selectreq(SELECT_MODE_BLOCK, dev->sid, maxfds + 1, &readset,
-        &writeset, &exceptset, usockid, dev);
+        &writeset, &exceptset, usockid, dev, container);
     }
 
   return ret;
@@ -1336,10 +1373,10 @@ static int parse_sockcommon_reply(int result, int errcode)
 }
 
 /****************************************************************************
- * Name: setup_internalevent
+ * Name: enable_netinforeport
  ****************************************************************************/
 
-static int setup_internalevent(FAR struct alt1250_s *dev)
+static int enable_netinforeport(FAR struct alt1250_s *dev)
 {
   int ret;
   uint16_t usockid;
@@ -1498,13 +1535,13 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
     {
       /* Cancels the target fd before closing it */
 
-      select_cancel(req->usockid, dev);
+      select_cancel(req->usockid, dev, NULL);
 
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_closereq(usock->altsock, usock->out, ocnt, req->usockid,
-        dev);
+        dev, NULL);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -1615,7 +1652,7 @@ static int connect_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_connectreq(usock->altsock, req->addrlen, &addr, usock->out,
-        ocnt, req->usockid, dev);
+        ocnt, req->usockid, dev, NULL);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -1746,8 +1783,8 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
     {
       result = 0;
       usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
-      select_cancel(req->usockid, dev);
-      select_start(req->usockid, dev);
+      select_cancel(req->usockid, dev, NULL);
+      select_start(req->usockid, dev, NULL);
     }
 
 sendack:
@@ -1937,7 +1974,7 @@ static int bind_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_bindreq(usock->altsock, req->addrlen, &addr, usock->out,
-        ocnt, req->usockid, dev);
+        ocnt, req->usockid, dev, NULL);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
@@ -2028,7 +2065,7 @@ static int listen_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_listenreq(usock->altsock, req->backlog, usock->out, ocnt,
-        req->usockid, dev);
+        req->usockid, dev, NULL);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2225,7 +2262,7 @@ static int setsockopt_request(int fd, FAR struct alt1250_s *dev,
 
       ret = send_setsockoptreq(usock->altsock, req->level, req->option,
         req->valuelen, usock->input.opt.value, usock->out, ocnt,
-        req->usockid, dev);
+        req->usockid, dev, NULL);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2333,7 +2370,7 @@ static int getsockopt_request(int fd, FAR struct alt1250_s *dev,
 
       ret = send_getsockoptreq(usock->altsock, req->level, req->option,
         req->max_valuelen, usock->out, ocnt, req->usockid,
-        waitevt_getsockopt, dev);
+        handlereply_getsockopt, dev, NULL);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2438,7 +2475,7 @@ static int getsockname_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->output.addr.o_addr;
 
       ret = send_getsocknamereq(usock->altsock, addrlen,
-        usock->out, ocnt, req->usockid, dev);
+        usock->out, ocnt, req->usockid, dev, NULL);
       if (ret >= 0)
         {
           if (ret == 0)
@@ -2827,7 +2864,6 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
 {
   int ret = OK;
   FAR struct usock_s *usock = NULL;
-  FAR struct alt_container_s *container = NULL;
 
   usock = alt1250_socket_get(dev, usockid);
   if (!usock)
@@ -2836,31 +2872,22 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
       goto errout;
     }
 
-  container = get_container(usockid, cmd->cmdid, cmd->inparam,
-    cmd->inparamlen, cmd->outparam, cmd->outparamlen, NULL, 0, dev);
-  if (!container)
-    {
-      ret = RET_NOTAVAIL;
-      goto errout;
-    }
-
   if (cmd->cmdid)
     {
       ret = alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, cmd->cb);
       if (ret < 0)
         {
-          free_container(dev, container);
           goto errout;
         }
     }
 
-  ret = write_to_altdev(dev, container);
+  ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
+    cmd->outparam, cmd->outparamlen, usockid, NULL, 0, dev, NULL);
   if (ret < 0)
     {
       /* clear callback */
 
       alt1250_regevtcb(cmd->cmdid, NULL);
-      free_container(dev, container);
     }
 
 errout:
@@ -2876,7 +2903,6 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
 {
   int ret = OK;
   FAR struct usock_s *usock = NULL;
-  FAR struct alt_container_s *container;
 
   usock = alt1250_socket_get(dev, usockid);
   if (!usock)
@@ -2885,25 +2911,16 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
       goto errout;
     }
 
-  container = get_container(usockid, cmd->cmdid, cmd->inparam,
-    cmd->inparamlen, cmd->outparam, cmd->outparamlen, NULL, 0, dev);
-  if (!container)
-    {
-      ret = RET_NOTAVAIL;
-      goto errout;
-    }
-
   if ((cmd->cmdid & LTE_CMDOPT_ASYNC_BIT) && (cmd->cb != NULL))
     {
       ret = alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, cmd->cb);
       if (ret < 0)
         {
-          free_container(dev, container);
           goto errout;
         }
 
-      container->outparam = alt1250_getevtarg(
-        container->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
+      cmd->outparam = alt1250_getevtarg(
+        cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
     }
 
   if (cmd->cmdid == LTE_CMDID_TLS_SSL_BIO)
@@ -2913,13 +2930,13 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
       *altsock_fd = usock->altsock;
     }
 
-  ret = write_to_altdev(dev, container);
+  ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
+    cmd->outparam, cmd->outparamlen, usockid, NULL, 0, dev, NULL);
   if (ret < 0)
     {
       /* clear callback */
 
       alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, NULL);
-      free_container(dev, container);
     }
   else
     {
@@ -2964,7 +2981,7 @@ errout:
  ****************************************************************************/
 
 static int do_connectseq(FAR struct usock_s *usock, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   int ret;
   size_t ocnt = 0;
@@ -2973,7 +2990,7 @@ static int do_connectseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_connectreq(usock->altsock, usock->input.addr.addrlen,
-    &usock->input.addr.addr, usock->out, ocnt, usockid, dev);
+    &usock->input.addr.addr, usock->out, ocnt, usockid, dev, container);
   if (ret >= 0)
     {
       if (ret == 0)
@@ -2990,7 +3007,7 @@ static int do_connectseq(FAR struct usock_s *usock, uint16_t usockid,
  ****************************************************************************/
 
 static int do_bindseq(FAR struct usock_s *usock, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   int ret;
   size_t ocnt = 0;
@@ -2999,7 +3016,7 @@ static int do_bindseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_bindreq(usock->altsock, usock->input.addr.addrlen,
-    &usock->input.addr.addr, usock->out, ocnt, usockid, dev);
+    &usock->input.addr.addr, usock->out, ocnt, usockid, dev, container);
 
   return ret;
 }
@@ -3009,7 +3026,7 @@ static int do_bindseq(FAR struct usock_s *usock, uint16_t usockid,
  ****************************************************************************/
 
 static int do_listenseq(FAR struct usock_s *usock, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   int ret;
   size_t ocnt = 0;
@@ -3018,7 +3035,7 @@ static int do_listenseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
 
   ret = send_listenreq(usock->altsock, usock->input.backlog, usock->out,
-    ocnt, usockid, dev);
+    ocnt, usockid, dev, container);
 
   return ret;
 }
@@ -3028,7 +3045,7 @@ static int do_listenseq(FAR struct usock_s *usock, uint16_t usockid,
  ****************************************************************************/
 
 static int do_setsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   int ret;
   size_t ocnt = 0;
@@ -3038,7 +3055,7 @@ static int do_setsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
 
   ret = send_setsockoptreq(usock->altsock, usock->input.opt.level,
     usock->input.opt.option, usock->input.opt.valuelen,
-    usock->input.opt.value, usock->out, ocnt, usockid, dev);
+    usock->input.opt.value, usock->out, ocnt, usockid, dev, container);
 
   return ret;
 }
@@ -3048,7 +3065,7 @@ static int do_setsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
  ****************************************************************************/
 
 static int do_getsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   int ret;
   size_t ocnt = 0;
@@ -3062,7 +3079,7 @@ static int do_getsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
 
   ret = send_getsockoptreq(usock->altsock, usock->input.opt.level,
     usock->input.opt.option, usock->input.opt.valuelen, usock->out, ocnt,
-    usockid, waitevt_getsockopt, dev);
+    usockid, handlereply_getsockopt, dev, container);
 
   return ret;
 }
@@ -3072,7 +3089,7 @@ static int do_getsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
  ****************************************************************************/
 
 static int do_getsocknameseq(FAR struct usock_s *usock, uint16_t usockid,
-  FAR struct alt1250_s *dev)
+  FAR struct alt1250_s *dev, FAR struct alt_container_s *container)
 {
   int ret;
   size_t ocnt = 0;
@@ -3083,7 +3100,7 @@ static int do_getsocknameseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->output.addr.o_addr;
 
   ret = send_getsocknamereq(usock->altsock, usock->input.addr.addrlen,
-    usock->out, ocnt, usockid, dev);
+    usock->out, ocnt, usockid, dev, container);
 
   return ret;
 }
@@ -3154,7 +3171,7 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
                       ret = send_getsockoptreq(usock->altsock,
                         usock->o_getoptlv, usock->o_getoptopt,
                         sizeof(int), usock->outgetopt, ocnt, i,
-                        waitevt_getsockopt_conn, dev);
+                        handlereply_getsockopt_conn, dev, NULL);
 
                       alt1250_printf("writeset is set. usockid: %d\n",
                         SOCKID(i));
@@ -3170,7 +3187,7 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
 
       alt1250_setevtarg_writable(LTE_CMDID_SELECT);
 
-      ret = select_start(0, dev);
+      ret = select_start(0, dev, NULL);
     }
 
   return ret;
@@ -3223,31 +3240,6 @@ static int handle_ifdown(int16_t usockid, FAR struct alt1250_s *dev)
 }
 
 /****************************************************************************
- * Name: handle_modemreset
- ****************************************************************************/
-
-static int handle_modemreset(int fd, FAR struct alt_container_s *reply,
-  FAR struct alt1250_s *dev)
-{
-  int ret;
-  FAR struct usock_s *usock;
-  FAR struct waithdlr_s *ctx = (FAR struct waithdlr_s *)reply->priv;
-
-  usock = alt1250_socket_get(dev, reply->sock);
-  if (usock == NULL)
-    {
-      return -EINVAL;
-    }
-
-  if (ctx && ctx->hdlr)
-    {
-      ret = ctx->hdlr(EVENT_RESET, ctx->priv, reply, usock, dev);
-    }
-
-  return ret;
-}
-
-/****************************************************************************
  * Name: handle_replypkt
  ****************************************************************************/
 
@@ -3269,13 +3261,9 @@ static int handle_replypkt(int fd, FAR struct alt_container_s *reply,
 
   if (ctx && ctx->hdlr)
     {
+      /* ctx->hdlr contains handlereply_xxxx() function pointer */
+
       ret = ctx->hdlr(EVENT_REPLY, ctx->priv, reply, usock, dev);
-      if (ret < 0)
-        {
-          memset(&resp, 0, sizeof(resp));
-          resp.result = ret;
-          _send_ack_common(fd, usock->req.xid, &resp);
-        }
     }
   else
     {
@@ -3284,43 +3272,64 @@ static int handle_replypkt(int fd, FAR struct alt_container_s *reply,
       memset(&resp, 0, sizeof(resp));
       resp.result = reply->result;
       _send_ack_common(fd, usock->req.xid, &resp);
+
+      free_container(dev, reply);
     }
 
-  return 0;
+  return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_sockcommon
+ * Name: handlereply_sockcommon
  ****************************************************************************/
 
-static int waitevt_sockcommon(uint8_t event, unsigned long priv,
+static int handlereply_sockcommon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
   struct usrsock_message_req_ack_s resp;
+  uint16_t usockid;
 
   alt1250_printf("start, event:%u\n", event);
 
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
+  /* reply->outparam[0]: return code
+   * reply->outparam[1]: error code
+   */
 
   ret = parse_sockcommon_reply(*(int *)(reply->outparam[0]),
     *(int *)(reply->outparam[1]));
 
-  if ((usock->req.reqid == USRSOCK_REQUEST_SENDTO) && (ret >= 0))
-    {
-      usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
-      select_cancel(reply->sock, dev);
-      select_start(reply->sock, dev);
-    }
+  usockid = reply->sock;
 
-  if (usock->req.reqid == USRSOCK_REQUEST_CLOSE)
+  switch (usock->req.reqid)
     {
-      alt1250_socket_free(dev, reply->sock);
-      select_start(reply->sock, dev);
+    case USRSOCK_REQUEST_SENDTO:
+      if (ret >= 0)
+        {
+          usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
+
+          /* The select requires a container,
+           * which is released when the send is complete.
+           */
+
+          select_cancel(usockid, dev, reply);
+          select_start(usockid, dev, reply);
+        }
+        break;
+
+    case USRSOCK_REQUEST_CLOSE:
+      alt1250_socket_free(dev, usockid);
+
+      /* The close executes select cancel when the request is accepted,
+       * so select cancel is not needed.
+       */
+
+      select_start(usockid, dev, reply);
+      break;
+
+    default:
+      break;
     }
 
   /* Send ACK response */
@@ -3330,17 +3339,18 @@ static int waitevt_sockcommon(uint8_t event, unsigned long priv,
 
   _send_ack_common(dev->usockfd, usock->req.xid, &resp);
 
-errout:
+  free_container(dev, reply);
+
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_socket
+ * Name: handlereply_socket
  ****************************************************************************/
 
-static int waitevt_socket(uint8_t event, unsigned long priv,
+static int handlereply_socket(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -3350,11 +3360,6 @@ static int waitevt_socket(uint8_t event, unsigned long priv,
   size_t ocnt = 0;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   /* reply->outparam[0]: socket fd
    * reply->outparam[1]: error code
@@ -3370,103 +3375,93 @@ static int waitevt_socket(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_fctlreq(usock->altsock, cmd, val, usock->out, ocnt,
-        reply->sock, waitevt_getfl, dev);
+        reply->sock, handlereply_getfl, dev, reply);
     }
   else
     {
+      struct usrsock_message_req_ack_s resp;
+
       usock->state = PREALLOC;
       if (usock->type == SOCK_DGRAM)
         {
           alt1250_socket_free(dev, reply->sock);
         }
+
+      /* Send ACK response of the error. */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+      free_container(dev, reply);
     }
 
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_connect
+ * Name: handlereply_connect
  ****************************************************************************/
 
-static int waitevt_connect(uint8_t event, unsigned long priv,
+static int handlereply_connect(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
   struct usrsock_message_req_ack_s resp;
+  int8_t flags = 0;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   ret = parse_sockcommon_reply(*(int *)(reply->outparam[0]),
     *(int *)(reply->outparam[1]));
   if (ret == 0)
     {
       usock->state = CONNECTED;
-
-      /* connect success */
-
-      memset(&resp, 0, sizeof(resp));
-      resp.result = ret;
-      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
     }
   else if ((ret < 0) && (ret == -EINPROGRESS))
     {
       usock->state = WAITCONN;
 
-      /* now connecting */
-
-      memset(&resp, 0, sizeof(resp));
-      resp.result = ret;
-      _send_ack(dev->usockfd, USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS,
-      usock->req.xid, &resp);
-      ret = 0;
+      flags = USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
     }
   else
     {
       usock->state = OPENED;
-
-      /* connect failed */
-
-      memset(&resp, 0, sizeof(resp));
-      resp.result = ret;
-      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-      ret = 0;
     }
 
-errout:
+  /* Send ACK response. */
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = ret;
+  _send_ack(dev->usockfd, flags, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_recvfrom
+ * Name: handlereply_recvfrom
  ****************************************************************************/
 
-static int waitevt_recvfrom(uint8_t event, unsigned long priv,
+static int handlereply_recvfrom(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
   int size = 0;
-  struct usrsock_message_datareq_ack_s resp;
+  uint16_t usockid;
 
   alt1250_printf("start, event:%u\n", event);
 
   dev->recvfrom_processing = false;
 
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
+  usockid = reply->sock;
 
   /* reply->outparam[0]: recv size
    * reply->outparam[1]: error code
@@ -3479,6 +3474,8 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
     *(int *)(reply->outparam[1]));
   if (size >= 0)
     {
+      struct usrsock_message_datareq_ack_s resp;
+
       usock->sockflags &= ~USRSOCK_EVENT_RECVFROM_AVAIL;
       if ((size == 0) && (_rx_max_buflen != 0))
         {
@@ -3486,56 +3483,62 @@ static int waitevt_recvfrom(uint8_t event, unsigned long priv,
             USRSOCK_EVENT_REMOTE_CLOSED);
         }
 
-      select_cancel(reply->sock, dev);
-      select_start(reply->sock, dev);
+      /* Send response. */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
+      resp.reqack.head.flags = 0;
+      resp.reqack.xid = usock->req.xid;
+      resp.reqack.result = size;
+
+      resp.valuelen = MIN(usock->input.addr.addrlen,
+        *(uint16_t *)(reply->outparam[2]));
+      resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
+
+      _write_to_usock(dev->usockfd, &resp, sizeof(resp));
+
+      if (resp.valuelen > 0)
+        {
+          _write_to_usock(dev->usockfd,
+            (FAR struct sockaddr_storage *)(reply->outparam[3]),
+            resp.valuelen);
+        }
+
+      if (size > 0)
+        {
+          _write_to_usock(dev->usockfd, reply->outparam[4], size);
+        }
+
+      /* The select requires a container,
+       * which is released when the send is complete.
+       */
+
+      select_cancel(usockid, dev, reply);
+      select_start(usockid, dev, reply);
     }
   else
     {
-      /* FIXME: This is error case in recvfrom,
-       * but no ack is sent to usrsock.
-       */
+      struct usrsock_message_req_ack_s resp;
 
-      ret = size;
-      goto errout;
+      /* Send ACK response */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.result = size;
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
     }
 
-  /* Send response. */
+  free_container(dev, reply);
 
-  memset(&resp, 0, sizeof(resp));
-  resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
-  resp.reqack.head.flags = 0;
-  resp.reqack.xid = usock->req.xid;
-  resp.reqack.result = size;
-
-  resp.valuelen = MIN(usock->input.addr.addrlen,
-    *(uint16_t *)(reply->outparam[2]));
-  resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
-
-  _write_to_usock(dev->usockfd, &resp, sizeof(resp));
-
-  if (resp.valuelen > 0)
-    {
-      _write_to_usock(dev->usockfd,
-        (FAR struct sockaddr_storage *)(reply->outparam[3]),
-        resp.valuelen);
-    }
-
-  if (size > 0)
-    {
-      _write_to_usock(dev->usockfd, reply->outparam[4], size);
-    }
-
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_accept
+ * Name: handlereply_accept
  ****************************************************************************/
 
-static int waitevt_accept(uint8_t event, unsigned long priv,
+static int handlereply_accept(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -3543,15 +3546,8 @@ static int waitevt_accept(uint8_t event, unsigned long priv,
   int altsock;
   uint16_t usockid;
   FAR struct usock_s *newusock;
-  struct usrsock_message_datareq_ack_s resp;
-  size_t ocnt = 0;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   /* reply->outparam[0]: socket fd
    * reply->outparam[1]: error code
@@ -3569,95 +3565,98 @@ static int waitevt_accept(uint8_t event, unsigned long priv,
         usock->domain, usock->type, usock->protocol);
       if (usockid < 0)
         {
-          ret = usockid;
-          goto errout;
-        }
+          struct usrsock_message_req_ack_s resp;
 
-      newusock = alt1250_socket_get(dev, usockid);
-      if (newusock)
-        {
-          newusock->altsock = altsock;
-          newusock->state = CONNECTED;
+          /* Send ACK response of the error */
 
-          select_cancel(reply->sock, dev);
+          memset(&resp, 0, sizeof(resp));
+          resp.result = usockid;
 
-          ret = select_start(usockid, dev);
-          if (ret < 0)
-            {
-              /* rollback */
-
-              newusock->out[ocnt++] = &usock->ret;
-              newusock->out[ocnt++] = &usock->errcode;
-
-              ret = send_closereq(newusock->altsock,
-                  newusock->out, ocnt, usockid, dev);
-              if (ret >= 0)
-                {
-                  if (ret == 0)
-                    {
-                      newusock->state = CLOSING;
-                    }
-                }
-            }
+          _send_ack_common(dev->usockfd, usock->req.xid, &resp);
         }
       else
         {
-          ret = -EFAULT;
-          goto errout;
+          newusock = alt1250_socket_get(dev, usockid);
+          if (newusock)
+            {
+              struct usrsock_message_datareq_ack_s resp;
+
+              newusock->altsock = altsock;
+              newusock->state = CONNECTED;
+
+              /* Send response. */
+
+              memset(&resp, 0, sizeof(resp));
+              resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
+              resp.reqack.head.flags = 0;
+              resp.reqack.xid = usock->req.xid;
+              resp.reqack.result  = sizeof(uint16_t);
+
+              resp.valuelen = MIN(usock->input.addr.addrlen,
+                *(uint16_t *)(reply->outparam[2]));
+              resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
+
+              _write_to_usock(dev->usockfd, &resp, sizeof(resp));
+
+              if (resp.valuelen > 0)
+                {
+                  _write_to_usock(dev->usockfd,
+                    (FAR struct sockaddr_storage *)(reply->outparam[3]),
+                    resp.valuelen);
+                }
+
+              _write_to_usock(dev->usockfd, &usockid, sizeof(usockid));
+
+              /* The select requires a container,
+               * which is released when the send is complete.
+               */
+
+              select_cancel(usockid, dev, reply);
+              select_start(usockid, dev, reply);
+            }
+          else
+            {
+              struct usrsock_message_req_ack_s resp;
+
+              /* Send ACK response of the error */
+
+              memset(&resp, 0, sizeof(resp));
+              resp.result = -EFAULT;
+
+              _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+            }
         }
     }
   else
     {
-      ret = altsock;
-      goto errout;
+      struct usrsock_message_req_ack_s resp;
+
+      /* Send ACK response of the error */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.result = altsock;
+
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
     }
 
-  /* Send response. */
+  free_container(dev, reply);
 
-  memset(&resp, 0, sizeof(resp));
-  resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
-  resp.reqack.head.flags = 0;
-  resp.reqack.xid = usock->req.xid;
-  resp.reqack.result  = sizeof(uint16_t);
-
-  resp.valuelen = MIN(usock->input.addr.addrlen,
-    *(uint16_t *)(reply->outparam[2]));
-  resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
-
-  _write_to_usock(dev->usockfd, &resp, sizeof(resp));
-
-  if (resp.valuelen > 0)
-    {
-      _write_to_usock(dev->usockfd,
-        (FAR struct sockaddr_storage *)(reply->outparam[3]),
-        resp.valuelen);
-    }
-
-  _write_to_usock(dev->usockfd, &usockid, sizeof(usockid));
-
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_getsockopt
+ * Name: handlereply_getsockopt
  ****************************************************************************/
 
-static int waitevt_getsockopt(uint8_t event, unsigned long priv,
+static int handlereply_getsockopt(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
-  struct usrsock_message_datareq_ack_s resp;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   /* reply->outparam[0]: ret code
    * reply->outparam[1]: error code
@@ -3669,49 +3668,61 @@ static int waitevt_getsockopt(uint8_t event, unsigned long priv,
     *(int *)(reply->outparam[1]));
   if (ret < 0)
     {
-      goto errout;
-    }
+      struct usrsock_message_req_ack_s resp;
 
-  /* Send response. */
+      /* Send ACK response of the error */
 
-  memset(&resp, 0, sizeof(resp));
-  resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
-  resp.reqack.head.flags = 0;
-  resp.reqack.result = ret;
-  resp.reqack.xid = usock->req.xid;
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
 
-  if (ret >= 0)
-    {
-      resp.valuelen = MIN(usock->input.opt.valuelen,
-        *(uint16_t *)(reply->outparam[2]));
-      resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
     }
   else
     {
-      resp.valuelen = 0;
-      resp.valuelen_nontrunc = 0;
+      struct usrsock_message_datareq_ack_s resp;
+
+      /* Send response. */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
+      resp.reqack.head.flags = 0;
+      resp.reqack.result = ret;
+      resp.reqack.xid = usock->req.xid;
+
+      if (ret >= 0)
+        {
+          resp.valuelen = MIN(usock->input.opt.valuelen,
+            *(uint16_t *)(reply->outparam[2]));
+          resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
+        }
+      else
+        {
+          resp.valuelen = 0;
+          resp.valuelen_nontrunc = 0;
+        }
+
+      _write_to_usock(dev->usockfd, &resp, sizeof(resp));
+
+      if (resp.valuelen > 0)
+        {
+          _write_to_usock(dev->usockfd,
+            reply->outparam[3],
+            resp.valuelen);
+        }
     }
 
-  _write_to_usock(dev->usockfd, &resp, sizeof(resp));
+  free_container(dev, reply);
 
-  if (resp.valuelen > 0)
-    {
-      _write_to_usock(dev->usockfd,
-        reply->outparam[3],
-        resp.valuelen);
-    }
-
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_getsockopt_conn
+ * Name: handlereply_getsockopt_conn
  ****************************************************************************/
 
-static int waitevt_getsockopt_conn(uint8_t event, unsigned long priv,
+static int handlereply_getsockopt_conn(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -3719,11 +3730,6 @@ static int waitevt_getsockopt_conn(uint8_t event, unsigned long priv,
   struct usrsock_message_req_ack_s resp;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   /* reply->outparam[0]: ret code
    * reply->outparam[1]: error code
@@ -3738,38 +3744,48 @@ static int waitevt_getsockopt_conn(uint8_t event, unsigned long priv,
       memset(&resp, 0, sizeof(resp));
       resp.result = *(int32_t *)(reply->outparam[3]);
       _send_ack_common(dev->usockfd, usock->connxid, &resp);
-      usock->state = CONNECTED;
+
+      if (resp.result == 0)
+        {
+          usock->state = CONNECTED;
+        }
+      else
+        {
+          usock->state = OPENED;
+        }
     }
   else
     {
       usock->state = OPENED;
+
+      /* Send ACK response of the error */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
+
+      _send_ack_common(dev->usockfd, usock->connxid, &resp);
     }
 
   usock_send_event(dev->usockfd, dev, usock, USRSOCK_EVENT_SENDTO_READY);
 
-errout:
+  free_container(dev, reply);
+
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_getsockname
+ * Name: handlereply_getsockname
  ****************************************************************************/
 
-static int waitevt_getsockname(uint8_t event, unsigned long priv,
+static int handlereply_getsockname(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
-  struct usrsock_message_datareq_ack_s resp;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   /* reply->outparam[0]: ret code
    * reply->outparam[1]: error code
@@ -3781,49 +3797,61 @@ static int waitevt_getsockname(uint8_t event, unsigned long priv,
     *(int *)(reply->outparam[1]));
   if (ret < 0)
     {
-      goto errout;
-    }
+      struct usrsock_message_req_ack_s resp;
 
-  /* Send response. */
+      /* Send ACK response */
 
-  memset(&resp, 0, sizeof(resp));
-  resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
-  resp.reqack.head.flags = 0;
-  resp.reqack.result     = ret;
-  resp.reqack.xid        = usock->req.xid;
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
 
-  if (ret >= 0)
-    {
-      resp.valuelen = MIN(usock->input.addr.addrlen,
-        *(uint16_t *)(reply->outparam[2]));
-      resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
     }
   else
     {
-      resp.valuelen = 0;
-      resp.valuelen_nontrunc = 0;
+      struct usrsock_message_datareq_ack_s resp;
+
+      /* Send response. */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.reqack.head.msgid = USRSOCK_MESSAGE_RESPONSE_DATA_ACK;
+      resp.reqack.head.flags = 0;
+      resp.reqack.result     = ret;
+      resp.reqack.xid        = usock->req.xid;
+
+      if (ret >= 0)
+        {
+          resp.valuelen = MIN(usock->input.addr.addrlen,
+            *(uint16_t *)(reply->outparam[2]));
+          resp.valuelen_nontrunc = *(uint16_t *)(reply->outparam[2]);
+        }
+      else
+        {
+          resp.valuelen = 0;
+          resp.valuelen_nontrunc = 0;
+        }
+
+      _write_to_usock(dev->usockfd, &resp, sizeof(resp));
+
+      if (resp.valuelen > 0)
+        {
+          _write_to_usock(dev->usockfd,
+            reply->outparam[3],
+            resp.valuelen);
+        }
     }
 
-  _write_to_usock(dev->usockfd, &resp, sizeof(resp));
+  free_container(dev, reply);
 
-  if (resp.valuelen > 0)
-    {
-      _write_to_usock(dev->usockfd,
-        reply->outparam[3],
-        resp.valuelen);
-    }
-
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_getfl
+ * Name: handlereply_getfl
  ****************************************************************************/
 
-static int waitevt_getfl(uint8_t event, unsigned long priv,
+static int handlereply_getfl(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -3833,11 +3861,6 @@ static int waitevt_getfl(uint8_t event, unsigned long priv,
   size_t ocnt = 0;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   val = parse_sockcommon_reply(*(int *)(reply->outparam[0]),
     *(int *)(reply->outparam[1]));
@@ -3851,13 +3874,10 @@ static int waitevt_getfl(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_fctlreq(usock->altsock, cmd, val, usock->out, ocnt,
-        reply->sock, waitevt_setfl, dev);
-      if (ret >= 0)
+        reply->sock, handlereply_setfl, dev, reply);
+      if (ret == 0)
         {
-          if (ret == 0)
-            {
-              usock->state = OPEN;
-            }
+          usock->state = OPEN;
         }
     }
   else
@@ -3867,39 +3887,32 @@ static int waitevt_getfl(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->errcode;
 
-      ret = send_closereq(usock->altsock, usock->out, ocnt, reply->sock, dev);
-      if (ret >= 0)
+      ret = send_closereq(usock->altsock, usock->out, ocnt, reply->sock, dev,
+        reply);
+      if (ret == 0)
         {
-          if (ret == 0)
-            {
-              usock->state = CLOSING;
-            }
+          usock->state = CLOSING;
         }
     }
 
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_setfl
+ * Name: handlereply_setfl
  ****************************************************************************/
 
-static int waitevt_setfl(uint8_t event, unsigned long priv,
+static int handlereply_setfl(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
   struct usrsock_message_req_ack_s resp;
+  int usockid;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   ret = parse_sockcommon_reply(*(int *)(reply->outparam[0]),
     *(int *)(reply->outparam[1]));
@@ -3907,8 +3920,9 @@ static int waitevt_setfl(uint8_t event, unsigned long priv,
     {
       usock->state = OPENED;
 
-      select_cancel(reply->sock, dev);
-      select_start(reply->sock, dev);
+      usockid = reply->sock;
+      select_cancel(usockid, dev, reply);
+      select_start(usockid, dev, reply);
 
       switch (usock->req.reqid)
         {
@@ -3917,52 +3931,70 @@ static int waitevt_setfl(uint8_t event, unsigned long priv,
             /* Send ACK response */
 
             memset(&resp, 0, sizeof(resp));
-            resp.result = reply->sock;
+            resp.result = usockid;
             _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+            free_container(dev, reply);
             break;
 
           case USRSOCK_REQUEST_CONNECT:
-            ret = do_connectseq(usock, reply->sock, dev);
+            ret = do_connectseq(usock, usockid, dev, reply);
             break;
 
           case USRSOCK_REQUEST_BIND:
-            ret = do_bindseq(usock, reply->sock, dev);
+            ret = do_bindseq(usock, usockid, dev, reply);
             break;
 
           case USRSOCK_REQUEST_LISTEN:
-            ret = do_listenseq(usock, reply->sock, dev);
+            ret = do_listenseq(usock, usockid, dev, reply);
             break;
 
           case USRSOCK_REQUEST_SETSOCKOPT:
-            ret = do_setsockoptseq(usock, reply->sock, dev);
+            ret = do_setsockoptseq(usock, usockid, dev, reply);
             break;
 
           case USRSOCK_REQUEST_GETSOCKOPT:
-            ret = do_getsockoptseq(usock, reply->sock, dev);
+            ret = do_getsockoptseq(usock, usockid, dev, reply);
             break;
 
           case USRSOCK_REQUEST_GETSOCKNAME:
-            ret = do_getsocknameseq(usock, reply->sock, dev);
+            ret = do_getsocknameseq(usock, usockid, dev, reply);
             break;
 
           default:
             alt1250_printf("unexpected sequense. reqid:0x%02x\n",
               usock->req.reqid);
+
+            /* Send ACK response */
+
+            memset(&resp, 0, sizeof(resp));
+            resp.result = -EFAULT;
+            _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+            free_container(dev, reply);
             break;
         }
     }
+  else
+    {
+      /* Send ACK response of the error. */
 
-errout:
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+      free_container(dev, reply);
+    }
+
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_repnetinfo
+ * Name: handlereply_repnetinfo
  ****************************************************************************/
 
-static int waitevt_repnetinfo(uint8_t event, unsigned long priv,
+static int handlereply_repnetinfo(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -3972,28 +4004,26 @@ static int waitevt_repnetinfo(uint8_t event, unsigned long priv,
 
   alt1250_socket_free(dev, reply->sock);
 
+  free_container(dev, reply);
+
   alt1250_printf("end\n");
 
   return 0;
 }
 
 /****************************************************************************
- * Name: waitevt_radioon
+ * Name: handlereply_radioon
  ****************************************************************************/
 
-static int waitevt_radioon(uint8_t event, unsigned long priv,
+static int handlereply_radioon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
   int ret = 0;
   size_t ocnt = 0;
+  struct usrsock_message_req_ack_s resp;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   ret = *(int *)(reply->outparam[0]);
   if (ret == 0)
@@ -4001,20 +4031,30 @@ static int waitevt_radioon(uint8_t event, unsigned long priv,
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &dev->o_pdn;
 
-      ret = send_actpdnreq(&dev->apn, usock->out, ocnt, reply->sock, dev);
+      ret = send_actpdnreq(&dev->apn, usock->out, ocnt, reply->sock, dev,
+        reply);
+    }
+  else
+    {
+      /* Send ACK response of the error. */
+
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
+      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+      free_container(dev, reply);
     }
 
-errout:
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_radiooff
+ * Name: handlereply_radiooff
  ****************************************************************************/
 
-static int waitevt_radiooff(uint8_t event, unsigned long priv,
+static int handlereply_radiooff(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -4022,11 +4062,6 @@ static int waitevt_radiooff(uint8_t event, unsigned long priv,
   struct usrsock_message_req_ack_s resp;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   dev->net_dev.d_flags = IFF_DOWN;
 #ifdef CONFIG_NET_IPv4
@@ -4037,27 +4072,26 @@ static int waitevt_radiooff(uint8_t event, unsigned long priv,
 #endif
 
   ret = *(int *)(reply->outparam[0]);
-  if (ret == 0)
-    {
-      /* Send ACK response */
 
-      memset(&resp, 0, sizeof(resp));
-      resp.result = ret;
+  /* Send ACK response */
 
-      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-    }
+  memset(&resp, 0, sizeof(resp));
+  resp.result = ret;
 
-errout:
+  _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
   alt1250_printf("end\n");
 
   return ret;
 }
 
 /****************************************************************************
- * Name: waitevt_actpdn
+ * Name: handlereply_actpdn
  ****************************************************************************/
 
-static int waitevt_actpdn(uint8_t event, unsigned long priv,
+static int handlereply_actpdn(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev)
 {
@@ -4067,11 +4101,6 @@ static int waitevt_actpdn(uint8_t event, unsigned long priv,
   FAR lte_pdn_t *pdn;
 
   alt1250_printf("start, event:%u\n", event);
-
-  if (event == EVENT_RESET)
-    {
-      goto errout;
-    }
 
   ret = *(int *)(reply->outparam[0]);
   if (ret == 0)
@@ -4100,16 +4129,17 @@ static int waitevt_actpdn(uint8_t event, unsigned long priv,
             }
 #endif
         }
-
-      /* Send ACK response */
-
-      memset(&resp, 0, sizeof(resp));
-      resp.result = ret;
-
-      _send_ack_common(dev->usockfd, usock->req.xid, &resp);
     }
 
-errout:
+  /* Send ACK response */
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = ret;
+
+  _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
   alt1250_printf("end\n");
 
   return ret;
@@ -4121,28 +4151,28 @@ errout:
 
 static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 {
-  int ret;
-  uint64_t evtbitmap = 0ULL;
+  struct alt_readdata_s rdata;
   uint64_t bit = 0ULL;
   ssize_t size;
   FAR struct alt_container_s *container = NULL;
+  FAR struct alt_container_s *next;
 
   alt1250_printf("start\n");
 
   /* read event from alt1250 device */
 
-  size = read(dev->altfd, &evtbitmap, sizeof(evtbitmap));
-  ASSERT(size == sizeof(evtbitmap));
+  size = read(dev->altfd, &rdata, sizeof(rdata));
+  ASSERT(size == sizeof(rdata));
 
-  alt1250_printf("evtbitmap=0x%llx\n", evtbitmap);
+  alt1250_printf("evtbitmap=0x%llx\n", rdata.evtbitmap);
+
+  next = rdata.head;
 
   /* is modem reset happen? */
 
-  if (evtbitmap & ALT1250_EVTBIT_RESET)
+  if (rdata.evtbitmap & ALT1250_EVTBIT_RESET)
     {
-      FAR struct alt_container_s *head;
-
-      alt1250_printf("Reset packet received\n");
+      alt1250_printf("Reset event received\n");
 
       dev->recvfrom_processing = false;
       dev->net_dev.d_flags = IFF_DOWN;
@@ -4153,127 +4183,67 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
       memset(&dev->net_dev.d_ipv6addr, 0, sizeof(dev->net_dev.d_ipv6addr));
 #endif
 
-      ret = ioctl(dev->altfd, ALT1250_IOC_GETREPLY,
-        (unsigned long)&container);
-      if (ret < 0)
+      while ((container = pick_containertop(&next)) != NULL)
         {
-          alt1250_printf("failed to ioctl(ALT1250_IOC_GETREPLY): %d\n",
-            errno);
-        }
-      else
-        {
-          head = container;
-
-          while (container != NULL)
-            {
-              if (is_synccmd(container->cmdid))
-                {
-                  /* reply to usersock when modem reset happens */
-
-                  ret = handle_modemreset(fd, container, dev);
-                }
-              else
-                {
-                  /* clear registered event callback */
-
-                  alt1250_regevtcb(container->cmdid, NULL);
-                }
-
-              container = (FAR struct alt_container_s *)sq_next(
-                &container->node);
-            }
-
-          if (head)
-            {
-              free_container(dev, head);
-            }
+          free_container(dev, container);
         }
 
       alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
       alt1250_socket_allfree(dev);
 
-      dev->net_dev.d_flags = IFF_DOWN;
-#ifdef CONFIG_NET_IPv4
-      memset(&dev->net_dev.d_ipaddr, 0, sizeof(dev->net_dev.d_ipaddr));
-#endif
-#ifdef CONFIG_NET_IPv6
-      memset(&dev->net_dev.d_ipv6addr, 0, sizeof(dev->net_dev.d_ipv6addr));
-#endif
+      /* Enable events to be notified when the network state changes. */
 
-      evtbitmap &= ~ALT1250_EVTBIT_RESET;
+      enable_netinforeport(dev);
     }
-
-  /* is reply packet? */
-
-  if (evtbitmap & ALT1250_EVTBIT_REPLY)
+  else
     {
-      alt1250_printf("Reply packet received\n");
+      /* is reply packet? */
 
-      ret = ioctl(dev->altfd, ALT1250_IOC_GETREPLY,
-        (unsigned long)&container);
-      if (ret < 0)
+      if (rdata.evtbitmap & ALT1250_EVTBIT_REPLY)
         {
-          alt1250_printf("failed to ioctl(ALT1250_IOC_GETREPLY): %d\n",
-            errno);
-        }
-      else
-        {
-          FAR struct alt_container_s *next;
+          alt1250_printf("Reply packet received\n");
 
-          while (container != NULL)
+          while ((container = pick_containertop(&next)) != NULL)
             {
               alt1250_printf("Requested command ID: 0x%08lx\n",
                 container->cmdid);
 
-              next = (FAR struct alt_container_s *)sq_next(&container->node);
-
               if (is_synccmd(container->cmdid))
                 {
-                  ret = handle_replypkt(fd, container, dev);
+                  /* The container will be free inside this function. */
+
+                  handle_replypkt(fd, container, dev);
                 }
               else
                 {
-                  ret = 0;
-                }
+                  /* Free for the end of the process. */
 
-              if (ret == 0)
-                {
                   free_container(dev, container);
                 }
-              else
-                {
-                  alt1250_printf("reuse container\n");
-                }
-
-              container = next;
             }
+
+          rdata.evtbitmap &= ~ALT1250_EVTBIT_REPLY;
         }
 
-      evtbitmap &= ~ALT1250_EVTBIT_REPLY;
+      if (alt1250_checkcmdid(LTE_CMDID_SELECT, rdata.evtbitmap, &bit))
+        {
+          FAR void **select_arg = alt1250_getevtarg(LTE_CMDID_SELECT);
+          DEBUGASSERT(select_arg);
+
+          handle_selectevt(*(int32_t *)select_arg[0],
+            *(int32_t *)select_arg[1], *(int32_t *)select_arg[2],
+            (altcom_fd_set *)select_arg[3], (altcom_fd_set *)select_arg[4],
+            (altcom_fd_set *)select_arg[5], dev);
+
+          rdata.evtbitmap &= ~bit;
+        }
     }
 
-  if (alt1250_checkcmdid(LTE_CMDID_SELECT, evtbitmap, &bit))
+  /* notice event to event task */
+
+  if (rdata.evtbitmap)
     {
-      FAR void **select_arg = alt1250_getevtarg(LTE_CMDID_SELECT);
-      DEBUGASSERT(select_arg);
-
-      handle_selectevt(*(int32_t *)select_arg[0], *(int32_t *)select_arg[1],
-        *(int32_t *)select_arg[2], (altcom_fd_set *)select_arg[3],
-        (altcom_fd_set *)select_arg[4], (altcom_fd_set *)select_arg[5], dev);
-
-      evtbitmap &= ~bit;
-    }
-
-  if (alt1250_checkcmdid(LTE_CMDID_SETRESTART, evtbitmap, &bit))
-    {
-      setup_internalevent(dev);
-    }
-
-  /* is normal event? */
-
-  if (evtbitmap)
-    {
-      evt_qsend(&dev->evtq, evtbitmap);
+      evt_qsend(&dev->evtq, rdata.evtbitmap);
     }
 
   alt1250_printf("end\n");
@@ -4436,7 +4406,7 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
 
           com_hdr = (FAR struct usrsock_request_common_s *)buf;
           ret = handlers[com_hdr->reqid].fn(dev->usockfd, dev, buf);
-          switch(ret)
+          switch (ret)
             {
               case RET_TERM:
                 is_running = false;
@@ -4455,7 +4425,6 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
               default:
                 is_usockrcvd = false;
                 break;
-
             }
         }
     }
