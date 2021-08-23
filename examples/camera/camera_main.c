@@ -515,13 +515,16 @@ int main(int argc, FAR char *argv[])
    * And all allocated memorys are VIDIOC_QBUFed.
    */
 
-  ret = camera_prepare(v_fd, V4L2_BUF_TYPE_STILL_CAPTURE,
-                       V4L2_BUF_MODE_FIFO, V4L2_PIX_FMT_JPEG,
-                       VIDEO_HSIZE_FULLHD, VIDEO_VSIZE_FULLHD,
-                       &buffers_still, STILL_BUFNUM, IMAGE_JPG_SIZE);
-  if (ret != OK)
+  if (capture_num != 0)
     {
-      goto exit_this_app;
+      ret = camera_prepare(v_fd, V4L2_BUF_TYPE_STILL_CAPTURE,
+                           V4L2_BUF_MODE_FIFO, V4L2_PIX_FMT_JPEG,
+                           VIDEO_HSIZE_FULLHD, VIDEO_VSIZE_FULLHD,
+                           &buffers_still, STILL_BUFNUM, IMAGE_JPG_SIZE);
+      if (ret != OK)
+        {
+          goto exit_this_app;
+        }
     }
 
   /* Prepare for VIDEO_CAPTURE stream.
