@@ -211,7 +211,6 @@ struct alt1250_s
 {
   int usockfd;
   int altfd;
-  pthread_t evtthread;
   sq_queue_t freecontainer;
   int32_t scnt;
   int32_t sid;
@@ -468,6 +467,7 @@ static void init_container(FAR struct alt1250_s *dev)
   for (i = 0; i < TABLE_NUM(g_container); i++)
     {
       g_container[i].priv = (unsigned long)&g_waithdlrs[i];
+      sq_next(&g_container[i].node) = NULL;
       sq_addlast(&g_container[i].node, &dev->freecontainer);
     }
 }
@@ -502,6 +502,8 @@ static void set_container(FAR struct alt_container_s *container,
   container->outparamlen = outsz;
   ((FAR struct waithdlr_s *)container->priv)->hdlr = hdlr;
   ((FAR struct waithdlr_s *)container->priv)->priv = priv;
+
+  alt1250_printf("set container: command ID: 0x%08lx\n", container->cmdid);
 }
 
 /****************************************************************************
@@ -534,6 +536,7 @@ static FAR struct alt_container_s *get_container(FAR struct alt1250_s *dev)
   if (ret)
     {
       sq_rem(&ret->node, &dev->freecontainer);
+      sq_next(&ret->node) = NULL;
     }
   else
     {
@@ -550,6 +553,9 @@ static FAR struct alt_container_s *get_container(FAR struct alt1250_s *dev)
 static void free_container(FAR struct alt1250_s *dev,
   FAR struct alt_container_s *container)
 {
+  alt1250_printf("free container: command ID: 0x%08lx\n", container->cmdid);
+
+  sq_next(&container->node) = NULL;
   sq_addlast(&container->node, &dev->freecontainer);
 }
 
@@ -570,6 +576,26 @@ static bool is_container_exist(FAR struct alt1250_s *dev)
     {
       return false;
     }
+}
+
+/****************************************************************************
+ * Name: get_nfreecontainers
+ ****************************************************************************/
+
+static int get_nfreecontainers(FAR struct alt1250_s *dev)
+{
+  FAR struct alt_container_s *container = NULL;
+  int ret = 0;
+
+  container = (FAR struct alt_container_s *)sq_peek(&dev->freecontainer);
+
+  while (container != NULL)
+    {
+      ret++;
+      container = (FAR struct alt_container_s *)sq_next(&container->node);
+    }
+
+  return ret;
 }
 
 /****************************************************************************
@@ -930,6 +956,11 @@ static int send_commonreq(uint32_t cmdid, FAR void *in[], size_t icnt,
 {
   int ret = 0;
 
+  if (container)
+    {
+      alt1250_printf("reuse container\n");
+    }
+
   container = (container == NULL) ? get_container(dev) : container;
   if (container)
     {
@@ -1280,6 +1311,10 @@ static int select_cancel(uint16_t usockid, FAR struct alt1250_s *dev,
         &readset, &writeset, &exceptset, usockid, dev, container);
       dev->sid = -1;
     }
+  else if (container)
+    {
+      free_container(dev, container);
+    }
 
   return ret;
 }
@@ -1331,6 +1366,10 @@ static int select_start(uint16_t usockid, FAR struct alt1250_s *dev,
     {
       ret = send_selectreq(SELECT_MODE_BLOCK, dev->sid, maxfds + 1, &readset,
         &writeset, &exceptset, usockid, dev, container);
+    }
+  else if (container)
+    {
+      free_container(dev, container);
     }
 
   return ret;
@@ -3314,7 +3353,11 @@ static int handlereply_sockcommon(uint8_t event, unsigned long priv,
            */
 
           select_cancel(usockid, dev, reply);
-          select_start(usockid, dev, reply);
+          select_start(usockid, dev, NULL);
+        }
+      else
+        {
+          free_container(dev, reply);
         }
         break;
 
@@ -3329,6 +3372,7 @@ static int handlereply_sockcommon(uint8_t event, unsigned long priv,
       break;
 
     default:
+      free_container(dev, reply);
       break;
     }
 
@@ -3338,8 +3382,6 @@ static int handlereply_sockcommon(uint8_t event, unsigned long priv,
   resp.result = ret;
 
   _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-
-  free_container(dev, reply);
 
   alt1250_printf("end\n");
 
@@ -3514,7 +3556,7 @@ static int handlereply_recvfrom(uint8_t event, unsigned long priv,
        */
 
       select_cancel(usockid, dev, reply);
-      select_start(usockid, dev, reply);
+      select_start(usockid, dev, NULL);
     }
   else
     {
@@ -3525,9 +3567,9 @@ static int handlereply_recvfrom(uint8_t event, unsigned long priv,
       memset(&resp, 0, sizeof(resp));
       resp.result = size;
       _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-    }
 
-  free_container(dev, reply);
+      free_container(dev, reply);
+    }
 
   alt1250_printf("end\n");
 
@@ -3573,6 +3615,8 @@ static int handlereply_accept(uint8_t event, unsigned long priv,
           resp.result = usockid;
 
           _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+          free_container(dev, reply);
         }
       else
         {
@@ -3612,7 +3656,7 @@ static int handlereply_accept(uint8_t event, unsigned long priv,
                */
 
               select_cancel(usockid, dev, reply);
-              select_start(usockid, dev, reply);
+              select_start(usockid, dev, NULL);
             }
           else
             {
@@ -3624,6 +3668,8 @@ static int handlereply_accept(uint8_t event, unsigned long priv,
               resp.result = -EFAULT;
 
               _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+              free_container(dev, reply);
             }
         }
     }
@@ -3637,9 +3683,9 @@ static int handlereply_accept(uint8_t event, unsigned long priv,
       resp.result = altsock;
 
       _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-    }
 
-  free_container(dev, reply);
+      free_container(dev, reply);
+    }
 
   alt1250_printf("end\n");
 
@@ -3922,7 +3968,7 @@ static int handlereply_setfl(uint8_t event, unsigned long priv,
 
       usockid = reply->sock;
       select_cancel(usockid, dev, reply);
-      select_start(usockid, dev, reply);
+      select_start(usockid, dev, NULL);
 
       switch (usock->req.reqid)
         {
@@ -3933,31 +3979,30 @@ static int handlereply_setfl(uint8_t event, unsigned long priv,
             memset(&resp, 0, sizeof(resp));
             resp.result = usockid;
             _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-            free_container(dev, reply);
             break;
 
           case USRSOCK_REQUEST_CONNECT:
-            ret = do_connectseq(usock, usockid, dev, reply);
+            ret = do_connectseq(usock, usockid, dev, NULL);
             break;
 
           case USRSOCK_REQUEST_BIND:
-            ret = do_bindseq(usock, usockid, dev, reply);
+            ret = do_bindseq(usock, usockid, dev, NULL);
             break;
 
           case USRSOCK_REQUEST_LISTEN:
-            ret = do_listenseq(usock, usockid, dev, reply);
+            ret = do_listenseq(usock, usockid, dev, NULL);
             break;
 
           case USRSOCK_REQUEST_SETSOCKOPT:
-            ret = do_setsockoptseq(usock, usockid, dev, reply);
+            ret = do_setsockoptseq(usock, usockid, dev, NULL);
             break;
 
           case USRSOCK_REQUEST_GETSOCKOPT:
-            ret = do_getsockoptseq(usock, usockid, dev, reply);
+            ret = do_getsockoptseq(usock, usockid, dev, NULL);
             break;
 
           case USRSOCK_REQUEST_GETSOCKNAME:
-            ret = do_getsocknameseq(usock, usockid, dev, reply);
+            ret = do_getsocknameseq(usock, usockid, dev, NULL);
             break;
 
           default:
@@ -3969,8 +4014,6 @@ static int handlereply_setfl(uint8_t event, unsigned long priv,
             memset(&resp, 0, sizeof(resp));
             resp.result = -EFAULT;
             _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-
-            free_container(dev, reply);
             break;
         }
     }
@@ -4156,6 +4199,8 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
   ssize_t size;
   FAR struct alt_container_s *container = NULL;
   FAR struct alt_container_s *next;
+  int rcvcontainers = 0;
+  int freecontainers = 0;
 
   alt1250_printf("start\n");
 
@@ -4174,6 +4219,10 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
     {
       alt1250_printf("Reset event received\n");
 
+      freecontainers = get_nfreecontainers(dev);
+
+      alt1250_printf("Number of free containers: %d\n", freecontainers);
+
       dev->recvfrom_processing = false;
       dev->net_dev.d_flags = IFF_DOWN;
 #ifdef CONFIG_NET_IPv4
@@ -4185,11 +4234,18 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
       while ((container = pick_containertop(&next)) != NULL)
         {
+          rcvcontainers++;
           free_container(dev, container);
         }
 
+      alt1250_printf("Number of containers read: %d\n", rcvcontainers);
+
       alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
       alt1250_socket_allfree(dev);
+
+      alt1250_printf("Number of containers read: %d free: %d\n",
+        rcvcontainers, freecontainers);
+      ASSERT(rcvcontainers + freecontainers == CONTAINER_MAX);
 
       /* Enable events to be notified when the network state changes. */
 
