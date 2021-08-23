@@ -4527,5 +4527,9 @@ int main(int argc, FAR char *argv[])
       g_daemon = NULL;
     }
 
+  /* Notify lapi that Daemon has finished */
+
+  release_sync_wait(syncsem);
+
   return ret;
 }
