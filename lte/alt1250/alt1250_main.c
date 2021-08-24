@@ -3466,8 +3466,6 @@ static int handlereply_connect(uint8_t event, unsigned long priv,
   else if ((ret < 0) && (ret == -EINPROGRESS))
     {
       usock->state = WAITCONN;
-
-      flags = USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
     }
   else
     {
@@ -3476,9 +3474,12 @@ static int handlereply_connect(uint8_t event, unsigned long priv,
 
   /* Send ACK response. */
 
-  memset(&resp, 0, sizeof(resp));
-  resp.result = ret;
-  _send_ack(dev->usockfd, flags, usock->req.xid, &resp);
+  if (usock->state != WAITCONN)
+    {
+      memset(&resp, 0, sizeof(resp));
+      resp.result = ret;
+      _send_ack(dev->usockfd, flags, usock->req.xid, &resp);
+    }
 
   free_container(dev, reply);
 
