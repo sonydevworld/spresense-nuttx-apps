@@ -4309,6 +4309,20 @@ errout:
 #endif
 
 /****************************************************************************
+ * Name: release_sync_wait
+ ****************************************************************************/
+
+static void release_sync_wait(sem_t *syncsem)
+{
+  if (syncsem)
+    {
+      /* Notify release to lapi waiting for synchronization */
+
+      sem_post(syncsem);
+    }
+}
+
+/****************************************************************************
  * Name: alt1250_loop
  ****************************************************************************/
 
@@ -4334,6 +4348,7 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
   if (pid < 0)
     {
       alt1250_printf("failed to create event task: %d\n", errno);
+      release_sync_wait(dev->syncsem);
       goto errout;
     }
 #endif
@@ -4342,6 +4357,7 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
   if (dev->usockfd < 0)
     {
       alt1250_printf("open(%s) failed:%d\n", DEV_USERSOCK, errno);
+      release_sync_wait(dev->syncsem);
       goto errout;
     }
 
@@ -4350,6 +4366,7 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
     {
       alt1250_printf("open(%s) failed:%d\n", DEV_ALT1250, errno);
       close(dev->usockfd);
+      release_sync_wait(dev->syncsem);
       goto errout;
     }
 
@@ -4358,17 +4375,15 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
   ret = alt1250_setevtbuff(dev->altfd);
   if (ret < 0)
     {
-      goto errout_close;
+      close(dev->usockfd);
+      close(dev->altfd);
+      release_sync_wait(dev->syncsem);
+      goto errout;
     }
-
-  /* TODO: add error route */
 
   /* is -s (sync) option enable? */
 
-  if (dev->syncsem)
-    {
-      sem_post(dev->syncsem);
-    }
+  release_sync_wait(dev->syncsem);
 
   while (is_running)
     {
@@ -4432,6 +4447,8 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
         }
     }
 
+  close(dev->usockfd);
+
   if (evt_qsend(&dev->evtq, 0ULL) == OK)
     {
 #ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
@@ -4443,8 +4460,6 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
 
   alt1250_evtdestroy();
 
-errout_close:
-  close(dev->usockfd);
   close(dev->altfd);
 
 errout:
@@ -4493,10 +4508,7 @@ int main(int argc, FAR char *argv[])
 
       /* is -s (sync) option enable? */
 
-      if (syncsem)
-        {
-          sem_post(syncsem);
-        }
+      release_sync_wait(syncsem);
 
       return -1;
     }
@@ -4514,6 +4526,10 @@ int main(int argc, FAR char *argv[])
       free(g_daemon);
       g_daemon = NULL;
     }
+
+  /* Notify lapi that Daemon has finished */
+
+  release_sync_wait(syncsem);
 
   return ret;
 }

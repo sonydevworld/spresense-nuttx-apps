@@ -63,6 +63,7 @@ int alt1250_main(int argc, char *argv[]);
  ****************************************************************************/
 
 static sem_t g_lock = SEM_INITIALIZER(1);
+static sem_t g_sync;
 
 /****************************************************************************
  * Private Functions
@@ -138,15 +139,15 @@ int lte_initialize(void)
 
   if (!is_daemon_running())
     {
-      sem_t sync;
       char *argv[2];
       char addr[ADDR_LEN];
 
-      sem_init(&sync, 0, 0);
+      sem_init(&g_sync, 0, 0);
 
       /* address -> ascii */
 
-      snprintf(addr, ADDR_LEN, "%s%08lx", CMD_PREFIX, (unsigned long)&sync);
+      snprintf(addr, ADDR_LEN, "%s%08lx", CMD_PREFIX,
+        (unsigned long)&g_sync);
 
       argv[0] = addr;
       argv[1] = NULL; /* termination */
@@ -161,10 +162,8 @@ int lte_initialize(void)
       else
         {
           ret = 0;
-          sem_wait(&sync);
+          sem_wait(&g_sync);
         }
-
-      sem_destroy(&sync);
     }
   else
     {
@@ -182,7 +181,28 @@ int lte_initialize(void)
 
 int lte_finalize(void)
 {
-  return lapi_req(LTE_CMDID_FIN, NULL, 0, NULL, 0, NULL);
+  int ret = 0;
+
+  lapi_lock(&g_lock);
+
+  if (is_daemon_running())
+    {
+      ret = lapi_req(LTE_CMDID_FIN, NULL, 0, NULL, 0, NULL);
+      if (ret >= 0)
+        {
+          sem_wait(&g_sync);
+        }
+
+      sem_destroy(&g_sync);
+    }
+  else
+    {
+      ret = -EALREADY;
+    }
+
+  lapi_unlock(&g_lock);
+
+  return ret;
 }
 
 /****************************************************************************
