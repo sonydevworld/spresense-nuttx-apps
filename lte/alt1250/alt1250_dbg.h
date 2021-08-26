@@ -33,7 +33,7 @@
  ****************************************************************************/
 
 #ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define alt1250_printf(v, ...) printf("%s: "v, __func__, ##__VA_ARGS__)
+# define alt1250_printf(v, ...) ninfo(v, ##__VA_ARGS__)
 #else
 # define alt1250_printf(v, ...)
 #endif
