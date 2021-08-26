@@ -96,7 +96,7 @@
 #define RET_TERM     (1)
 #define RET_NOTAVAIL (2)
 
-#define GETSOCKOPT_PARAM_NUM 4
+#define GETSOCKOPT_PARAM_NUM 6
 
 #define READSET_BIT   (1 << 0)
 #define WRITESET_BIT  (1 << 1)
@@ -196,10 +196,12 @@ struct usock_s
    * when checking the result of connect().
    */
 
-  int32_t o_getoptret;
-  int32_t o_getopterr;
-  int32_t o_getoptlen;
-  uint8_t o_getoptval[OPTVAL_LEN_MAX];
+  int32_t  o_getoptret;
+  int32_t  o_getopterr;
+  int32_t  o_getoptlen;
+  uint8_t  o_getoptval[OPTVAL_LEN_MAX];
+  uint16_t o_getoptlv;
+  uint16_t o_getoptopt;
 
   FAR void *out[OUTPUT_ARG_MAX];
   FAR void *outgetopt[GETSOCKOPT_PARAM_NUM];
@@ -2326,6 +2328,8 @@ static int getsockopt_request(int fd, FAR struct alt1250_s *dev,
       usock->out[ocnt++] = &usock->errcode;
       usock->out[ocnt++] = &usock->output.opt.o_optlen;
       usock->out[ocnt++] = usock->output.opt.o_value;
+      usock->out[ocnt++] = &req->level;
+      usock->out[ocnt++] = &req->option;
 
       ret = send_getsockoptreq(usock->altsock, req->level, req->option,
         req->max_valuelen, usock->out, ocnt, req->usockid,
@@ -2335,6 +2339,7 @@ static int getsockopt_request(int fd, FAR struct alt1250_s *dev,
           if (ret == 0)
             {
               memcpy(&usock->req, &req->head, sizeof(usock->req));
+              usock->input.opt.valuelen = req->max_valuelen;
             }
 
           is_ack = false;
@@ -3052,6 +3057,8 @@ static int do_getsockoptseq(FAR struct usock_s *usock, uint16_t usockid,
   usock->out[ocnt++] = &usock->errcode;
   usock->out[ocnt++] = &usock->output.opt.o_optlen;
   usock->out[ocnt++] = usock->output.opt.o_value;
+  usock->out[ocnt++] = &usock->input.opt.level;
+  usock->out[ocnt++] = &usock->input.opt.option;
 
   ret = send_getsockoptreq(usock->altsock, usock->input.opt.level,
     usock->input.opt.option, usock->input.opt.valuelen, usock->out, ocnt,
@@ -3133,14 +3140,20 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
 
                   if (usock->state == WAITCONN)
                     {
+                      usock->o_getoptlv  = SOL_SOCKET;
+                      usock->o_getoptopt = SO_ERROR;
+
                       usock->connxid = usock->req.xid;
                       usock->outgetopt[ocnt++] = &usock->o_getoptret;
                       usock->outgetopt[ocnt++] = &usock->o_getopterr;
                       usock->outgetopt[ocnt++] = &usock->o_getoptlen;
                       usock->outgetopt[ocnt++] = usock->o_getoptval;
+                      usock->outgetopt[ocnt++] = &usock->o_getoptlv;
+                      usock->outgetopt[ocnt++] = &usock->o_getoptopt;
 
-                      ret = send_getsockoptreq(usock->altsock, SOL_SOCKET,
-                        SO_ERROR, sizeof(int), usock->out, ocnt, i,
+                      ret = send_getsockoptreq(usock->altsock,
+                        usock->o_getoptlv, usock->o_getoptopt,
+                        sizeof(int), usock->outgetopt, ocnt, i,
                         waitevt_getsockopt_conn, dev);
 
                       alt1250_printf("writeset is set. usockid: %d\n",
