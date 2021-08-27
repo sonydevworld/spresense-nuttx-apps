@@ -3242,7 +3242,7 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
           usock = alt1250_socket_get(dev, i);
           if (usock && (usock->state != CLOSED) &&
               (usock->state != PREALLOC) && (usock->state != ABORTED) &&
-              (usock->state != CLOSING))
+              (usock->state != CLOSING) && (usock->state != OPEN))
             {
               if (ALTCOM_FD_ISSET(usock->altsock, exceptset))
                 {
