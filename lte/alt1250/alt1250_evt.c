@@ -43,10 +43,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifndef ARRAY_SZ
-#  define ARRAY_SZ(array) (sizeof(array)/sizeof(array[0]))
-#endif
-
 #define TABLE_CONTENT(cid, acid, outp) \
   { .cmdid = LTE_CMDID_##cid, .altcid = APICMDID_##acid, \
     .outparam = outp, .outparamlen = ARRAY_SZ(outp) }
@@ -516,20 +512,6 @@ static void *g_geterrinfoargs[] =
   &g_geterrinfo
 };
 
-/* event argument for LTE_CMDID_SELECT */
-
-static int32_t g_selectret;
-static int32_t g_selecterr;
-static int32_t g_selectid;
-static altcom_fd_set g_readset;
-static altcom_fd_set g_writeset;
-static altcom_fd_set g_exceptset;
-static void *g_selectargs[] =
-{
-  &g_selectret, &g_selecterr, &g_selectid, &g_readset, &g_writeset,
-  &g_exceptset
-};
-
 /* event argument for LTE_CMDID_TLS_CONFIG_VERIFY_CALLBACK */
 
 static uint32_t g_crt;
@@ -579,9 +561,18 @@ static struct alt_evtbuf_inst_s g_evtbuffers[] =
   TABLE_CONTENT(REPQUAL, REPORT_QUALITY, g_repqualargs),
   TABLE_CONTENT(REPCELL, REPORT_CELLINFO, g_repcellargs),
   TABLE_CONTENT(GETERRINFO, ERRINFO, g_geterrinfoargs),
-  TABLE_CONTENT(SELECT, SOCK_SELECT, g_selectargs),
   TABLE_CONTENT(TLS_CONFIG_VERIFY, TLS_CONFIG_VERIFY_CALLBACK,
     g_vrfycbargs),
+
+  /* Add the command ID of LTE_CMDID_SELECT to the table so that the driver
+   * can identify the bitmap of the select event.
+   * The output parameter is NULL since a container for select is used.
+   */
+
+  {
+    .cmdid = LTE_CMDID_SELECT, .altcid = APICMDID_SOCK_SELECT,
+    .outparam = NULL, .outparamlen = 0
+  }
 };
 
 static struct cbinfo_s g_execbtable[] =
