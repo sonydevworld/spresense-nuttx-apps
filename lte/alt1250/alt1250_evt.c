@@ -1345,6 +1345,26 @@ static void update_evtarg_writable(int idx)
 }
 
 /****************************************************************************
+ * Name: update_evtarg_writableall
+ ****************************************************************************/
+
+static void update_evtarg_writableall(void)
+{
+  int idx;
+
+  for (idx = 0; idx < ARRAY_SZ(g_evtbuffers); idx++)
+    {
+      FAR alt_evtbuf_inst_t *inst = &g_evtbuffers[idx];
+
+      sem_wait(&inst->stat_lock);
+
+      inst->stat = ALTEVTBUF_ST_WRITABLE;
+
+      sem_post(&inst->stat_lock);
+    }
+}
+
+/****************************************************************************
  * Name: get_execfunc
  ****************************************************************************/
 
@@ -1392,6 +1412,7 @@ static void *get_cbfunc(uint32_t cmdid)
 static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
 {
   int idx;
+  uint64_t ret = 0ULL;
   uint64_t l_evtbitmap = 0ULL;
   uint64_t (*func)(FAR void *cb, FAR void **arg, FAR bool *set_writable);
   bool set_writable;
@@ -1407,8 +1428,10 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
           set_writable = false;
 
           func = get_execfunc(idx);
-          l_evtbitmap |= exec_callback(g_evtbuffers[idx].cmdid, func,
+          l_evtbitmap = exec_callback(g_evtbuffers[idx].cmdid, func,
             get_evtarg(idx), &set_writable);
+
+          ret |= l_evtbitmap;
 
           if (l_evtbitmap == 0ULL)
             {
@@ -1430,9 +1453,9 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
         }
     }
 
-  alt1250_printf("evtbitmap=0x%llx\n", l_evtbitmap);
+  alt1250_printf("evtbitmap=0x%llx\n", ret);
 
-  return l_evtbitmap;
+  return ret;
 }
 
 /****************************************************************************
@@ -1566,11 +1589,22 @@ void alt1250_execcb(uint64_t evtbitmap)
 {
   uint64_t l_evtbitmap = 0ULL;
 
-  l_evtbitmap = alt1250_search_execcb(evtbitmap);
-
-  if (l_evtbitmap != 0ULL)
+  if (evtbitmap & ALT1250_EVTBIT_RESET)
     {
-      alt1250_search_execcb(l_evtbitmap);
+      /* call LTE_CMDID_SETRESTART */
+
+      alt1250_search_execcb(alt1250_evt_search(LTE_CMDID_SETRESTART));
+
+      update_evtarg_writableall();
+    }
+  else
+    {
+      l_evtbitmap = alt1250_search_execcb(evtbitmap);
+
+      if (l_evtbitmap != 0ULL)
+        {
+          alt1250_search_execcb(l_evtbitmap);
+        }
     }
 }
 
