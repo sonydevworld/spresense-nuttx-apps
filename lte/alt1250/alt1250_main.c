@@ -793,7 +793,7 @@ static int alt1250_socket_allfree(FAR struct alt1250_s *dev)
         }
     }
 
-  ioctl(dev->usockfd, USRSOCK_IOC_REFLESH, 0);
+  ioctl(dev->usockfd, USRSOCK_IOC_REFRESH, 0);
 
   return 0;
 }
