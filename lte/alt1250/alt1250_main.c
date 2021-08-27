@@ -91,6 +91,8 @@
 #  define SOCKET_COUNT ALTCOM_NSOCKET
 #endif
 
+#define SELECT_CONTAINER_MAX 2
+
 #define EVTTASK_NAME "lteevt_task"
 
 #define RET_TERM     (1)
@@ -234,6 +236,16 @@ struct waithdlr_s
 {
   waithdlr_t hdlr;
   unsigned long priv;
+};
+
+struct select_params_s
+{
+  int32_t ret;
+  int32_t err;
+  int32_t id;
+  altcom_fd_set readset;
+  altcom_fd_set writeset;
+  altcom_fd_set exceptset;
 };
 
 /****************************************************************************
@@ -395,6 +407,14 @@ static struct waithdlr_s g_waithdlrs[CONTAINER_MAX];
 static uint8_t _tx_buff[TX_BUFF_SIZE];
 static uint8_t _rx_buff[RX_BUFF_SIZE];
 static uint16_t _rx_max_buflen;
+
+
+static struct select_params_s g_select_params[SELECT_CONTAINER_MAX];
+
+static void *g_selectargs[SELECT_CONTAINER_MAX][6];
+
+static struct alt_container_s g_selectcontainers[SELECT_CONTAINER_MAX];
+static FAR struct alt_container_s *g_pselectcontainer;
 
 /****************************************************************************
  * Private Functions
@@ -596,6 +616,52 @@ static int get_nfreecontainers(FAR struct alt1250_s *dev)
     }
 
   return ret;
+}
+
+/****************************************************************************
+ * Name: init_selectcontainer
+ ****************************************************************************/
+
+static void init_selectcontainer(FAR struct alt1250_s *dev)
+{
+  int i;
+
+  for (i = 0; i < SELECT_CONTAINER_MAX; i++)
+    {
+      g_selectargs[i][0] = &g_select_params[i].ret;
+      g_selectargs[i][1] = &g_select_params[i].err;
+      g_selectargs[i][2] = &g_select_params[i].id;
+      g_selectargs[i][3] = &g_select_params[i].readset;
+      g_selectargs[i][4] = &g_select_params[i].writeset;
+      g_selectargs[i][5] = &g_select_params[i].exceptset;
+
+      g_selectcontainers[i].outparam = g_selectargs[i];
+      g_selectcontainers[i].outparamlen = ARRAY_SZ(g_selectargs[i]);
+    }
+
+  g_pselectcontainer = &g_selectcontainers[0];
+
+  /* At initialization, the alt1250 driver does not have a container,
+   * so NULL pointer is set.
+   */
+
+  ioctl(dev->altfd, ALT1250_IOC_EXCHGCONTAINER, &g_pselectcontainer);
+
+  g_pselectcontainer = &g_selectcontainers[1];
+}
+
+/****************************************************************************
+ * Name: exchange_selectcontainer
+ ****************************************************************************/
+
+static FAR struct alt_container_s *exchange_selectcontainer(
+  FAR struct alt1250_s *dev)
+{
+  /* The container used by the alt1250 driver is set as a pointer. */
+
+  ioctl(dev->altfd, ALT1250_IOC_EXCHGCONTAINER, &g_pselectcontainer);
+
+  return g_pselectcontainer;
 }
 
 /****************************************************************************
@@ -3224,8 +3290,6 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
             }
         }
 
-      alt1250_setevtarg_writable(LTE_CMDID_SELECT);
-
       ret = select_start(0, dev, NULL);
     }
 
@@ -3344,10 +3408,9 @@ static int handlereply_sockcommon(uint8_t event, unsigned long priv,
   switch (usock->req.reqid)
     {
     case USRSOCK_REQUEST_SENDTO:
+      usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
       if (ret >= 0)
         {
-          usock->sockflags &= ~USRSOCK_EVENT_SENDTO_READY;
-
           /* The select requires a container,
            * which is released when the send is complete.
            */
@@ -3505,6 +3568,7 @@ static int handlereply_recvfrom(uint8_t event, unsigned long priv,
   dev->recvfrom_processing = false;
 
   usockid = reply->sock;
+  usock->sockflags &= ~USRSOCK_EVENT_RECVFROM_AVAIL;
 
   /* reply->outparam[0]: recv size
    * reply->outparam[1]: error code
@@ -3519,7 +3583,6 @@ static int handlereply_recvfrom(uint8_t event, unsigned long priv,
     {
       struct usrsock_message_datareq_ack_s resp;
 
-      usock->sockflags &= ~USRSOCK_EVENT_RECVFROM_AVAIL;
       if ((size == 0) && (_rx_max_buflen != 0))
         {
           usock_send_event(dev->usockfd, dev, usock,
@@ -4284,13 +4347,27 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
       if (alt1250_checkcmdid(LTE_CMDID_SELECT, rdata.evtbitmap, &bit))
         {
-          FAR void **select_arg = alt1250_getevtarg(LTE_CMDID_SELECT);
-          DEBUGASSERT(select_arg);
+          FAR struct alt_container_s *selectcontainer;
 
-          handle_selectevt(*(int32_t *)select_arg[0],
-            *(int32_t *)select_arg[1], *(int32_t *)select_arg[2],
-            (altcom_fd_set *)select_arg[3], (altcom_fd_set *)select_arg[4],
-            (altcom_fd_set *)select_arg[5], dev);
+          /* container->outparam[0]: return code
+           * container->outparam[1]: error code
+           * container->outparam[2]: select id
+           * container->outparam[3]: readset
+           * container->outparam[4]: writeset
+           * container->outparam[5]: exceptset
+           */
+
+          selectcontainer = exchange_selectcontainer(dev);
+          ASSERT(selectcontainer);
+
+          handle_selectevt(
+            *((int32_t *)selectcontainer->outparam[0]),
+            *((int32_t *)selectcontainer->outparam[1]),
+            *((int32_t *)selectcontainer->outparam[2]),
+            (altcom_fd_set *)(selectcontainer->outparam[3]),
+            (altcom_fd_set *)(selectcontainer->outparam[4]),
+            (altcom_fd_set *)(selectcontainer->outparam[5]),
+            dev);
 
           rdata.evtbitmap &= ~bit;
         }
@@ -4411,6 +4488,7 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
     }
 
   init_container(dev);
+  init_selectcontainer(dev);
 
   ret = alt1250_setevtbuff(dev->altfd);
   if (ret < 0)

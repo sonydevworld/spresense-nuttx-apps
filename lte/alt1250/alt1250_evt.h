@@ -29,6 +29,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#ifndef ARRAY_SZ
+#  define ARRAY_SZ(array) (sizeof(array)/sizeof(array[0]))
+#endif
+
 /* Represents when to clear the callback function */
 
 /* Clear callbacks at all */
