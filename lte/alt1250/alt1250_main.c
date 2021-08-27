@@ -1658,7 +1658,10 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
       else
         {
           result = ret;
+          alt1250_socket_free(dev, req->usockid);
         }
+
+      select_start(req->usockid, dev, NULL);
     }
 
 sendack:
@@ -3432,12 +3435,7 @@ static int handlereply_sockcommon(uint8_t event, unsigned long priv,
 
     case USRSOCK_REQUEST_CLOSE:
       alt1250_socket_free(dev, usockid);
-
-      /* The close executes select cancel when the request is accepted,
-       * so select cancel is not needed.
-       */
-
-      select_start(usockid, dev, reply);
+      free_container(dev, reply);
       break;
 
     default:
