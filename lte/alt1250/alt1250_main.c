@@ -3221,9 +3221,15 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
   int ret;
   int i;
   FAR struct usock_s *usock;
-  size_t ocnt = 0;
 
   alt1250_printf("select reply. ret=%ld err=%ld\n", result, err);
+
+  if (id != dev->sid)
+    {
+      alt1250_printf("Select event come wish in no selected.id = %ld\n", id);
+
+      return 0;
+    }
 
   if (result < 0)
     {
@@ -3266,16 +3272,16 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
                       usock->o_getoptopt = SO_ERROR;
 
                       usock->connxid = usock->req.xid;
-                      usock->outgetopt[ocnt++] = &usock->o_getoptret;
-                      usock->outgetopt[ocnt++] = &usock->o_getopterr;
-                      usock->outgetopt[ocnt++] = &usock->o_getoptlen;
-                      usock->outgetopt[ocnt++] = usock->o_getoptval;
-                      usock->outgetopt[ocnt++] = &usock->o_getoptlv;
-                      usock->outgetopt[ocnt++] = &usock->o_getoptopt;
+                      usock->outgetopt[0] = &usock->o_getoptret;
+                      usock->outgetopt[1] = &usock->o_getopterr;
+                      usock->outgetopt[2] = &usock->o_getoptlen;
+                      usock->outgetopt[3] = usock->o_getoptval;
+                      usock->outgetopt[4] = &usock->o_getoptlv;
+                      usock->outgetopt[5] = &usock->o_getoptopt;
 
                       ret = send_getsockoptreq(usock->altsock,
                         usock->o_getoptlv, usock->o_getoptopt,
-                        sizeof(int), usock->outgetopt, ocnt, i,
+                        sizeof(int), usock->outgetopt, 6, i,
                         handlereply_getsockopt_conn, dev, NULL);
 
                       alt1250_printf("writeset is set. usockid: %d\n",
