@@ -48,6 +48,9 @@
 #define CMD_PREFIX      "-s"
 #define ADDR_LEN        (strlen(CMD_PREFIX) + 9)  /* 32bit + '\0' */
 
+#define RETRY_INTERVAL  100
+#define RETRY_OVER      3
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -182,20 +185,25 @@ int lte_initialize(void)
 int lte_finalize(void)
 {
   int ret = 0;
+  int count = 0;
 
   lapi_lock(&g_lock);
 
-  if (is_daemon_running())
+  while (count < RETRY_OVER)
     {
       ret = lapi_req(LTE_CMDID_FIN, NULL, 0, NULL, 0, NULL);
       if (ret >= 0)
         {
           sem_wait(&g_sync);
+          sem_destroy(&g_sync);
+          break;
         }
 
-      sem_destroy(&g_sync);
+      usleep(RETRY_INTERVAL);
+      count++;
     }
-  else
+
+  if (ret == -ENETDOWN)
     {
       ret = -EALREADY;
     }
@@ -229,7 +237,22 @@ int lte_power_on(void)
 
 int lte_power_off(void)
 {
-  return lapi_req(LTE_CMDID_POWEROFF, NULL, 0, NULL, 0, NULL);
+  int ret;
+  int count = 0;
+
+  while (count < RETRY_OVER)
+    {
+      ret = lapi_req(LTE_CMDID_POWEROFF, NULL, 0, NULL, 0, NULL);
+      if ((ret >= 0) || (ret == -EALREADY))
+        {
+          break;
+        }
+
+      usleep(RETRY_INTERVAL);
+      count++;
+    }
+
+  return ret;
 }
 
 /****************************************************************************
