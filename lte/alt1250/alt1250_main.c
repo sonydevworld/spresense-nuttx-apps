@@ -95,8 +95,9 @@
 
 #define EVTTASK_NAME "lteevt_task"
 
-#define RET_TERM     (1)
-#define RET_NOTAVAIL (2)
+#define RET_TERM        (1)
+#define RET_NOTAVAIL    (2)
+#define RET_MODEM_RESET (3)
 
 #define GETSOCKOPT_PARAM_NUM 6
 
@@ -885,7 +886,10 @@ static int alt1250_socket_allfree(FAR struct alt1250_s *dev)
         }
     }
 
-  ioctl(dev->usockfd, USRSOCK_IOC_REFRESH, 0);
+  /* Start over from scratch by closing /dev/usrsock */
+
+  close(dev->usockfd);
+  dev->usockfd = open(DEV_USERSOCK, O_RDWR);
 
   return 0;
 }
@@ -4269,6 +4273,7 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
   FAR struct alt_container_s *next;
   int rcvcontainers = 0;
   int freecontainers = 0;
+  int ret = OK;
 
   alt1250_printf("start\n");
 
@@ -4318,6 +4323,8 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
       /* Enable events to be notified when the network state changes. */
 
       enable_netinforeport(dev);
+
+      ret = RET_MODEM_RESET;
     }
   else
     {
@@ -4386,7 +4393,7 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
 
   alt1250_printf("end\n");
 
-  return OK;
+  return ret;
 }
 
 #ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
@@ -4533,8 +4540,12 @@ static int alt1250_loop(FAR struct alt1250_s *dev)
         {
           ret = alt1250_request(dev->usockfd, dev);
         }
+      else
+        {
+          ret = OK;
+        }
 
-      if ((!dev->recvfrom_processing)
+      if ((ret != RET_MODEM_RESET) && (!dev->recvfrom_processing)
           && ((fds[USOCKFD].revents & POLLIN) || is_usockrcvd))
         {
           if (!is_usockrcvd)
