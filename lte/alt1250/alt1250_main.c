@@ -960,6 +960,25 @@ static int read_usockreq(int fd, FAR uint8_t *buf, size_t sz)
 }
 
 /****************************************************************************
+ * Name: seek_usockreq
+ ****************************************************************************/
+
+static void seek_usockreq(int fd, size_t sz)
+{
+  uint8_t dummy;
+
+  /* If the seek is called with the exact size, the seek will
+   * result in an error. In order to avoid this, the process of
+   * read is performed after seeking the specified size minus one byte.
+   */
+
+  if (lseek(fd, sz - 1, SEEK_CUR) >= 0)
+    {
+      read(fd, &dummy, 1);
+    }
+}
+
+/****************************************************************************
  * Name: usock_send_event
  ****************************************************************************/
 
@@ -1864,23 +1883,32 @@ static int sendto_request(int fd, FAR struct alt1250_s *dev,
 
   if (req->buflen > 0)
     {
-      req->buflen =  MIN(req->buflen, TX_BUFF_SIZE);
+      size_t sendlen = MIN(req->buflen, TX_BUFF_SIZE);
 
       /* Read data from usrsock. */
 
-      rlen = read(fd, _tx_buff, req->buflen);
-      if ((rlen < 0) || (rlen < req->buflen))
+      rlen = read(fd, _tx_buff, sendlen);
+      if ((rlen < 0) || (rlen < sendlen))
         {
           result = -EFAULT;
           alt1250_printf("Failed to read: %d\n", rlen);
           goto sendack;
         }
 
+      /* If the send size exceeds TX_BUFF_SIZE,
+       * use seek to discard the exceeded buffer.
+       */
+
+      if (req->buflen > sendlen)
+        {
+          seek_usockreq(fd, req->buflen - sendlen);
+        }
+
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_sendtoreq(usock->altsock, req->flags, req->addrlen,
-        req->buflen, pto, _tx_buff, usock->out, ocnt, req->usockid, dev);
+        sendlen, pto, _tx_buff, usock->out, ocnt, req->usockid, dev);
       if (ret >= 0)
         {
           memcpy(&usock->req, &req->head, sizeof(usock->req));
