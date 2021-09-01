@@ -3499,6 +3499,7 @@ static int handlereply_socket(uint8_t event, unsigned long priv,
   int32_t cmd = ALTCOM_GETFL;
   int32_t val = 0;
   size_t ocnt = 0;
+  struct usrsock_message_req_ack_s resp;
 
   alt1250_printf("start, event:%u\n", event);
 
@@ -3520,21 +3521,22 @@ static int handlereply_socket(uint8_t event, unsigned long priv,
     }
   else
     {
-      struct usrsock_message_req_ack_s resp;
-
       usock->state = PREALLOC;
       if (usock->type == SOCK_DGRAM)
         {
           alt1250_socket_free(dev, reply->sock);
         }
 
+      free_container(dev, reply);
+    }
+
+  if (ret < 0)
+    {
       /* Send ACK response of the error. */
 
       memset(&resp, 0, sizeof(resp));
       resp.result = ret;
       _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-
-      free_container(dev, reply);
     }
 
   alt1250_printf("end\n");
@@ -4062,12 +4064,15 @@ static int handlereply_setfl(uint8_t event, unsigned long priv,
 
   ret = parse_sockcommon_reply(*(int *)(reply->outparam[0]),
     *(int *)(reply->outparam[1]));
+
+  usockid = reply->sock;
+  free_container(dev, reply);
+
   if (ret >= 0)
     {
       usock->state = OPENED;
 
-      usockid = reply->sock;
-      select_cancel(usockid, dev, reply);
+      select_cancel(usockid, dev, NULL);
       select_start(usockid, dev, NULL);
 
       switch (usock->req.reqid)
@@ -4109,23 +4114,18 @@ static int handlereply_setfl(uint8_t event, unsigned long priv,
             alt1250_printf("unexpected sequense. reqid:0x%02x\n",
               usock->req.reqid);
 
-            /* Send ACK response */
-
-            memset(&resp, 0, sizeof(resp));
-            resp.result = -EFAULT;
-            _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+            ret = -EFAULT;
             break;
         }
     }
-  else
+
+  if (ret < 0)
     {
       /* Send ACK response of the error. */
 
       memset(&resp, 0, sizeof(resp));
       resp.result = ret;
       _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-
-      free_container(dev, reply);
     }
 
   alt1250_printf("end\n");
@@ -4169,7 +4169,7 @@ static int handlereply_radioon(uint8_t event, unsigned long priv,
   alt1250_printf("start, event:%u\n", event);
 
   ret = *(int *)(reply->outparam[0]);
-  if (ret == 0)
+  if (ret >= 0)
     {
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &dev->o_pdn;
@@ -4179,13 +4179,16 @@ static int handlereply_radioon(uint8_t event, unsigned long priv,
     }
   else
     {
+      free_container(dev, reply);
+    }
+
+  if (ret < 0)
+    {
       /* Send ACK response of the error. */
 
       memset(&resp, 0, sizeof(resp));
       resp.result = ret;
       _send_ack_common(dev->usockfd, usock->req.xid, &resp);
-
-      free_container(dev, reply);
     }
 
   alt1250_printf("end\n");
