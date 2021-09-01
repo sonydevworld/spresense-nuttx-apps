@@ -3891,6 +3891,11 @@ static int handlereply_getsockopt_conn(uint8_t event, unsigned long priv,
     {
       memset(&resp, 0, sizeof(resp));
       resp.result = *(int32_t *)(reply->outparam[3]);
+      if (resp.result > 0)
+        {
+          resp.result = -resp.result;
+        }
+
       _send_ack_common(dev->usockfd, usock->connxid, &resp);
 
       if (resp.result == 0)
