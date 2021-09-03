@@ -33,28 +33,45 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # ELF Example
 
-CSRCS = symtab.c
+ifeq ($(CONFIG_EXAMPLES_ELF_ROMFS),y)
+CSRCS = romfs.c
+endif
+ifeq ($(CONFIG_EXAMPLES_ELF_CROMFS),y)
+CSRCS = cromfs.c
+endif
+CSRCS += dirlist.c
+CSRCS += symtab.c
 MAINSRC = elf_main.c
 
 PROGNAME = elf
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_ELF)
 
-ROOTDEPPATH := --dep-path tests
+DEPPATH := --dep-path tests
 
 # Build targets
 
 VPATH += :tests
 
-tests/symtab.c:
-	@$(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+ifeq ($(CONFIG_EXAMPLES_ELF_ROMFS),y)
+tests/romfs.c: build
+endif
+ifeq ($(CONFIG_EXAMPLES_ELF_CROMFS),y)
+tests/cromfs.c: build
+endif
+tests/dirlist.c: build
+tests/symtab.c: build
+
+.PHONY: build
+build:
+	+$(Q) $(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
 
 clean::
-	@$(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
+	+$(Q) $(MAKE) -C tests TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
 
 include $(APPDIR)/Application.mk

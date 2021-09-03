@@ -38,6 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <stdio.h>
 
@@ -57,11 +58,7 @@
  * sixaxis_main
  ****************************************************************************/
 
-#ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
-#else
-int sixaxis_main(int argc, char *argv[])
-#endif
 {
   int fd;
   struct accel_gyro_st_s data;
@@ -90,7 +87,7 @@ int sixaxis_main(int argc, char *argv[])
 
       if (prev != data.sensor_time)
         {
-          printf("[%d] %d, %d, %d / %d, %d, %d\n",
+          printf("[%" PRIu32 "] %d, %d, %d / %d, %d, %d\n",
                  data.sensor_time,
                  data.gyro.x, data.gyro.y, data.gyro.z,
                  data.accel.x, data.accel.y, data.accel.z);

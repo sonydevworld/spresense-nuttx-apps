@@ -1,35 +1,20 @@
 /****************************************************************************
- * examples/embedlog/embedlog_main.c
+ * apps/examples/embedlog/embedlog_main.c
  *
- *   Copyright (C) 2019 Michał Łyszczek. All rights reserved.
- *   Author: Michał Łyszczek <michal.lyszczek@bofc.pl>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -37,7 +22,7 @@
  * Included Files
  ****************************************************************************/
 
-#include <embedlog.h>
+#include <system/embedlog.h>
 #include <errno.h>
 #include <nuttx/config.h>
 #include <stdio.h>
@@ -69,7 +54,7 @@
  * object. see el_options(3) to see learn more about it.
  */
 
-static struct el_options g_el;
+static struct el g_el;
 
 /****************************************************************************
  * Private Functions
@@ -80,7 +65,7 @@ static struct el_options g_el;
  *
  * Description:
  *   Presents how to use options and how it's rendered. This assumes all
- *   options are enabled in compile time. If any of the options is not enabled
+ *   options are enabled in compile time. If any of the options isn't enabled
  *   in compile time, setting it will have no effect and logs will vary.
  *
  * Input Parameters:
@@ -263,7 +248,7 @@ static void el_print_file(const char *workdir)
    * performance greatly. And there are situations when you are willing to
    * loose some info or debug data (up to configured sync every value), but
    * when critical error shows up, you want data to be synced immediately to
-   * minimize chance of loosing information about critical error. For that
+   * minimize chance of losing information about critical error. For that
    * you can define which log level will be synced *every* time regardless
    * of sync every value. Here we will instruct embedlog to log prints that
    * have severity higher or equal to critical (so critial, alert and fatal)
@@ -284,7 +269,7 @@ static void el_print_file(const char *workdir)
     {
       if (errno == ENAMETOOLONG || errno == EINVAL)
         {
-          /* These are the only unrecoverable errors that embedlog may return,
+          /* These are the only unrecoverable errors embedlog may return,
            * any other error it actually a warning, telling user that file
            * could not have been opened now, but every el_print function with
            * output to file enabled, will try to reopen file. This of course
@@ -305,9 +290,9 @@ static void el_print_file(const char *workdir)
 
   el_oprint(OELI, "Now we enabled log rotation");
   el_oprint(OELI, "If log cannot fit in current file");
-  el_oprint(OELI, "it will be stored in new file");
-  el_oprint(OELI, "and if library creates EL_FROTATE_NUMBER files");
-  el_oprint(OELI, "oldest file will be deleted and new file will be created");
+  el_oprint(OELI, "it will be stored in new file and");
+  el_oprint(OELI, "if library creates EL_FROTATE_NUMBER files oldest");
+  el_oprint(OELI, "file will be deleted and new file will be created");
   el_oprint(OELI, "run this program multiple times and see how it works");
 }
 
@@ -331,8 +316,8 @@ int main(int argc, FAR char *argv[])
 
   el_oinit(&g_el);
 
-  el_oprint(OELI, "Right after init, embedlog will print to stderr with just "
-      "log level information - these are default settings.");
+  el_oprint(OELI, "Right after init, embedlog will print to stderr with "
+      "just log level information - these are default settings.");
 
   el_print_options();
   el_print_memory();

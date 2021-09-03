@@ -60,7 +60,7 @@
 //     which
 // 11. Finally call pollEvents() to execute whatever actions the input event
 //     should trigger.
-// 12. This might call an event handler in and overrident method of
+// 12. This might call an event handler in and overridden method of
 //     CWidgetEventHandler which will again notify the Event loop running
 //     in the Twm4Nx main thread.  The event will, finally be delivered
 //     to the recipient in its fully digested and decorated form.
@@ -149,7 +149,7 @@ CWindowEvent::~CWindowEvent(void)
 
   if (m_eventq != (mqd_t)-1)
     {
-      (void)mq_close(m_eventq);
+      mq_close(m_eventq);
       m_eventq = (mqd_t)-1;
     }
 
@@ -208,13 +208,13 @@ void CWindowEvent::handleRedrawEvent(FAR const nxgl_rect_s *nxRect,
  * toolbar, but can easily move into the main window (or even outside
  * of the window!).  To these case, there may be two instances of
  * CWindowEvent, one for the toolbar and one for the main window.  The
- * IEventTap implementation (along with the user arguement) can keep a
+ * IEventTap implementation (along with the user argument) can keep a
  * consistent movement context across both instances.
  *
  * NOTE:  NX will continually forward the mouse events to the same raw
  * window in all cases.. even when the mouse position moves outside of
  * the window.  It is the NxTK layer that converts the reports mouse
- * event to either toolar or main window reports.
+ * event to either toolbar or main window reports.
  */
 
 void CWindowEvent::handleMouseEvent(FAR const struct nxgl_point_s *pos,
@@ -248,11 +248,11 @@ void CWindowEvent::handleMouseEvent(FAR const struct nxgl_point_s *pos,
               twminfo("Continue movemenht (%d,%d) buttons=%02x m_tapHandler=%p\n",
                       mousePos.x, mousePos.y, buttons, m_tapHandler);
 
-              // Yes.. generate a movment event if we have a tap event handler
+              // Yes.. generate a movement event if we have a tap event handler
 
               if (m_tapHandler->moveEvent(mousePos, m_tapArg))
                 {
-                  // Skip the input poll until the movment completes
+                  // Skip the input poll until the movement completes
 
                   return;
                 }

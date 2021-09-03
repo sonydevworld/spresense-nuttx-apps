@@ -41,6 +41,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "nsh.h"
@@ -69,32 +70,19 @@
  *
  ****************************************************************************/
 
-int nsh_system(int argc, char *argv[])
+int nsh_system(int argc, FAR char *argv[])
 {
-  /* Expect argc == 2 with argv[1] being the command to execute */
+  FAR struct console_stdio_s *pstate = nsh_newconsole();
+  int ret;
 
-  if (argc >= 2)
-    {
-      FAR struct console_stdio_s *pstate = nsh_newconsole();
-      FAR struct nsh_vtbl_s *vtbl;
+  DEBUGASSERT(pstate != NULL);
 
-      DEBUGASSERT(pstate != NULL);
-      vtbl = &pstate->cn_vtbl;
+  /* Execute the session */
 
-      /* Parse process the command */
+  ret = nsh_session(pstate, false, argc, argv);
 
-      (void)nsh_parse(vtbl, argv[1]);
-#if CONFIG_NFILE_STREAMS > 0
-      fflush(pstate->cn_outstream);
-#endif
+  /* Exit upon return */
 
-      /* Exit upon return */
-
-      nsh_exit(&pstate->cn_vtbl, OK);
-      return EXIT_SUCCESS;
-    }
-  else
-    {
-      return EXIT_FAILURE;
-    }
+  nsh_exit(&pstate->cn_vtbl, ret);
+  return ret;
 }

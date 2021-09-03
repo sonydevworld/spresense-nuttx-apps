@@ -346,7 +346,7 @@ config NXWM_STARTWINDOW_MXMSGS
 	int "Max Messages"
 	default 32
 	---help---
-		The maximum number of messages to queue before blocking.  Defualt 32
+		The maximum number of messages to queue before blocking.  Default 32
 
 config NXWM_STARTWINDOW_MXMPRIO
 	int "Message Priority"
@@ -366,7 +366,7 @@ config NXWM_STARTWINDOW_PRIO
 
 config NXWM_STARTWINDOW_STACKSIZE
 	int "StartWindow Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		The stack size to use when starting the StartWindow task.  Default:
 		2048 bytes.
@@ -396,7 +396,7 @@ config NXWM_NXTERM_PRIO
 
 config NXWM_NXTERM_STACKSIZE
 	int "NxTerm Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		The stack size to use when starting the NxTerm task.  Default:
 		2048 bytes.
@@ -547,7 +547,7 @@ config NXWM_KEYBOARD_USBHOST
 		A USB Keyboard is a removable device. When it is inserted, then
 		device at NXWM_KEYBOARD_DEVPATH will appear; when it removed,
 		keyboard reads will fail and the device at NXWM_KEYBOARD_DEVPATH
-		will disappear.  Selecting this option builds addtional logic into
+		will disappear.  Selecting this option builds additional logic into
 		the keyboard listener thread in order to handle this case.
 
 config NXWM_KEYBOARD_SIGNO
@@ -574,7 +574,7 @@ config NXWM_KEYBOARD_LISTENERPRIO
 
 config NXWM_KEYBOARD_LISTENERSTACK
 	int "Keyboard Listener Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Keyboard listener thread stack size.  Default: 1024
 
@@ -694,7 +694,7 @@ config NXWM_CALIBRATION_ANISOTROPIC
 	default n
 	---help---
 		Most touchscreens have the property that the X value consistent across
-		the entire vertial range of the display, i.e., if you press in the
+		the entire vertical range of the display, i.e., if you press in the
 		upper left of the display and in the low right of the display, then
 		only the Y value will change.  This is true of some touchscreens:
 		For some touchscreens the X values in the same vertical column will
@@ -704,7 +704,7 @@ config NXWM_CALIBRATION_ANISOTROPIC
 
 		If you have such an LCD, then you may select this option to enable
 		some much more complex scaling alorithms to handle this case.  Not
-		only are these algorithms more complex, but they are (currenly)
+		only are these algorithms more complex, but they are (currently)
 		implemented using floating point.  As a result, you should not select
 		this option if you have a lower end MCU without hardware floating
 		point support.
@@ -719,7 +719,7 @@ config NXWM_CUSTOM_CALIBRATION_ICON
 if NXWM_CUSTOM_CALIBRATION_ICON
 
 config NXWM_CALIBRATION_ICON
-	string "Callibration Icon"
+	string "Calibration Icon"
 	default "NXWidgets::g_calibrationBitmap"
 	---help---
 		The ICON to use for the touchscreen calibration application. Default:
@@ -742,7 +742,7 @@ config NXWM_CALIBRATION_LISTENERPRIO
 
 config NXWM_CALIBRATION_LISTENERSTACK
 	int "Calibration Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Calibration listener thread stack size.  Default 2048
 
@@ -754,7 +754,7 @@ config NXWM_HEXCALCULATOR_CUSTOM_COLORS
 	bool "Custom Hex Calculator Colors"
 	default n
 	---help---
-		Select custom default colors for the Hex Calcualtor window.  If
+		Select custom default colors for the Hex Calculator window.  If
 		defined, the hexadecimal values for all hex calculator colors
 		must be provided (there are no default colors because the
 		hexadecimal representation of the default colors depend on the
@@ -811,7 +811,7 @@ menu "NxWM Media Player Display Settings"
 config NXWM_MEDIAPLAYER
 	bool "NxWM Media Player"
 	default n
-	depends on FS_READABLE && SYSTEM_NXPLAYER
+	depends on SYSTEM_NXPLAYER
 	---help---
 		Enable support for the MP3 Media Player.  This features requires
 		a board that includes an MP3 Codec chip, such as the Mikromedia
@@ -962,4 +962,3 @@ endif # NXWM_MEDIAPLAYER
 endmenu # NxWM Media Player Display Settings
 endif # NXWM
 endmenu # NxWM
-

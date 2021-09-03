@@ -82,7 +82,7 @@ namespace NxWM
 
   struct SStartWindowMessage
   {
-    enum EStartWindowMessageOpcodes msgId;    /**< The message opcode */
+    enum EStartWindowMessageOpcodes msg_id;   /**< The message opcode */
     FAR void                       *instance; /**< Object instance. */
   };
 
@@ -255,7 +255,7 @@ namespace NxWM
 
     /**
      * Redraw the entire window.  The application has been maximized or
-     * otherwise moved to the top of the hiearchy.  This method is call from
+     * otherwise moved to the top of the hierarchy.  This method is call from
      * CTaskbar when the application window must be displayed
      */
 

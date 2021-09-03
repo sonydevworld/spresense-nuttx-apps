@@ -33,16 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-OBJEXT ?= .o
-DELIM ?= /
-
-ifeq ($(WINTOOL),y)
-NUTTXLIB = "${shell cygpath -w $(TOPDIR)$(DELIM)staging}"
-else
-NUTTXLIB = "$(TOPDIR)$(DELIM)staging"
-endif
+include $(APPDIR)/Make.defs
 
 ifeq ($(CONFIG_EXAMPLES_ELF_SYSCALL),y)
 LDELFFLAGS += -Bstatic
@@ -55,11 +46,7 @@ endif
 endif
 
 ifeq ($(CONFIG_EXAMPLES_ELF_LIBC),y)
-ifeq ($(CONFIG_BUILD_PROTECTED),y)
-LDLIBS += -luc
-else
 LDLIBS += -lc
-endif
 endif
 
 ifeq ($(CONFIG_EXAMPLES_ELF_SYSCALL),y)
@@ -72,7 +59,7 @@ SRCS = $(BIN).c
 OBJS = $(SRCS:.c=$(OBJEXT))
 
 all: $(BIN)
-.PHONY: clean install
+.PHONY: all clean install
 
 $(OBJS): %$(OBJEXT): %.c
 	@echo "CC: $<"
@@ -82,10 +69,15 @@ $(BIN): $(OBJS)
 	@echo "LD: $<"
 	$(Q) $(LD) $(LDELFFLAGS) $(LDLIBPATH) -o $@ $(ARCHCRT0OBJ) $^ $(LDLIBS)
 
+$(FSIMG_DIR)/$(BIN): $(BIN)
+	$(Q) mkdir -p $(FSIMG_DIR)
+	$(Q) install $(BIN) $(FSIMG_DIR)/$(BIN)
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(FSIMG_DIR)/$(BIN)
+endif
+
+install: $(FSIMG_DIR)/$(BIN)
+
 clean:
 	$(call DELFILE, $(BIN))
 	$(call CLEAN)
-
-install:
-	$(Q) mkdir -p $(FSIMG_DIR)
-	$(Q) install $(BIN) $(FSIMG_DIR)/$(BIN)

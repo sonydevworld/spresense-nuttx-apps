@@ -49,7 +49,6 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
 NUTTXINC = $(TOPDIR)/include
@@ -59,8 +58,7 @@ ZMODEM   = $(APPDIR)/system/zmodem
 HOSTDIR  = $(ZMODEM)/host
 HOSTAPPS = $(ZMODEM)/host/apps
 
-HOSTCFLAGS  += -isystem $(HOSTDIR) -I $(ZMODEM) -I $(HOSTAPPS)
-HOSTCFLAGS  += -Dsz_main=main -Drz_main=main
+HOSTCFLAGS  += -I $(HOSTDIR) -I $(HOSTAPPS)
 ifeq ($(CONFIG_DEBUG_FEATURES),y)
 HOSTCFLAGS  += -DCONFIG_DEBUG_ZMODEM=1
 endif
@@ -78,8 +76,8 @@ RZOBJS   = $(RZSRCS:.c=$(OBJEXT))
 CMNOBJS  = $(CMNSRCS:.c=$(OBJEXT))
 OBJS     = $(SRCS:.c=$(OBJEXT))
 
-RZBIN    = rz$(EXEEXT)
-SZBIN    = sz$(EXEEXT)
+RZBIN    = rz$(HOSTEXEEXT)
+SZBIN    = sz$(HOSTEXEEXT)
 
 VPATH    = host
 

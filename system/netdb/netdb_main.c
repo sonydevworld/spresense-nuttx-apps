@@ -78,14 +78,15 @@
  * Private Functions
  ****************************************************************************/
 
-static void show_usage(FAR const char *progname, int exitcode) noreturn_function;
+static void show_usage(FAR const char *progname,
+                       int exitcode) noreturn_function;
 static void show_usage(FAR const char *progname, int exitcode)
 {
-  fprintf(stderr, "USAGE: %s --ipv4 <ipv4-addr>\n", progname);
 #ifdef HAVE_GETHOSTBYADDR
+  fprintf(stderr, "USAGE: %s --ipv4 <ipv4-addr>\n", progname);
   fprintf(stderr, "       %s --ipv6 <ipv6-addr>\n", progname);
-  fprintf(stderr, "       %s --host <host-name>\n", progname);
 #endif
+  fprintf(stderr, "       %s --host <host-name>\n", progname);
   fprintf(stderr, "       %s --help\n", progname);
   exit(exitcode);
 }
@@ -99,7 +100,10 @@ int main(int argc, FAR char *argv[])
   FAR struct hostent *host;
   FAR const char *addrtype;
   char buffer[48];
+#ifdef HAVE_GETHOSTBYADDR
+  struct in_addr addr;
   int ret;
+#endif
 
   /* Handle: netdb --help */
 
@@ -108,7 +112,9 @@ int main(int argc, FAR char *argv[])
       show_usage(argv[0], EXIT_SUCCESS);
     }
 
-  /* Otherwise there must be exactly two arguments following the program name */
+  /* Otherwise there must be exactly two arguments following the program
+   * name
+   */
 
   else if (argc < 3)
     {
@@ -126,8 +132,6 @@ int main(int argc, FAR char *argv[])
 
   else if (strcmp(argv[1], "--ipv4") == 0)
     {
-      struct in_addr addr;
-
       /* Convert the address to binary */
 
       ret = inet_pton(AF_INET, argv[2], &addr);
@@ -148,12 +152,10 @@ int main(int argc, FAR char *argv[])
         }
     }
 
-  /* Handle: netdb --ipv46<ipv6-addr>  */
+  /* Handle: netdb --ipv6 <ipv6-addr>  */
 
   else if (strcmp(argv[1], "--ipv6") == 0)
     {
-      struct in_addr addr;
-
       /* Convert the address to binary */
 
       ret = inet_pton(AF_INET6, argv[2], &addr);
@@ -203,6 +205,7 @@ int main(int argc, FAR char *argv[])
    */
 
   /* Convert the address to a string */
+
   /* Handle IPv4 addresses */
 
   if (host->h_addrtype == AF_INET)
@@ -237,9 +240,10 @@ int main(int argc, FAR char *argv[])
 
   else
     {
-       fprintf(stderr, "ERROR -- gethostbyname address type %d  not recognized.\n\n",
-               host->h_addrtype);
-       return EXIT_FAILURE;
+      fprintf(stderr,
+              "ERROR -- gethostbyname address type %d not recognized.\n\n",
+              host->h_addrtype);
+      return EXIT_FAILURE;
     }
 
   /* Print the host name / address mapping */

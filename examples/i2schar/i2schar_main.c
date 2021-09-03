@@ -102,21 +102,23 @@ static void i2schar_devpath(FAR struct i2schar_state_s *i2schar,
 static void i2schar_help(FAR struct i2schar_state_s *i2schar)
 {
   printf("Usage: i2schar [OPTIONS]\n");
-  printf("\nArguments are \"sticky\".  For example, once the I2C character device is\n");
+  printf("\nArguments are \"sticky\".\n");
+  printf("For example, once the I2C character device is\n");
   printf("specified, that device will be re-used until it is changed.\n");
   printf("\n\"sticky\" OPTIONS include:\n");
   printf("  [-p devpath] selects the I2C character device path.  "
          "Default: %s Current: %s\n",
-         CONFIG_EXAMPLES_I2SCHAR_DEVPATH, g_i2schar.devpath ? g_i2schar.devpath : "NONE");
+         CONFIG_EXAMPLES_I2SCHAR_DEVPATH,
+         g_i2schar.devpath ? g_i2schar.devpath : "NONE");
 #ifdef CONFIG_EXAMPLES_I2SCHAR_TX
   printf("  [-t count] selects the number of audio buffers to send.  "
          "Default: %d Current: %d\n",
          CONFIG_EXAMPLES_I2SCHAR_TXBUFFERS, i2schar->txcount);
 #endif
-#ifdef CONFIG_EXAMPLES_I2SCHAR_TX
+#ifdef CONFIG_EXAMPLES_I2SCHAR_RX
   printf("  [-r count] selects the number of audio buffers to receive.  "
          "Default: %d Current: %d\n",
-         CONFIG_EXAMPLES_I2SCHAR_RXBUFFERS, i2schar->txcount);
+         CONFIG_EXAMPLES_I2SCHAR_RXBUFFERS, i2schar->rxcount);
 #endif
   printf("  [-h] shows this message and exits\n");
 }
@@ -159,7 +161,9 @@ static int arg_decimal(FAR char **arg, FAR long *value)
  * Name: parse_args
  ****************************************************************************/
 
-static void parse_args(FAR struct i2schar_state_s *i2schar, int argc, FAR char **argv)
+static void parse_args(FAR struct i2schar_state_s *i2schar,
+                       int argc,
+                       FAR char **argv)
 {
   FAR char *ptr;
   FAR char *str;
@@ -184,6 +188,7 @@ static void parse_args(FAR struct i2schar_state_s *i2schar, int argc, FAR char *
             index += nargs;
             break;
 
+#ifdef CONFIG_EXAMPLES_I2SCHAR_RX
           case 'r':
             nargs = arg_decimal(&argv[index], &value);
             if (value < 0)
@@ -195,7 +200,9 @@ static void parse_args(FAR struct i2schar_state_s *i2schar, int argc, FAR char *
             i2schar->rxcount = (uint32_t)value;
             index += nargs;
             break;
+#endif
 
+#ifdef CONFIG_EXAMPLES_I2SCHAR_TX
           case 't':
             nargs = arg_decimal(&argv[index], &value);
             if (value < 0)
@@ -207,6 +214,7 @@ static void parse_args(FAR struct i2schar_state_s *i2schar, int argc, FAR char *
             i2schar->txcount = (uint32_t)value;
             index += nargs;
             break;
+#endif
 
           case 'h':
             i2schar_help(i2schar);
@@ -244,6 +252,8 @@ int main(int argc, FAR char *argv[])
 #endif
   int ret;
 
+  UNUSED(ret);
+
   /* Check if we have initialized */
 
   if (!g_i2schar.initialized)
@@ -268,7 +278,8 @@ int main(int argc, FAR char *argv[])
 
 #ifdef CONFIG_EXAMPLES_I2SCHAR_TX
       g_i2schar.txcount = CONFIG_EXAMPLES_I2SCHAR_TXBUFFERS;
-#else
+#endif
+#ifdef CONFIG_EXAMPLES_I2SCHAR_RX
       g_i2schar.rxcount = CONFIG_EXAMPLES_I2SCHAR_RXBUFFERS;
 #endif
 
@@ -291,16 +302,16 @@ int main(int argc, FAR char *argv[])
    * the priority of transmitter.  This is important if a loopback test is
    * being performed; it improves the changes that a receiving audio buffer
    * is in place for each transmission.
-    */
+   */
 
-  (void)pthread_attr_getschedparam(&attr, &param);
+  pthread_attr_getschedparam(&attr, &param);
   param.sched_priority++;
-  (void)pthread_attr_setschedparam(&attr, &param);
+  pthread_attr_setschedparam(&attr, &param);
 #endif
 
   /* Set the receiver stack size */
 
-  (void)pthread_attr_setstacksize(&attr, CONFIG_EXAMPLES_I2SCHAR_RXSTACKSIZE);
+  pthread_attr_setstacksize(&attr, CONFIG_EXAMPLES_I2SCHAR_RXSTACKSIZE);
 
   /* Start the receiver */
 
@@ -308,11 +319,12 @@ int main(int argc, FAR char *argv[])
   if (ret != OK)
     {
       sched_unlock();
-      printf("i2schar_main: ERROR: failed to Start receiver thread: %d\n", ret);
+      printf("i2schar_main: ERROR: failed to Start receiver thread: %d\n",
+             ret);
       return EXIT_FAILURE;
     }
 
-   pthread_setname_np(receiver, "receiver");
+  pthread_setname_np(receiver, "receiver");
 #endif
 
 #ifdef CONFIG_EXAMPLES_I2SCHAR_TX
@@ -323,7 +335,7 @@ int main(int argc, FAR char *argv[])
 
   /* Set the transmitter stack size */
 
-  (void)pthread_attr_setstacksize(&attr, CONFIG_EXAMPLES_I2SCHAR_TXSTACKSIZE);
+  pthread_attr_setstacksize(&attr, CONFIG_EXAMPLES_I2SCHAR_TXSTACKSIZE);
 
   /* Start the transmitter */
 
@@ -331,34 +343,35 @@ int main(int argc, FAR char *argv[])
   if (ret != OK)
     {
       sched_unlock();
-      printf("i2schar_main: ERROR: failed to Start transmitter thread: %d\n", ret);
+      printf("i2schar_main: ERROR: failed to Start transmitter thread: %d\n",
+             ret);
 #ifdef CONFIG_EXAMPLES_I2SCHAR_RX
       printf("i2schar_main: Waiting for the receiver thread\n");
-      (void)pthread_join(receiver, &result);
+      pthread_join(receiver, &result);
 #endif
       return EXIT_FAILURE;
     }
 
-   pthread_setname_np(transmitter, "transmitter");
+  pthread_setname_np(transmitter, "transmitter");
 #endif
 
-   sched_unlock();
+  sched_unlock();
 #ifdef CONFIG_EXAMPLES_I2SCHAR_TX
-   printf("i2schar_main: Waiting for the transmitter thread\n");
-   ret = pthread_join(transmitter, &result);
-   if (ret != OK)
-     {
-       printf("i2schar_main: ERROR: pthread_join failed: %d\n", ret);
-     }
+  printf("i2schar_main: Waiting for the transmitter thread\n");
+  ret = pthread_join(transmitter, &result);
+  if (ret != OK)
+    {
+      printf("i2schar_main: ERROR: pthread_join failed: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_EXAMPLES_I2SCHAR_RX
-   printf("i2schar_main: Waiting for the receiver thread\n");
-   ret = pthread_join(receiver, &result);
-   if (ret != OK)
-     {
-       printf("i2schar_main: ERROR: pthread_join failed: %d\n", ret);
-     }
+  printf("i2schar_main: Waiting for the receiver thread\n");
+  ret = pthread_join(receiver, &result);
+  if (ret != OK)
+    {
+      printf("i2schar_main: ERROR: pthread_join failed: %d\n", ret);
+    }
 #endif
 
   return EXIT_SUCCESS;

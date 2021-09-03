@@ -1,0 +1,52 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LTE_ALT1250
+	tristate "ALT1250 usrsock daemon"
+	default n
+	depends on NET_USRSOCK && MODEM_ALT1250
+	select NET_USRSOCK_TCP
+	select PIPES
+	---help---
+		Enable support for the alt1250 usrsock daemon
+
+if LTE_ALT1250
+config LTE_ALT1250_PROGNAME
+	string "alt1250 program name"
+	default "alt1250"
+
+config LTE_ALT1250_PRIORITY
+	int "alt1250 task priority"
+	default 100
+
+config LTE_ALT1250_STACKSIZE
+	int "alt1250 stack size"
+	default 2048
+
+config LTE_ALT1250_LAUNCH_EVENT_TASK
+	bool "Launches an internal task to handle events"
+	default y
+	---help---
+		Launches an internal task to handle the event.
+		It is also possible to disable this option and handle events with a user task.
+		If disabled, use lapi_evtinit() and lapi_evtyield().
+
+if LTE_ALT1250_LAUNCH_EVENT_TASK
+
+config LTE_ALT1250_EVENT_TASK_PRIORITY
+	int "internal task priority"
+	default 100
+
+config LTE_ALT1250_EVENT_TASK_STACKSIZE
+	int "internal task stack size"
+	default 2048
+
+endif
+
+config LTE_ALT1250_DEBUG_MSG
+	bool "Enable debug output messages"
+	default n
+
+endif

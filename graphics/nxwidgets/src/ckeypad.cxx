@@ -179,12 +179,12 @@ void  CKeypad::onClick(nxgl_coord_t x, nxgl_coord_t y)
       // The ultimate recipient will be the widget in the top window
       // that has focus.
 
-      (void)nx_kbdchin(m_hNxServer, (uint8_t)ch);
+      nx_kbdchin(m_hNxServer, (uint8_t)ch);
     }
 }
 
 /**
- * Configure the keypad for the currenly selected display mode.
+ * Configure the keypad for the currently selected display mode.
  */
 
 void CKeypad::configureKeypadMode(void)
@@ -211,4 +211,3 @@ void CKeypad::configureKeypadMode(void)
 
   onTextChange();
 }
-

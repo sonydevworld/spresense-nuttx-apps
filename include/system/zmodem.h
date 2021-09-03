@@ -76,7 +76,7 @@
 #endif
 
 /* Data may be received in gulps of varying size and alignment.  Received
- * packets data is properly unescaped, aligned and packed nto a packet
+ * packets data is properly unescaped, aligned and packed into a packet
  * buffer of this size.
  */
 
@@ -92,7 +92,7 @@
 #  define CONFIG_SYSTEM_ZMODEM_SNDBUFSIZE 512
 #endif
 
-/* Absolute pathes are not accepted.  This configuration value must be
+/* Absolute paths are not accepted.  This configuration value must be
  * set to provide the path to the file storage directory (such as a
  * mountpoint directory).
  */
@@ -165,11 +165,11 @@
 #  define CONFIG_SYSTEM_ZMODEM_WRITESIZE 0
 #endif
 
-/* Absolute pathes in received file names are not accepted.  This
+/* Absolute paths in received file names are not accepted.  This
  * configuration value must be set to provide the path to the file storage
  * directory (such as a mountpoint directory).
  *
- * Names of file send by the sz commond, on the other hand, must be absolute
+ * Names of file send by the sz command, on the other hand, must be absolute
  * paths beginning with '/'.
  */
 

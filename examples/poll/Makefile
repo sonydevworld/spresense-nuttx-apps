@@ -33,14 +33,14 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 CSRCS = poll_listener.c select_listener.c net_listener.c net_reader.c
 MAINSRC = poll_main.c
 
 PROGNAME = poll
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_POLL)
 
 include $(APPDIR)/Application.mk

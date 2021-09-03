@@ -46,11 +46,7 @@
 #include <sys/boardctl.h>
 
 #ifdef CONFIG_NXWM_TOUCHSCREEN_CONFIGDATA
-#  include "platform/configdata.hr"
-#endif
-
-#if defined(CONFIG_HAVE_CXX) && defined(CONFIG_HAVE_CXXINITIALIZE)
-#  include "platform/cxxinitialize.h"
+#  include "platform/configdata.h"
 #endif
 
 #include "graphics/nxwm/ctaskbar.hxx"
@@ -124,7 +120,7 @@ static void testCleanUpAndExit(int exitCode)
   // Delete the task bar then the start window.  the order is important because
   // we must bet all of the application references out of the task bar before
   // deleting the start window.  When the start window is deleted, it will
-  // also delete of of the resouces contained within the start window.
+  // also delete of of the resources contained within the start window.
 
   if (g_nxwmtest.taskbar)
     {
@@ -184,7 +180,7 @@ static bool createTaskbar(void)
   printf("createTaskbar: Initialize CTaskbar instance\n");
   if (!g_nxwmtest.taskbar->initWindowManager())
     {
-      printf("createTaskbar: ERROR: Failed to intialize CTaskbar instance\n");
+      printf("createTaskbar: ERROR: Failed to initialize CTaskbar instance\n");
       return false;
     }
 
@@ -277,7 +273,7 @@ static bool createTouchScreen(void)
   // Get the physical size of the display in pixels
 
   struct nxgl_size_s displaySize;
-  (void)g_nxwmtest.taskbar->getDisplaySize(displaySize);
+  g_nxwmtest.taskbar->getDisplaySize(displaySize);
 
     // Create the touchscreen device
 
@@ -502,12 +498,6 @@ static bool createMediaPlayer(void)
 
 int main(int argc, char *argv[])
 {
-#if defined(CONFIG_HAVE_CXX) && defined(CONFIG_HAVE_CXXINITIALIZE)
-  // Call all C++ static constructors
-
-  up_cxxinitialize();
-#endif
-
 #if defined(CONFIG_LIB_BOARDCTL) && !defined(CONFIG_BOARD_LATE_INITIALIZE)
   // Should we perform board-specific initialization?  There are two ways
   // that board initialization can occur:  1) automatically via
@@ -515,7 +505,7 @@ int main(int argc, char *argv[])
   // 2) here via a call to boardctl() if the interface is enabled
   // (CONFIG_LIB_BOARDCTL=y).
 
-  (void)boardctl(BOARDIOC_INIT, 0);
+  boardctl(BOARDIOC_INIT, 0);
 #endif
 
 #ifdef CONFIG_NXWM_NXTERM

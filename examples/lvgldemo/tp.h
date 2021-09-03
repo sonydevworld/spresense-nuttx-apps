@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/touchscreen/tc.h
+ * apps/examples/lvgldemo/tp.h
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gábor Kiss-Vámosi <kisvegabor@gmail.com>
@@ -41,12 +41,14 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <graphics/lvgl.h>
+#include <lvgl/lvgl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* CONFIG_EXAMPLES_LGVLDEMO_MINOR - The minor device number.  Minor=N
  *   corresponds to touchscreen device /dev/input0.  Note this value must
  *   with CONFIG_EXAMPLES_LGVLDEMO_DEVPATH.  Default 0.
@@ -57,8 +59,8 @@
  *   configured to work with a mouse driver by setting this option.
  */
 
-#ifndef CONFIG_INPUT
-#  error "Input device support is not enabled (CONFIG_INPUT)"
+#if !defined(CONFIG_INPUT_TOUCHSCREEN) && !defined(CONFIG_INPUT_MOUSE)
+#  error "Input device support is not enabled (CONFIG_INPUT_TOUCHSCREEN || CONFIG_INPUT_MOUSE)"
 #endif
 
 #ifndef CONFIG_EXAMPLES_LGVLDEMO_MINOR
@@ -108,6 +110,7 @@ int tp_init(void);
  *   Read a TP data and store in 'data' argument
  *
  * Input Parameters:
+ *   indev_drv - Input device handler
  *   data - Store the x, y and state information here
  *
  * Returned Value:
@@ -115,7 +118,8 @@ int tp_init(void);
  *
  ****************************************************************************/
 
-bool tp_read(FAR lv_indev_data_t *data);
+bool tp_read(FAR struct _lv_indev_drv_t *indev_drv,
+             FAR lv_indev_data_t *data);
 
 /****************************************************************************
  * Name: tp_read

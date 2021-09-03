@@ -33,9 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-# DHCP Daemn Library
+include $(APPDIR)/Make.defs
 
 ifeq ($(CONFIG_NET_TCP),y)
 # FTP connection management

@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # CROMFS Example
 
@@ -41,7 +41,7 @@ CSRCS = cromfs.c
 
 NXTOOLDIR = $(TOPDIR)/tools
 GENCROMFSSRC = gencromfs.c
-GENCROMFSEXE = gencromfs$(EXEEXT)
+GENCROMFSEXE = gencromfs$(HOSTEXEEXT)
 
 # Build targets
 

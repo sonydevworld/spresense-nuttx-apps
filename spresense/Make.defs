@@ -1,2 +1,18 @@
-
 CONFIGURED_APPS += $(APPDIR)/..
+
+# TODO: Need to consider how to implement
+TMP_CONFIGURED_APPS := $(CONFIGURED_APPS)
+
+CONFIGURED_APPS :=
+
+MODULEDIRS := $(dir $(wildcard $(SDKDIR)$(DELIM)system$(DELIM)*$(DELIM)Make.defs))
+
+define Add_Module
+  include $(1)Make.defs
+endef
+
+$(foreach SDIR, $(MODULEDIRS), $(eval $(call Add_Module,$(SDIR))))
+
+TMP_CONFIGURED_APPS += $(foreach APPS,$(CONFIGURED_APPS), $(APPDIR)/../system/$(APPS))
+
+CONFIGURED_APPS := $(TMP_CONFIGURED_APPS)

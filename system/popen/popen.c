@@ -1,35 +1,20 @@
 /****************************************************************************
  * apps/popen/popen/popen.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -128,7 +113,7 @@ FILE *popen(FAR const char *command, FAR const char *mode)
   struct sched_param param;
   posix_spawnattr_t attr;
   posix_spawn_file_actions_t file_actions;
-  FAR char *argv[2];
+  FAR char *argv[3];
   int fd[2];
   int oldfd;
   int newfd;
@@ -212,15 +197,16 @@ FILE *popen(FAR const char *command, FAR const char *mode)
       goto errout_with_actions;
     }
 
-  errcode = task_spawnattr_setstacksize(&attr, CONFIG_SYSTEM_POPEN_STACKSIZE);
+  errcode = task_spawnattr_setstacksize(&attr,
+                                        CONFIG_SYSTEM_POPEN_STACKSIZE);
   if (errcode != 0)
     {
       goto errout_with_actions;
     }
 
-   /* If robin robin scheduling is enabled, then set the scheduling policy
-    * of the new task to SCHED_RR before it has a chance to run.
-    */
+  /* If robin robin scheduling is enabled, then set the scheduling policy
+   * of the new task to SCHED_RR before it has a chance to run.
+   */
 
 #if CONFIG_RR_INTERVAL > 0
   errcode = posix_spawnattr_setschedpolicy(&attr, SCHED_RR);
@@ -258,8 +244,9 @@ FILE *popen(FAR const char *command, FAR const char *mode)
    * appropriately.
    */
 
-  argv[0] = (FAR char *)command;
-  argv[1] = NULL;
+  argv[0] = "-c";
+  argv[1] = (FAR char *)command;
+  argv[2] = NULL;
 
 #ifdef CONFIG_SYSTEM_POPEN_SHPATH
   errcode = posix_spawn(&container->shell, CONFIG_SYSTEM_POPEN_SHPATH,
@@ -280,14 +267,14 @@ FILE *popen(FAR const char *command, FAR const char *mode)
    * the interface.
    */
 
-  (void)close(newfd);
+  close(newfd);
 
   /* Free attributes and file actions.  Ignoring return values in the case
    * of an error.
    */
 
-  (void)posix_spawn_file_actions_destroy(&file_actions);
-  (void)posix_spawnattr_destroy(&attr);
+  posix_spawn_file_actions_destroy(&file_actions);
+  posix_spawnattr_destroy(&attr);
 
   /* Finale and return input input/output stream */
 
@@ -295,23 +282,23 @@ FILE *popen(FAR const char *command, FAR const char *mode)
   return &container->copy;
 
 errout_with_actions:
-  (void)posix_spawn_file_actions_destroy(&file_actions);
+  posix_spawn_file_actions_destroy(&file_actions);
 
 errout_with_attrs:
-  (void)posix_spawnattr_destroy(&attr);
+  posix_spawnattr_destroy(&attr);
 
 errout_with_stream:
-  (void)fclose(container->original);
+  fclose(container->original);
 
 errout_with_pipe:
-  (void)close(fd[0]);
-  (void)close(fd[1]);
+  close(fd[0]);
+  close(fd[1]);
 
 errout_with_container:
   free(container);
 
 errout:
-  set_errno(errcode);
+  errno = errcode;
   return NULL;
 }
 
@@ -331,22 +318,22 @@ errout:
  *     waitpid() with a pid argument less than or equal to 0 or equal to the
  *               process ID of the command line interpreter
  *
- *   Any other function not defined in this volume of IEEE Std 1003.1-2001 that
- *   could do one of the above
+ *   Any other function not defined in this volume of IEEE Std 1003.1-2001
+ *   that could do one of the above
  *
- *   In any case, pclose() will not return before the child process created by
- *   popen() has terminated.
+ *   In any case, pclose() will not return before the child process created
+ *   by popen() has terminated.
  *
- *   If the command language interpreter cannot be executed, the child termination
- *   status returned by pclose() will be as if the command language interpreter
- *   terminated using exit(127) or _exit(127).
+ *   If the command language interpreter cannot be executed, the child
+ *   termination status returned by pclose() will be as if the command
+ *   language interpreter terminated using exit(127) or _exit(127).
  *
- *   The pclose() function will not affect the termination status of any child of
- *   the calling process other than the one created by popen() for the associated
- *   stream.
+ *   The pclose() function will not affect the termination status of any
+ *   child of the calling process other than the one created by popen() for
+ *   the associated stream.
  *
- *   If the argument stream to pclose() is not a pointer to a stream created by
- *   popen(), the result of pclose() is undefined.
+ *   If the argument stream to pclose() is not a pointer to a stream created
+ *   by popen(), the result of pclose() is undefined.
  *
  * Description:
  *   stream - The stream reference returned by a previous call to popen()
@@ -376,11 +363,11 @@ int pclose(FILE *stream)
 
   memcpy(original, &container->copy, sizeof(FILE));
 
-  /* Then close the original and free the container (saving the PID of the shell
-   * process)
+  /* Then close the original and free the container (saving the PID of the
+   * shell process)
    */
 
-  (void)fclose(original);
+  fclose(original);
 
   shell = container->shell;
   free(container);
@@ -388,13 +375,13 @@ int pclose(FILE *stream)
 #ifdef CONFIG_SCHED_WAITPID
   /* Wait for the shell to exit, retrieving the return value if available. */
 
- result = waitpid(shell, &status, 0);
- if (result < 0)
-   {
-     /* The errno has already been set */
+  result = waitpid(shell, &status, 0);
+  if (result < 0)
+    {
+      /* The errno has already been set */
 
-     return ERROR;
-   }
+      return ERROR;
+    }
 
   return status;
 #else

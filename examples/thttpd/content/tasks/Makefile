@@ -33,10 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-OBJEXT ?= .o
-DELIM ?= /
+include $(APPDIR)/Make.defs
 
 BIN = tasks
 
@@ -47,7 +44,7 @@ R2SRC = $(BIN)-thunk.S
 R2OBJ = $(R2SRC:.S=.o)
 
 all: $(BIN)
-.PHONY: clean install
+.PHONY: all clean install
 
 $(R1OBJS): %.o: %.c
 	@echo "CC: $<"
@@ -73,13 +70,14 @@ $(BIN): $(BIN).r2
 	@echo "LD: $<"
 	$(Q) $(LDNXFLAT) $(LDNXFLATFLAGS) -o $@ $^
 
+$(CGI_DIR)/$(BIN): $(BIN)
+	$(Q) install -m 0755 -D $(BIN) $(CGI_DIR)/$(BIN)
+
+install: $(CGI_DIR)/$(BIN)
+
 clean:
 	$(call DELFILE, $(BIN))
 	$(call DELFILE, $(R2SRC))
 	$(call DELFILE, *.r1)
 	$(call DELFILE, *.r2)
 	$(call CLEAN)
-
-install:
-	$(Q) install -m 0755 -D $(BIN) $(CGI_DIR)/$(BIN)
-

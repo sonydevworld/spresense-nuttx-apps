@@ -71,7 +71,6 @@
 #  include "zlib.h"
 #endif
 
-#include "system/readline.h"
 #include "netutils/telnetc.h"
 
 /****************************************************************************
@@ -156,14 +155,17 @@ static void telnet_ev_send(int sock, const char *buffer, size_t size)
 
   while (size > 0)
     {
-      if ((ret = send(sock, buffer, size, 0)) == -1)
+      if ((ret = send(sock, buffer, size, 0)) <= 0)
         {
-          fprintf(stderr, "send() failed: %d\n", errno);
-          exit(1);
-        }
-      else if (ret == 0)
-        {
-          fprintf(stderr, "send() unexpectedly returned 0\n");
+          if (ret < 0)
+            {
+              fprintf(stderr, "send() failed: %d\n", errno);
+            }
+          else
+            {
+              fprintf(stderr, "send() unexpectedly returned 0\n");
+            }
+          telnet_free(g_telnet);
           exit(1);
         }
 
@@ -184,7 +186,7 @@ static void _event_handler(struct telnet_s *telnet,
     /* Data received */
 
     case TELNET_EV_DATA:
-      printf("%.*s", (int)ev->data.size, ev->data.buffer);
+      fwrite(ev->data.buffer, 1, ev->data.size, stdout);
       fflush(stdout);
       break;
 
@@ -245,6 +247,7 @@ static void _event_handler(struct telnet_s *telnet,
 
     case TELNET_EV_ERROR:
       fprintf(stderr, "ERROR: %s\n", ev->error.msg);
+      telnet_free(g_telnet);
       exit(1);
 
     default:
@@ -264,7 +267,7 @@ static void show_usage(const char *progname, int exitcode)
   fprintf(stderr, "\t\tIPv6 form: xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx\n");
   fprintf(stderr, "\t<port> is the (optional) listening port of the Telnet server.\n");
   fprintf(stderr, "\t\tDefault: %u\n", DEFAULT_PORT);
-  exit(exitcode)  ;
+  exit(exitcode);
 }
 
 /****************************************************************************
@@ -337,7 +340,7 @@ int main(int argc, FAR char *argv[])
   server.ipv6.sin6_port   = htons(portno);
 
   ret = inet_pton(AF_INET6, argv[1], server.ipv6.sin6_addr.s6_addr);
-  if (ret < 0)
+  if (ret <= 0)
 #endif
 #ifdef CONFIG_NET_IPv4
     {
@@ -351,7 +354,7 @@ int main(int argc, FAR char *argv[])
       ret = inet_pton(AF_INET, argv[1], &server.ipv4.sin_addr);
     }
 
-  if (ret < 0)
+  if (ret <= 0)
 #endif
     {
       fprintf(stderr, "ERROR: <server-IP-addr> is invalid\n");
@@ -396,7 +399,7 @@ int main(int argc, FAR char *argv[])
   /* Initialize poll descriptors */
 
   memset(pfd, 0, sizeof(pfd));
-  pfd[0].fd = 1;
+  pfd[0].fd = STDIN_FILENO;
   pfd[0].events = POLLIN;
   pfd[1].fd = sock;
   pfd[1].events = POLLIN;
@@ -407,40 +410,40 @@ int main(int argc, FAR char *argv[])
     {
       /* Read from stdin */
 
-      if (pfd[0].revents & POLLIN)
+      if (pfd[0].revents & (POLLIN | POLLERR | POLLHUP))
         {
-          ret = std_readline(buffer, sizeof(buffer));
+          ret = read(STDIN_FILENO, buffer, sizeof(buffer));
           if (ret > 0)
             {
               send_local_input(buffer, ret);
             }
-          else if (ret == 0)
-            {
-              break;
-            }
           else
             {
-              fprintf(stderr, "recv(server) failed: %d\n", errno);
-              exit(1);
+              if (ret < 0)
+                {
+                  fprintf(stderr, "recv(server) failed: %d\n", errno);
+                  ret = 1;
+                }
+              break;
             }
         }
 
       /* Read from client */
 
-      if (pfd[1].revents & POLLIN)
+      if (pfd[1].revents & (POLLIN | POLLERR | POLLHUP))
         {
           if ((ret = recv(sock, buffer, sizeof(buffer), 0)) > 0)
             {
               telnet_recv(g_telnet, buffer, ret);
             }
-          else if (ret == 0)
-            {
-              break;
-            }
           else
             {
-              fprintf(stderr, "recv(client) failed: %d\n", errno);
-              exit(1);
+              if (ret < 0)
+                {
+                  fprintf(stderr, "recv(client) failed: %d\n", errno);
+                  ret = 1;
+                }
+              break;
             }
         }
     }
@@ -449,5 +452,5 @@ int main(int argc, FAR char *argv[])
 
   telnet_free(g_telnet);
   close(sock);
-  return 0;
+  return ret;
 }

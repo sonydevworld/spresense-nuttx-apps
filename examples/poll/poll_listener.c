@@ -59,15 +59,15 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if defined(CONFIG_DEV_CONSOLE) && !defined(CONFIG_DEV_LOWCONSOLE)
-#   define HAVE_CONSOLE
-#   define NPOLLFDS 2
-#   define CONSNDX  0
-#   define FIFONDX  1
+#ifdef CONFIG_DEV_CONSOLE
+#  define HAVE_CONSOLE
+#  define NPOLLFDS 2
+#  define CONSNDX  0
+#  define FIFONDX  1
 #else
-#   undef  HAVE_CONSOLE
-#   define NPOLLFDS 1
-#   define FIFONDX  0
+#  undef  HAVE_CONSOLE
+#  define NPOLLFDS 1
+#  define FIFONDX  0
 #endif
 
 /****************************************************************************
@@ -111,7 +111,7 @@ void *poll_listener(pthread_addr_t pvarg)
     {
       printf("poll_listener: ERROR Failed to open FIFO %s: %d\n",
              FIFO_PATH1, errno);
-      (void)close(fd);
+      close(fd);
       return (void*)-1;
     }
 
@@ -261,6 +261,6 @@ void *poll_listener(pthread_addr_t pvarg)
 
   /* Won't get here */
 
-  (void)close(fd);
+  close(fd);
   return NULL;
 }

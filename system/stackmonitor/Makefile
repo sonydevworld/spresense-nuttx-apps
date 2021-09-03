@@ -33,13 +33,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Stack Monitor Application
 
 PROGNAME = stackmonitor_start stackmonitor_stop
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_SYSTEM_STACKMONITOR)
 
 MAINSRC = stackmonitor.c

@@ -33,14 +33,14 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 PROGNAME = canard
 PRIORITY = SCHED_PRIORITY_DEFAULT
 STACKSIZE = $(CONFIG_EXAMPLES_LIBCANARD_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_LIBCANARD)
 
-CFLAGS += -I$(APPDIR)/include/canutils
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(APPDIR)/include/canutils}
 MAINSRC = canard_main.c
 
 include $(APPDIR)/Application.mk

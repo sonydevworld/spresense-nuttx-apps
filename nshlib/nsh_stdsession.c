@@ -41,6 +41,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef CONFIG_NSH_CLE
 #  include "system/cle.h"
@@ -71,103 +72,129 @@
  * Input Parameters:
  *   pstate - Abstracts the underlying session.
  *
- * Returned Values:
- *   EXIT_SUCCESS only
- *
  ****************************************************************************/
 
-int nsh_session(FAR struct console_stdio_s *pstate)
+int nsh_session(FAR struct console_stdio_s *pstate,
+                bool login, int argc, FAR char *argv[])
 {
   FAR struct nsh_vtbl_s *vtbl;
-  int ret;
+  int ret = EXIT_FAILURE;
 
   DEBUGASSERT(pstate);
   vtbl = &pstate->cn_vtbl;
 
-#ifdef CONFIG_NSH_CONSOLE_LOGIN
-  /* Login User and Password Check */
-
-  if (nsh_stdlogin(pstate) != OK)
+  if (login)
     {
-      nsh_exit(vtbl, 1);
-      return -1; /* nsh_exit does not return */
-    }
+#ifdef CONFIG_NSH_CONSOLE_LOGIN
+      /* Login User and Password Check */
+
+      if (nsh_stdlogin(pstate) != OK)
+        {
+          nsh_exit(vtbl, 1);
+          return -1; /* nsh_exit does not return */
+        }
 #endif /* CONFIG_NSH_CONSOLE_LOGIN */
 
-  /* Present a greeting and possibly a Message of the Day (MOTD) */
+      /* Present a greeting and possibly a Message of the Day (MOTD) */
 
-  printf("%s", g_nshgreeting);
+      printf("%s", g_nshgreeting);
 
 #ifdef CONFIG_NSH_MOTD
 # ifdef CONFIG_NSH_PLATFORM_MOTD
-  /* Output the platform message of the day */
+      /* Output the platform message of the day */
 
-  platform_motd(vtbl->iobuffer, IOBUFFERSIZE);
-  printf("%s\n", vtbl->iobuffer);
+      platform_motd(vtbl->iobuffer, IOBUFFERSIZE);
+      printf("%s\n", vtbl->iobuffer);
 
 # else
-  /* Output the fixed message of the day */
+      /* Output the fixed message of the day */
 
-  printf("%s\n", g_nshmotd);
+      printf("%s\n", g_nshmotd);
 
 # endif
 #endif
-
-  /* Then enter the command line parsing loop */
-
-  for (; ; )
-    {
-      /* For the case of debugging the USB console... dump collected USB trace data */
-
-#ifdef CONFIG_NSH_USBDEV_TRACE
-      nsh_usbtrace();
-#endif
-
-      /* Get the next line of input. */
-
-#ifdef CONFIG_NSH_CLE
-      /* cle() normally returns the number of characters read, but will
-       * return a negated errno value on end of file or if an error occurs.
-       * Either will cause the session to terminate.
-       */
-
-      ret = cle(pstate->cn_line, g_nshprompt, CONFIG_NSH_LINELEN,
-                stdin, stdout);
-      if (ret < 0)
-        {
-          printf(g_fmtcmdfailed, "nsh_session", "cle", NSH_ERRNO_OF(-ret));
-          return EXIT_SUCCESS;
-        }
-#else
-      /* Display the prompt string */
-
-      printf("%s", g_nshprompt);
-
-      /* readline () normally returns the number of characters read, but will
-       * return EOF on end of file or if an error occurs.  Either will cause
-       * the session to terminate.
-       */
-
-      ret = std_readline(pstate->cn_line, CONFIG_NSH_LINELEN);
-      if (ret == EOF)
-        {
-          /* NOTE: readline() does not set the errno variable, but perhaps we
-           * will be lucky and it will still be valid.
-           */
-
-          printf(g_fmtcmdfailed, "nsh_session", "readline", NSH_ERRNO);
-          return EXIT_SUCCESS;
-        }
-#endif
-
-      /* Parse process the command */
-
-      (void)nsh_parse(vtbl, pstate->cn_line);
     }
 
-  /* We do not get here, but this is necessary to keep some compilers happy.
-   * But others will complain that this code is not reachable.
-   */
+  if (argc < 2)
+    {
+      /* Then enter the command line parsing loop */
 
-  return EXIT_SUCCESS;
+      for (; ; )
+        {
+          /* For the case of debugging the USB console...
+           * dump collected USB trace data
+           */
+
+#ifdef CONFIG_NSH_USBDEV_TRACE
+          nsh_usbtrace();
+#endif
+
+          /* Get the next line of input. */
+
+#ifdef CONFIG_NSH_CLE
+          /* cle() normally returns the number of characters read, but will
+           * return a negated errno value on end of file or if an error
+           * occurs. Either will cause the session to terminate.
+           */
+
+          ret = cle(pstate->cn_line, g_nshprompt, CONFIG_NSH_LINELEN,
+                    stdin, stdout);
+          if (ret < 0)
+            {
+              printf(g_fmtcmdfailed,
+                     "nsh_session", "cle", NSH_ERRNO_OF(-ret));
+              continue;
+            }
+#else
+          /* Display the prompt string */
+
+          printf("%s", g_nshprompt);
+
+          /* readline () normally returns the number of characters read, but
+           * will return EOF on end of file or if an error occurs.  Either
+           * will cause the session to terminate.
+           */
+
+          ret = std_readline(pstate->cn_line, CONFIG_NSH_LINELEN);
+          if (ret == EOF)
+            {
+              /* NOTE: readline() does not set the errno variable, but
+               * perhaps we will be lucky and it will still be valid.
+               */
+
+              printf(g_fmtcmdfailed, "nsh_session", "readline", NSH_ERRNO);
+              ret = EXIT_SUCCESS;
+              break;
+            }
+#endif
+
+          /* Parse process the command */
+
+          nsh_parse(vtbl, pstate->cn_line);
+        }
+    }
+  else if (strcmp(argv[1], "-h") == 0)
+    {
+      ret = nsh_output(vtbl, "Usage: %s [<script-path>|-c <command>]\n",
+                       argv[0]);
+    }
+  else if (strcmp(argv[1], "-c") != 0)
+    {
+#if defined(CONFIG_FILE_STREAM) && !defined(CONFIG_NSH_DISABLESCRIPT)
+      /* Execute the shell script */
+
+      ret = nsh_script(vtbl, argv[0], argv[1]);
+#endif
+    }
+  else if (argc >= 3)
+    {
+      /* Parse process the command */
+
+      ret = nsh_parse(vtbl, argv[2]);
+#ifdef CONFIG_FILE_STREAM
+      fflush(pstate->cn_outstream);
+#endif
+    }
+
+  return ret;
 }

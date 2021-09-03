@@ -33,32 +33,44 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Module example built-in application info
 
 PROGNAME = module
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_MODULE)
 
 # Module Example
 
+ifeq ($(CONFIG_EXAMPLES_MODULE_ROMFS),y)
+CSRCS = romfs.c
+endif
+ifeq ($(CONFIG_EXAMPLES_MODULE_CROMFS),y)
+CSRCS = cromfs.c
+endif
+CSRCS += mod_symtab.c
 MAINSRC = module_main.c
 
-ifeq ($(CONFIG_BUILD_FLAT),y)
-CSRCS += mod_symtab.c
-endif
-
 VPATH += drivers
-ROOTDEPPATH += --dep-path drivers
+DEPPATH += --dep-path drivers
 
 # Build targets
 
-context::
-	@$(MAKE) -C drivers TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
+ifeq ($(CONFIG_EXAMPLES_MODULE_ROMFS),y)
+drivers/romfs.c: build
+endif
+ifeq ($(CONFIG_EXAMPLES_MODULE_CROMFS),y)
+drivers/cromfs.c: build
+endif
+drivers/mod_symtab.c: build
+
+.PHONY: build
+build:
+	+$(Q) $(MAKE) -C drivers TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV)
 
 clean::
-	@$(MAKE) -C drivers TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
+	+$(Q) $(MAKE) -C drivers TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)" CROSSDEV=$(CROSSDEV) clean
 
 include $(APPDIR)/Application.mk

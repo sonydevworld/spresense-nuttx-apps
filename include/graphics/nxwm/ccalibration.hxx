@@ -117,7 +117,7 @@ namespace NxWM
 
   /**
    * The CCalibration class provides the the calibration window and obtains
-   * callibration data.
+   * calibration data.
    */
 
   class CCalibration : public IApplication
@@ -233,7 +233,7 @@ namespace NxWM
      *
      *  Both of those states will cause isRunning() to return false.
      *
-     * @return True if the calibration thread is runnning normally.
+     * @return True if the calibration thread is running normally.
      */
 
     inline bool isRunning(void) const

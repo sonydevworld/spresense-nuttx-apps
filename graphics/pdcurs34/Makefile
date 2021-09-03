@@ -33,12 +33,12 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # pdcurses Text User Interface
 include pdcurses/Make.defs
 include nuttx/Make.defs
 
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/graphics/pdcurs34/include}
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(APPDIR)/graphics/pdcurs34/include}
 
 include $(APPDIR)/Application.mk

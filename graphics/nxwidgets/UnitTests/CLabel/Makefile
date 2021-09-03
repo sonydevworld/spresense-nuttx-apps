@@ -33,7 +33,7 @@
 #
 #################################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # CLabel unit test
 
@@ -42,7 +42,7 @@ MAINSRC = clabel_main.cxx
 
 PROGNAME = clabel
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_NXWIDGETS_UNITTEST_CLABEL)
 
 include $(APPDIR)/Application.mk

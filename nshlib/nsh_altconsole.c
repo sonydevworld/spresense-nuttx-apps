@@ -50,6 +50,8 @@
 #include "nsh.h"
 #include "nsh_console.h"
 
+#include "netutils/netinit.h"
+
 #if defined(CONFIG_NSH_ALTCONDEV) && !defined(HAVE_USB_CONSOLE)
 
 /****************************************************************************
@@ -76,13 +78,13 @@ static int nsh_clone_console(FAR struct console_stdio_s *pstate)
       return -ENODEV;
     }
 
-  /* Close stderr: note we only close stderr if we opened the alternative one */
+  /* Flush stderr: we only flush stderr if we opened the alternative one */
 
-  (void)fclose(stderr);
+  fflush(stderr);
 
   /* Associate the new opened file descriptor to stderr */
 
-  (void)dup2(fd, 2);
+  dup2(fd, 2);
 
   /* Close the console device that we just opened */
 
@@ -99,13 +101,13 @@ static int nsh_clone_console(FAR struct console_stdio_s *pstate)
       return -ENODEV;
     }
 
-  /* Close stdout: note we only close stdout if we opened the alternative one */
+  /* Flush stdout: we only flush stdout if we opened the alternative one */
 
-  (void)fclose(stdout);
+  fflush(stdout);
 
   /* Associate the new opened file descriptor to stdout */
 
-  (void)dup2(fd, 1);
+  dup2(fd, 1);
 
   /* Close the console device that we just opened */
 
@@ -120,7 +122,6 @@ static int nsh_clone_console(FAR struct console_stdio_s *pstate)
   pstate->cn_errstream = fdopen(pstate->cn_errfd, "a");
   if (!pstate->cn_errstream)
     {
-      close(pstate->cn_errfd);
       free(pstate);
       return -EIO;
     }
@@ -131,7 +132,6 @@ static int nsh_clone_console(FAR struct console_stdio_s *pstate)
   pstate->cn_outstream = fdopen(pstate->cn_outfd, "a");
   if (!pstate->cn_outstream)
     {
-      close(pstate->cn_outfd);
       free(pstate);
       return -EIO;
     }
@@ -200,19 +200,15 @@ static int nsh_wait_inputdev(FAR struct console_stdio_s *pstate,
     }
   while (fd < 0);
 
-  /* Close stdin: note we only closed stdin if we opened the alternative one */
-
-  (void)fclose(stdin);
-
   /* Okay.. we have successfully opened the input device.  Did
    * we just re-open fd 0?
    */
 
   if (fd != 0)
     {
-       /* No..  Dup the fd to create standard fd 0.  stdin should not know. */
+      /* No..  Dup the fd to create standard fd 0. stdin should not know. */
 
-      (void)dup2(fd, 0);
+      dup2(fd, 0);
 
       /* Setup the input console */
 
@@ -223,7 +219,6 @@ static int nsh_wait_inputdev(FAR struct console_stdio_s *pstate,
       pstate->cn_constream = fdopen(pstate->cn_confd, "r+");
       if (!pstate->cn_constream)
         {
-          close(pstate->cn_confd);
           free(pstate);
           return -EIO;
         }
@@ -264,7 +259,7 @@ static int nsh_wait_inputdev(FAR struct console_stdio_s *pstate,
  *
  ****************************************************************************/
 
-int nsh_consolemain(int argc, char *argv[])
+int nsh_consolemain(int argc, FAR char *argv[])
 {
   FAR struct console_stdio_s *pstate = nsh_newconsole();
   FAR const char *msg;
@@ -278,16 +273,24 @@ int nsh_consolemain(int argc, char *argv[])
   usbtrace_enable(TRACE_BITSET);
 #endif
 
-  /* Execute the one-time start-up script.  Any output will go to /dev/console. */
+  /* Execute the one-time start-up script.
+   * Any output will go to /dev/console.
+   */
 
 #ifdef CONFIG_NSH_ROMFSETC
-  (void)nsh_initscript(&pstate->cn_vtbl);
+  nsh_initscript(&pstate->cn_vtbl);
+#endif
+
+#ifdef CONFIG_NSH_NETINIT
+  /* Bring up the network */
+
+  netinit_bringup();
 #endif
 
 #if defined(CONFIG_NSH_ARCHINIT) && defined(CONFIG_BOARDCTL_FINALINIT)
   /* Perform architecture-specific final-initialization (if configured) */
 
-  (void)boardctl(BOARDIOC_FINALINIT, 0);
+  boardctl(BOARDIOC_FINALINIT, 0);
 #endif
 
   /* First map stderr and stdout to alternative devices */
@@ -315,7 +318,7 @@ int nsh_consolemain(int argc, char *argv[])
 
       /* Execute the session */
 
-      (void)nsh_session(pstate);
+      nsh_session(pstate, true, argc, argv);
 
       /* We lost the connection.  Wait for the keyboard to
        * be re-connected.

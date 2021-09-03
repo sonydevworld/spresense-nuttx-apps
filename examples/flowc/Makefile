@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # FLOWC Test
 
@@ -77,10 +77,10 @@ HOSTOBJSEXT ?= hobj
 HOST_SRCS = flowc_host.c
 ifeq ($(CONFIG_EXAMPLES_FLOWC_SENDER1),y)
 HOST_SRCS += flowc_receiver.c
-HOST_BIN = receiver$(EXEEXT)
+HOST_BIN = receiver$(HOSTEXEEXT)
 else
 HOST_SRCS += flowc_sender.c
-HOST_BIN = sender$(EXEEXT)
+HOST_BIN = sender$(HOSTEXEEXT)
 endif
 
 HOST_OBJS = $(HOST_SRCS:.c=.$(HOSTOBJSEXT))
@@ -96,7 +96,9 @@ config.h: $(TOPDIR)/include/nuttx/config.h
 
 ifneq ($(CONFIG_EXAMPLES_FLOWC_TARGET2),y)
 
-$(HOST_BIN): config.h $(HOST_OBJS)
+$(HOST_OBJS): config.h
+
+$(HOST_BIN): $(HOST_OBJS)
 	$(Q) $(HOSTCC) $(HOSTLDFLAGS) $(HOST_OBJS) -o $@
 
 endif

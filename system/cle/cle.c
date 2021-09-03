@@ -39,6 +39,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -106,32 +107,16 @@
 #  define CONFIG_SYSTEM_CLE_DEBUGLEVEL 0
 #endif
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
-#    define cledbg(format, ...) \
-       syslog(LOG_DEBUG, EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
-#  else
-#    define cledbg(x...)
-#  endif
-
-#  if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 1
-#    define cleinfo(format, ...) \
-       syslog(LOG_DEBUG, EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
-#  else
-#    define cleinfo(x...)
-#  endif
+#if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
+#  define cledbg  cle_debug
 #else
-#  if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
-#    define cledbg  cle_debug
-#  else
-#    define cledbg  (void)
-#  endif
+#  define cledbg  _none
+#endif
 
-#  if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 1
-#    define cleinfo cle_debug
-#  else
-#    define cleinfo (void)
-#  endif
+#if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 1
+#  define cleinfo cle_debug
+#else
+#  define cleinfo _none
 #endif
 
 #ifdef CONFIG_SYSTEM_COLOR_CLE
@@ -182,8 +167,8 @@ struct cle_s
  * Private Function Prototypes
  ****************************************************************************/
 
-#if !defined(CONFIG_CPP_HAVE_VARARGS) && CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
-static int      cle_debug(FAR const char *fmt, ...);
+#if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
+static void     cle_debug(FAR const char *fmt, ...);
 #endif
 
 /* Low-level display and data entry functions */
@@ -262,18 +247,16 @@ static const char g_setcolor[]     = VT100_FMT_FORE_COLOR;
  *
  ****************************************************************************/
 
-#if !defined(CONFIG_CPP_HAVE_VARARGS) && CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
-static int cle_debug(FAR const char *fmt, ...)
+#if CONFIG_SYSTEM_CLE_DEBUGLEVEL > 0
+static void cle_debug(FAR const char *fmt, ...)
 {
   va_list ap;
-  int ret;
 
   /* Let vsyslog do the real work */
 
   va_start(ap, fmt);
-  ret = vsyslog(LOG_DEBUG, fmt, ap);
+  vsyslog(LOG_DEBUG, fmt, ap);
   va_end(ap);
-  return ret;
 }
 #endif
 
@@ -569,7 +552,7 @@ static int cle_getcursor(FAR struct cle_s *priv, FAR uint16_t *prow,
 
       /* ...we are done */
 
-      cleinfo("row=%ld column=%ld\n", row, column);
+      cleinfo("row=%" PRId32 " column=%" PRId32 "\n", row, column);
 
       /* Make sure that the values are within range */
 
@@ -655,7 +638,8 @@ static bool cle_opentext(FAR struct cle_s *priv, uint16_t pos,
  *
  ****************************************************************************/
 
-static void cle_closetext(FAR struct cle_s *priv, uint16_t pos, uint16_t size)
+static void cle_closetext(FAR struct cle_s *priv, uint16_t pos,
+                          uint16_t size)
 {
   int i;
 
@@ -672,22 +656,24 @@ static void cle_closetext(FAR struct cle_s *priv, uint16_t pos, uint16_t size)
 
   priv->nchars -= size;
 
-  /* Check if the cursor position is beyond the deleted region */
-
-  if (priv->curpos > pos + size)
+  if (priv->curpos > pos)
     {
-      /* Yes... just subtract the size of the deleted region */
+      /* Check if the cursor position is beyond the deleted region */
 
-      priv->curpos -= size;
-    }
+      if (priv->curpos - pos > size)
+        {
+          /* Yes... just subtract the size of the deleted region */
 
-  /* What if the position is within the deleted region?  Set it to the
-   * beginning of the deleted region.
-   */
+          priv->curpos -= size;
+        }
+      else
+        {
+          /* What if the position is within the deleted region?  Set it to
+           * the beginning of the deleted region.
+           */
 
-  else if (priv->curpos > pos)
-    {
-      priv->curpos = pos;
+        priv->curpos = pos;
+        }
     }
 }
 
@@ -771,7 +757,7 @@ static void cle_showtext(FAR struct cle_s *priv)
 
 static void cle_insertch(FAR struct cle_s *priv, char ch)
 {
-  cleinfo("curpos=%ld ch=%c[%02x]\n", priv->curpos,
+  cleinfo("curpos=%" PRId16 " ch=%c[%02x]\n", priv->curpos,
           isprint(ch) ? ch : '.', ch);
 
   /* Make space in the buffer for the new character */
@@ -798,6 +784,9 @@ static int cle_editloop(FAR struct cle_s *priv)
 
   for (; ; )
     {
+#if  1 /* Perhaps here should be a config switch */
+      char state = 0;
+#endif
       int ch;
 
       /* Make sure that the display reflects the current state */
@@ -811,8 +800,6 @@ static int cle_editloop(FAR struct cle_s *priv)
       /* Simple decode of some VT100/xterm codes: left/right, up/dn,
        * home/end, del
        */
-
-      char state = 0;
 
       /* loop till we have a ch */
 
@@ -1076,7 +1063,7 @@ static int cle_editloop(FAR struct cle_s *priv)
 
         case KEY_DELEOL:  /* Delete to the end of the line */
           {
-            priv->nchars = (priv->nchars > 0 ? priv->curpos + 1 : 0);
+            priv->nchars = (priv->nchars > 0 ? priv->curpos : 0);
           }
           break;
 
@@ -1116,7 +1103,7 @@ static int cle_editloop(FAR struct cle_s *priv)
         case '\n': /* LF terminates line */
 #endif
           {
-            /* Add the newline character to the buffer at the end of the line */
+            /* Add the newline to the buffer at the end of the line */
 
             priv->curpos = priv->nchars;
             cle_insertch(priv, '\n');
@@ -1209,7 +1196,7 @@ int cle(FAR char *line, const char *prompt, uint16_t linelen,
       return -EINVAL;
     }
 
-  priv.coloffs = column - 1;
+  priv.coloffs = column;
 
   cleinfo("row=%d column=%d\n", priv.row, column);
 

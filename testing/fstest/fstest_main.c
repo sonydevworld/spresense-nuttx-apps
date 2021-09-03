@@ -1,35 +1,20 @@
 /****************************************************************************
- * testing/fstest/fstest_main.c
+ * apps/testing/fstest/fstest_main.c
  *
- *   Copyright (C) 2015, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,6 +31,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -53,10 +39,12 @@
 #include <errno.h>
 #include <crc32.h>
 #include <debug.h>
+#include <assert.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
 #ifndef CONFIG_TESTING_FSTEST_MAXNAME
@@ -103,11 +91,13 @@ struct fstest_filedesc_s
   bool failed;
   size_t len;
   uint32_t crc;
+  uint32_t hash;
 };
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 /* Pre-allocated simulated flash */
 
 static uint8_t g_fileimage[CONFIG_TESTING_FSTEST_MAXFILE];
@@ -150,11 +140,7 @@ static void fstest_loopmemusage(void)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmafter = mallinfo();
-#else
-  (void)mallinfo(&g_mmafter);
-#endif
 
   /* Show the change from the previous loop */
 
@@ -163,11 +149,7 @@ static void fstest_loopmemusage(void)
 
   /* Set up for the next test */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmprevious = g_mmafter;
-#else
-  memcpy(&g_mmprevious, &g_mmafter, sizeof(struct mallinfo));
-#endif
 }
 
 /****************************************************************************
@@ -176,11 +158,8 @@ static void fstest_loopmemusage(void)
 
 static void fstest_endmemusage(void)
 {
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmafter = mallinfo();
-#else
-  (void)mallinfo(&g_mmafter);
-#endif
+
   printf("\nFinal memory usage:\n");
   fstest_showmemusage(&g_mmbefore, &g_mmafter);
 }
@@ -211,6 +190,29 @@ static inline char fstest_randchar(void)
 }
 
 /****************************************************************************
+ * Name: fstest_checkexit
+ ****************************************************************************/
+
+static bool fstest_checkexit(FAR struct fstest_filedesc_s *file)
+{
+  int i;
+  bool ret = false;
+
+  for (i = 0; i < CONFIG_TESTING_FSTEST_MAXOPEN; i++)
+    {
+      if (!g_files[i].deleted &&
+          &g_files[i] != file &&
+          g_files[i].hash == file->hash)
+        {
+          ret = true;
+          break;
+        }
+    }
+
+  return ret;
+}
+
+/****************************************************************************
  * Name: fstest_randname
  ****************************************************************************/
 
@@ -223,11 +225,14 @@ static inline void fstest_randname(FAR struct fstest_filedesc_s *file)
   int i;
 
   dirlen   = strlen(g_mountdir);
-  maxname  = CONFIG_TESTING_FSTEST_MAXNAME - dirlen;
-  namelen  = (rand() % maxname) + 1;
+
+  /* Force the max filename lengh and also the min name len = 4 */
+
+  maxname  = CONFIG_TESTING_FSTEST_MAXNAME - dirlen - 3;
+  namelen  = (rand() % maxname) + 4;
   alloclen = namelen + dirlen;
 
-  file->name = (FAR char*)malloc(alloclen + 1);
+  file->name = (FAR char *)malloc(alloclen + 1);
   if (!file->name)
     {
       printf("ERROR: Failed to allocate name, length=%d\n", namelen);
@@ -236,12 +241,19 @@ static inline void fstest_randname(FAR struct fstest_filedesc_s *file)
     }
 
   memcpy(file->name, g_mountdir, dirlen);
-  for (i = dirlen; i < alloclen; i++)
-    {
-      file->name[i] = fstest_randchar();
-    }
 
-  file->name[alloclen] = '\0';
+  do
+    {
+      for (i = dirlen; i < alloclen; i++)
+        {
+          file->name[i] = fstest_randchar();
+        }
+
+      file->name[alloclen] = '\0';
+      file->hash = crc32((const uint8_t *)file->name + dirlen,
+                         alloclen - dirlen);
+    }
+  while (fstest_checkexit(file));
 }
 
 /****************************************************************************
@@ -270,6 +282,7 @@ static void fstest_freefile(FAR struct fstest_filedesc_s *file)
   if (file->name)
     {
       free(file->name);
+      file->name = NULL;
     }
 
   memset(file, 0, sizeof(struct fstest_filedesc_s));
@@ -409,7 +422,7 @@ static inline int fstest_wrfile(FAR struct fstest_filedesc_s *file)
         {
           printf("ERROR: Failed to open file for writing: %d\n", errno);
           printf("  File name: %s\n", file->name);
-          printf("  File size: %d\n", file->len);
+          printf("  File size: %zd\n", file->len);
         }
 
       fstest_freefile(file);
@@ -434,7 +447,7 @@ static inline int fstest_wrfile(FAR struct fstest_filedesc_s *file)
         {
           int errcode = errno;
 
-          /* If the write failed because an interrupt occurred or because there
+          /* If the write failed because an interrupt occurred or because
            * there is no space on the device, then don't complain.
            */
 
@@ -450,7 +463,7 @@ static inline int fstest_wrfile(FAR struct fstest_filedesc_s *file)
             {
               printf("ERROR: Failed to write file: %d\n", errcode);
               printf("  File name:    %s\n", file->name);
-              printf("  File size:    %d\n", file->len);
+              printf("  File size:    %zd\n", file->len);
               printf("  Write offset: %ld\n", (long)offset);
               printf("  Write size:   %ld\n", (long)nbytestowrite);
             }
@@ -478,7 +491,7 @@ static inline int fstest_wrfile(FAR struct fstest_filedesc_s *file)
         {
           printf("ERROR: Partial write:\n");
           printf("  File name:    %s\n", file->name);
-          printf("  File size:    %d\n", file->len);
+          printf("  File size:    %zd\n", file->len);
           printf("  Write offset: %ld\n", (long)offset);
           printf("  Write size:   %ld\n", (long)nbytestowrite);
           printf("  Written:      %ld\n", (long)nbyteswritten);
@@ -520,14 +533,14 @@ static int fstest_fillfs(void)
             }
 
 #if CONFIG_TESTING_FSTEST_VERBOSE != 0
-         printf("  Created file %s\n", file->name);
+          printf("  Created file %s\n", file->name);
 #endif
-         g_nfiles++;
+          g_nfiles++;
 
-         if (g_media_full)
-           {
-             break;
-           }
+          if (g_media_full)
+            {
+              break;
+            }
         }
     }
 
@@ -564,7 +577,7 @@ static ssize_t fstest_rdblock(int fd, FAR struct fstest_filedesc_s *file,
             {
               printf("ERROR: Failed to read file: %d\n", errno);
               printf("  File name:    %s\n", file->name);
-              printf("  File size:    %d\n", file->len);
+              printf("  File size:    %zd\n", file->len);
               printf("  Read offset:  %ld\n", (long)offset);
               printf("  Read size:    %ld\n", (long)len);
               return ERROR;
@@ -575,7 +588,7 @@ static ssize_t fstest_rdblock(int fd, FAR struct fstest_filedesc_s *file,
 #if 0 /* No... we do this on purpose sometimes */
           printf("ERROR: Unexpected end-of-file:\n");
           printf("  File name:    %s\n", file->name);
-          printf("  File size:    %d\n", file->len);
+          printf("  File size:    %zd\n", file->len);
           printf("  Read offset:  %ld\n", (long)offset);
           printf("  Read size:    %ld\n", (long)len);
 #endif
@@ -585,7 +598,7 @@ static ssize_t fstest_rdblock(int fd, FAR struct fstest_filedesc_s *file,
         {
           printf("ERROR: Partial read:\n");
           printf("  File name:    %s\n", file->name);
-          printf("  File size:    %d\n", file->len);
+          printf("  File size:    %zd\n", file->len);
           printf("  Read offset:  %ld\n", (long)offset);
           printf("  Read size:    %ld\n", (long)len);
           printf("  Bytes read:   %ld\n", (long)nbytesread);
@@ -615,17 +628,20 @@ static inline int fstest_rdfile(FAR struct fstest_filedesc_s *file)
         {
           printf("ERROR: Failed to open file for reading: %d\n", errno);
           printf("  File name: %s\n", file->name);
-          printf("  File size: %d\n", file->len);
+          printf("  File size: %zd\n", file->len);
         }
 
       return ERROR;
     }
 
-  /* Read all of the data info the file image buffer using random read sizes */
+  /* Read all of the data info the file image buffer using random read
+   * sizes.
+   */
 
   for (ntotalread = 0; ntotalread < file->len; )
     {
-      nbytesread = fstest_rdblock(fd, file, ntotalread, file->len - ntotalread);
+      nbytesread = fstest_rdblock(fd, file, ntotalread,
+                                  file->len - ntotalread);
       if (nbytesread < 0)
         {
           close(fd);
@@ -640,9 +656,9 @@ static inline int fstest_rdfile(FAR struct fstest_filedesc_s *file)
   crc = crc32(g_fileimage, file->len);
   if (crc != file->crc)
     {
-      printf("ERROR: Bad CRC: %d vs %d\n", crc, file->crc);
+      printf("ERROR: Bad CRC: %" PRId32 " vs %" PRId32 "\n", crc, file->crc);
       printf("  File name: %s\n", file->name);
-      printf("  File size: %d\n", file->len);
+      printf("  File size: %zd\n", file->len);
       close(fd);
       return ERROR;
     }
@@ -654,7 +670,7 @@ static inline int fstest_rdfile(FAR struct fstest_filedesc_s *file)
     {
       printf("ERROR: Read past the end of file\n");
       printf("  File name:  %s\n", file->name);
-      printf("  File size:  %d\n", file->len);
+      printf("  File size:  %zd\n", file->len);
       printf("  Bytes read: %ld\n", (long)nbytesread);
       close(fd);
       return ERROR;
@@ -743,7 +759,7 @@ static int fstest_verifyfs(void)
                 {
                   printf("ERROR: Failed to read a file: %d\n", i);
                   printf("  File name: %s\n", file->name);
-                  printf("  File size: %d\n", file->len);
+                  printf("  File size: %zd\n", file->len);
                   return ERROR;
                 }
             }
@@ -754,7 +770,7 @@ static int fstest_verifyfs(void)
 #if CONFIG_TESTING_FSTEST_VERBOSE != 0
                   printf("ERROR: Successfully read a deleted file\n");
                   printf("  File name: %s\n", file->name);
-                  printf("  File size: %d\n", file->len);
+                  printf("  File size: %zd\n", file->len);
 #endif
                   fstest_freefile(file);
                   g_ndeleted--;
@@ -825,9 +841,9 @@ static int fstest_delfiles(void)
               ret = unlink(file->name);
               if (ret < 0)
                 {
-                  printf("ERROR: Unlink %d failed: %d\n", i+1, errno);
+                  printf("ERROR: Unlink %d failed: %d\n", i + 1, errno);
                   printf("  File name:  %s\n", file->name);
-                  printf("  File size:  %d\n", file->len);
+                  printf("  File size:  %zd\n", file->len);
                   printf("  File index: %d\n", j);
 
                   /* If we don't do this we can get stuck in an infinite
@@ -877,9 +893,9 @@ static int fstest_delallfiles(void)
           ret = unlink(file->name);
           if (ret < 0)
             {
-               printf("ERROR: Unlink %d failed: %d\n", i+1, errno);
+               printf("ERROR: Unlink %d failed: %d\n", i + 1, errno);
                printf("  File name:  %s\n", file->name);
-               printf("  File size:  %d\n", file->len);
+               printf("  File size:  %zd\n", file->len);
                printf("  File index: %d\n", i);
             }
           else
@@ -963,13 +979,8 @@ int main(int argc, FAR char *argv[])
 
   /* Set up memory monitoring */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmbefore = mallinfo();
   g_mmprevious = g_mmbefore;
-#else
-  (void)mallinfo(&g_mmbefore);
-  memcpy(&g_mmprevious, &g_mmbefore, sizeof(struct mallinfo));
-#endif
 
   /* Loop a few times ... file the file system with some random, files,
    * delete some files randomly, fill the file system with more random file,
@@ -988,7 +999,7 @@ int main(int argc, FAR char *argv[])
        */
 
       printf("\n=== FILLING %u =============================\n", i);
-      (void)fstest_fillfs();
+      fstest_fillfs();
       printf("Filled file system\n");
       printf("  Number of files: %d\n", g_nfiles);
       printf("  Number deleted:  %d\n", g_ndeleted);
@@ -1084,7 +1095,8 @@ int main(int argc, FAR char *argv[])
 
       /* Perform garbage collection, integrity checks */
 
-      (void)fstest_gc(buf.f_bfree);
+      ret = fstest_gc(buf.f_bfree);
+      UNUSED(ret);
 
       /* Show memory usage */
 
@@ -1099,4 +1111,3 @@ int main(int argc, FAR char *argv[])
   fflush(stdout);
   return 0;
 }
-

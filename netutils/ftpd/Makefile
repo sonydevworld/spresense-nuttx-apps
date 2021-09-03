@@ -33,9 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-# Telnet daemon
+include $(APPDIR)/Make.defs
 
 ifeq ($(CONFIG_NET_TCP),y)
 CSRCS = ftpd.c

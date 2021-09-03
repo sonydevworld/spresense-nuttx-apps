@@ -46,6 +46,7 @@
 #include <sys/boardctl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
@@ -54,13 +55,10 @@
 #include <debug.h>
 
 #include <nuttx/module.h>
-#include <nuttx/binfmt/symtab.h>
+#include <nuttx/symtab.h>
 
 #if  defined(CONFIG_EXAMPLES_MODULE_ROMFS)
 #  include <nuttx/drivers/ramdisk.h>
-#  include "drivers/romfs.h"
-#elif defined(CONFIG_EXAMPLES_MODULE_CROMFS)
-#  include "drivers/cromfs.h"
 #endif
 
 /****************************************************************************
@@ -124,11 +122,16 @@
  * Private data
  ****************************************************************************/
 
-static const char g_write_string[] = "Hi there, installed driver\n";
+static const char g_write_string[] = "Hi there installed driver\n";
 
 /****************************************************************************
  * Symbols from Auto-Generated Code
  ****************************************************************************/
+
+#if defined(CONFIG_EXAMPLES_MODULE_ROMFS) || defined(CONFIG_EXAMPLES_MODULE_CROMFS)
+extern const unsigned char romfs_img[];
+extern const unsigned int romfs_img_len;
+#endif
 
 #ifdef CONFIG_BUILD_FLAT
 extern const struct symtab_s g_mod_exports[];
@@ -166,7 +169,8 @@ int main(int argc, FAR char *argv[])
   ret = boardctl(BOARDIOC_OS_SYMTAB, (uintptr_t)&symdesc);
   if (ret < 0)
     {
-      fprintf(stderr, "ERROR: boardctl(BOARDIOC_OS_SYMTAB) failed: %d\n", ret);
+      fprintf(stderr, "ERROR: boardctl(BOARDIOC_OS_SYMTAB) failed: %d\n",
+              ret);
       exit(EXIT_FAILURE);
     }
 #endif
@@ -187,11 +191,14 @@ int main(int argc, FAR char *argv[])
    * anyway).
    */
 
-  ret = romdisk_register(CONFIG_EXAMPLES_MODULE_DEVMINOR, (FAR uint8_t *)romfs_img,
+  ret = romdisk_register(CONFIG_EXAMPLES_MODULE_DEVMINOR,
+                         (FAR uint8_t *)romfs_img,
                          NSECTORS(romfs_img_len), SECTORSIZE);
   if (ret < 0)
     {
-      /* This will happen naturally if we registered the ROM disk previously. */
+      /* This will happen naturally if we registered the ROM disk
+       * previously.
+       */
 
       if (ret != -EEXIST)
         {
@@ -213,7 +220,7 @@ int main(int argc, FAR char *argv[])
   if (ret < 0)
     {
       fprintf(stderr, "ERROR: mount(%s,%s,romfs) failed: %s\n",
-              CONFIG_EXAMPLES_MODULE_DEVPATH, MOUNTPT, errno);
+              CONFIG_EXAMPLES_MODULE_DEVPATH, MOUNTPT, strerror(errno));
       exit(EXIT_FAILURE);
     }
 
@@ -229,7 +236,7 @@ int main(int argc, FAR char *argv[])
     }
 
 #endif /* CONFIG_EXAMPLES_MODULE_ROMFS */
-#else /*  CONFIG_EXAMPLES_MODULE_BUILTINFS */
+#else /* CONFIG_EXAMPLES_MODULE_BUILTINFS */
   /* An external file system is being used */
 
 #if defined(CONFIG_EXAMPLES_MODULE_FSMOUNT)
@@ -263,7 +270,7 @@ int main(int argc, FAR char *argv[])
         }
     }
   while (ret < 0);
-#endif  /* CONFIG_EXAMPLES_MODULE_FSREMOVEABLE */
+#endif /* CONFIG_EXAMPLES_MODULE_FSREMOVEABLE */
 
   /* Mount the external file system */
 
@@ -274,7 +281,7 @@ int main(int argc, FAR char *argv[])
               CONFIG_EXAMPLES_MODULE_FSTYPE, MS_RDONLY, NULL);
   if (ret < 0)
     {
-      printf("ERROR: mount(%s, %s, %s) failed: %d\n",\
+      printf("ERROR: mount(%s, %s, %s) failed: %d\n",
              CONFIG_EXAMPLES_MODULE_DEVPATH, CONFIG_EXAMPLES_MODULE_FSTYPE,
              MOUNTPT, errno);
     }
@@ -314,7 +321,7 @@ int main(int argc, FAR char *argv[])
       exit(EXIT_FAILURE);
     }
 
-  printf("main: Read %d bytes: %d\n", (int)nbytes);
+  printf("main: Read %d bytes\n", (int)nbytes);
   lib_dumpbuffer("main: Bytes read", (FAR const uint8_t *)buffer, nbytes);
 
   /* Write to the character driver */
@@ -328,8 +335,9 @@ int main(int argc, FAR char *argv[])
       exit(EXIT_FAILURE);
     }
 
-  printf("main: Wrote %d bytes: %d\n", (int)nbytes);
-  lib_dumpbuffer("main: Bytes written", (FAR const uint8_t *)g_write_string, nbytes);
+  printf("main: Wrote %d bytes\n", (int)nbytes);
+  lib_dumpbuffer("main: Bytes written", (FAR const uint8_t *)g_write_string,
+                 nbytes);
 
   close(fd);
   ret = rmmod(handle);

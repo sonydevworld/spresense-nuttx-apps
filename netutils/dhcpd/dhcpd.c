@@ -1,7 +1,8 @@
 /****************************************************************************
- * netutils/dhcpd/dhcpd.c
+ * apps/netutils/dhcpd/dhcpd.c
  *
- *   Copyright (C) 2007-2009, 2011-2014, 2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2014, 2017, 2020 Gregory Nutt. All rights
+ *     reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +62,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -81,9 +83,10 @@
 #define DHCP_SERVER_PORT         67
 #define DHCP_CLIENT_PORT         68
 
-/* Option codes understood in this file                                     */
-/*                              Code    Data   Description                  */
-/*                                      Length                              */
+/* Option codes understood in this file
+ *                              Code    Data   Description
+ *                                      Length
+ */
 #define DHCP_OPTION_PAD           0  /*  1     Pad                          */
 #define DHCP_OPTION_SUBNET_MASK   1  /*  1     Subnet Mask                  */
 #define DHCP_OPTION_ROUTER        3  /*  4     Router                       */
@@ -159,10 +162,6 @@
 #  define CONFIG_NETUTILS_DHCPD_MAXLEASETIME (60*60*24*30) /* 30 days */
 #endif
 
-#ifndef CONFIG_NETUTILS_DHCPD_INTERFACE
-#  define CONFIG_NETUTILS_DHCPD_INTERFACE "eth0"
-#endif
-
 #ifndef CONFIG_NETUTILS_DHCPD_MAXLEASES
 #  define CONFIG_NETUTILS_DHCPD_MAXLEASES 16
 #endif
@@ -207,9 +206,9 @@
  * Private Types
  ****************************************************************************/
 
-/* This structure describes one element in the lease table.  There is one slot
- * in the lease table for each assign-able IP address (hence, the IP address
- * itself does not have to be in the table.
+/* This structure describes one element in the lease table. There is one
+ * slot in the lease table for each assign-able IP address (hence, the IP
+ * address itself does not have to be in the table.
  */
 
 struct lease_s
@@ -242,6 +241,17 @@ struct dhcpmsg_s
   uint8_t  options[312];
 };
 
+/* This enumeration describes the state of the DHCPD daemon */
+
+enum dhcpd_daemon_e
+{
+  DHCPD_NOT_RUNNING = 0,
+  DHCPD_STARTED,
+  DHCPD_RUNNING,
+  DHCPD_STOP_REQUESTED,
+  DHCPD_STOPPED
+};
+
 struct dhcpd_state_s
 {
   /* Server configuration */
@@ -269,13 +279,41 @@ struct dhcpd_state_s
   struct lease_s   ds_leases[CONFIG_NETUTILS_DHCPD_MAXLEASES];
 };
 
+/* This type describes the state of the DHCPD client daemon.  Only one
+ * instance of the DHCPD daemon is permitted in this implementation.
+ */
+
+struct dhcpd_daemon_s
+{
+  uint8_t          ds_state;        /* See enum dhcpd_daemon_e */
+  sem_t            ds_lock;         /* Used to protect the whole structure */
+  sem_t            ds_sync;         /* Used to synchronize start and stop events */
+  pid_t            ds_pid;          /* Task ID of the DHCPD daemon */
+};
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static const uint8_t        g_magiccookie[4] = {99, 130, 83, 99};
-static const uint8_t        g_anyipaddr[4] = {0, 0, 0, 0};
+static const uint8_t        g_magiccookie[4] =
+{
+  99, 130, 83, 99
+};
+
 static struct dhcpd_state_s g_state;
+
+/* This type describes the state of the DHCPD client daemon.  Only one
+ * instance of the DHCPD daemon is permitted in this implementation.  This
+ * limitation is due only to this global data structure.
+ */
+
+static struct dhcpd_daemon_s g_dhcpd_daemon =
+{
+  DHCPD_NOT_RUNNING,
+  SEM_INITIALIZER(1),
+  SEM_INITIALIZER(0),
+  -1
+};
 
 /****************************************************************************
  * Private Functions
@@ -300,7 +338,7 @@ static inline void dhcpd_arpupdate(FAR uint8_t *ipaddr, FAR uint8_t *hwaddr)
 
   /* Update the ARP table */
 
-  (void)netlib_set_arpmapping(&inaddr, hwaddr);
+  netlib_set_arpmapping(&inaddr, hwaddr);
 }
 #else
 #  define dhcpd_arpupdate(ipaddr,hwaddr)
@@ -336,7 +374,7 @@ static time_t dhcpd_time(void)
 #ifdef HAVE_LEASE_TIME
 static inline bool dhcpd_leaseexpired(struct lease_s *lease)
 {
-  if (lease->expiry < dhcpd_time())
+  if (lease->expiry > dhcpd_time())
     {
       return false;
     }
@@ -354,7 +392,8 @@ static inline bool dhcpd_leaseexpired(struct lease_s *lease)
  * Name: dhcpd_setlease
  ****************************************************************************/
 
-struct lease_s *dhcpd_setlease(const uint8_t *mac, in_addr_t ipaddr, time_t expiry)
+struct lease_s *dhcpd_setlease(const uint8_t *mac,
+                               in_addr_t ipaddr, time_t expiry)
 {
   /* Calculate the offset from the first IP address managed by DHCPD.
    * ipaddr must be in host order!
@@ -363,8 +402,8 @@ struct lease_s *dhcpd_setlease(const uint8_t *mac, in_addr_t ipaddr, time_t expi
   int ndx = ipaddr - CONFIG_NETUTILS_DHCPD_STARTIP;
   struct lease_s *ret = NULL;
 
-  ninfo("ipaddr: %08x ipaddr: %08x ndx: %d MAX: %d\n",
-        ipaddr, CONFIG_NETUTILS_DHCPD_STARTIP, ndx,
+  ninfo("ipaddr: %08" PRIx32 " ipaddr: %08" PRIx32 " ndx: %d MAX: %d\n",
+        (uint32_t)ipaddr, (uint32_t)CONFIG_NETUTILS_DHCPD_STARTIP, ndx,
         CONFIG_NETUTILS_DHCPD_MAXLEASES);
 
   /* Verify that the address offset is within the supported range */
@@ -386,18 +425,19 @@ struct lease_s *dhcpd_setlease(const uint8_t *mac, in_addr_t ipaddr, time_t expi
  * Name: dhcp_leaseipaddr
  ****************************************************************************/
 
-static inline in_addr_t dhcp_leaseipaddr(struct lease_s *lease)
+static inline in_addr_t dhcp_leaseipaddr(FAR struct lease_s *lease)
 {
   /* Return IP address in host order */
 
-  return (in_addr_t)(lease - g_state.ds_leases) + CONFIG_NETUTILS_DHCPD_STARTIP;
+  return (in_addr_t)(lease - g_state.ds_leases) +
+         CONFIG_NETUTILS_DHCPD_STARTIP;
 }
 
 /****************************************************************************
  * Name: dhcpd_findbymac
  ****************************************************************************/
 
-static struct lease_s *dhcpd_findbymac(const uint8_t *mac)
+static FAR struct lease_s *dhcpd_findbymac(FAR const uint8_t *mac)
 {
   int i;
 
@@ -416,12 +456,13 @@ static struct lease_s *dhcpd_findbymac(const uint8_t *mac)
  * Name: dhcpd_findbyipaddr
  ****************************************************************************/
 
-static struct lease_s *dhcpd_findbyipaddr(in_addr_t ipaddr)
+static FAR struct lease_s *dhcpd_findbyipaddr(in_addr_t ipaddr)
 {
   if (ipaddr >= CONFIG_NETUTILS_DHCPD_STARTIP &&
       ipaddr <= CONFIG_NETUTILS_DHCP_OPTION_ENDIP)
     {
-      struct lease_s *lease = &g_state.ds_leases[ipaddr - CONFIG_NETUTILS_DHCPD_STARTIP];
+      FAR struct lease_s *lease =
+        &g_state.ds_leases[ipaddr - CONFIG_NETUTILS_DHCPD_STARTIP];
       if (lease->allocated > 0)
         {
           return lease;
@@ -438,9 +479,9 @@ static struct lease_s *dhcpd_findbyipaddr(in_addr_t ipaddr)
 static in_addr_t dhcpd_allocipaddr(void)
 {
   struct lease_s *lease = NULL;
-  in_addr_t ipaddr;
+  in_addr_t ipaddr, startaddr;
 
-  ipaddr = CONFIG_NETUTILS_DHCPD_STARTIP;
+  ipaddr = startaddr = CONFIG_NETUTILS_DHCPD_STARTIP;
   for (; ipaddr <= CONFIG_NETUTILS_DHCP_OPTION_ENDIP; ipaddr++)
     {
       /* Skip over address ending in 0 or 255 */
@@ -459,10 +500,12 @@ static in_addr_t dhcpd_allocipaddr(void)
 #  warning "FIXME: Should check if anything responds to an ARP request or ping"
 #  warning "       to verify that there is no other user of this IP address"
 #endif
-          memset(g_state.ds_leases[ipaddr - CONFIG_NETUTILS_DHCPD_STARTIP].mac, 0, DHCP_HLEN_ETHERNET);
-          g_state.ds_leases[ipaddr - CONFIG_NETUTILS_DHCPD_STARTIP].allocated = true;
+          memset(g_state.ds_leases[ipaddr - startaddr].mac,
+          0, DHCP_HLEN_ETHERNET);
+          g_state.ds_leases[ipaddr - startaddr].allocated = true;
 #ifdef HAVE_LEASE_TIME
-          g_state.ds_leases[ipaddr - CONFIG_NETUTILS_DHCPD_STARTIP].expiry = dhcpd_time() + CONFIG_NETUTILS_DHCPD_OFFERTIME;
+          g_state.ds_leases[ipaddr - startaddr].expiry =
+            dhcpd_time() + CONFIG_NETUTILS_DHCPD_OFFERTIME;
 #endif
           /* Return the address in host order */
 
@@ -533,13 +576,15 @@ static inline bool dhcpd_parseoptions(void)
             optlen = 1;
             break;
 
-          /* the Overload option is used to indicate that the DHCP 'sname' or 'file'
-           * fields are being overloaded by using them to carry DHCP options. A DHCP
-           * server inserts this option if the returned parameters will exceed the
-           * usual space allotted for options.
+          /* the Overload option is used to indicate that the DHCP 'sname'
+           * or 'file' fields are being overloaded by using them to carry
+           * DHCP options. A DHCP server inserts this option if the
+           * returned parameters will exceed the usual space allotted for
+           * options.
            *
-           * If this option is present, the client interprets the specified additional
-           * fields after it concludes interpretation of the standard option fields.
+           * If this option is present, the client interprets the specified
+           * additional fields after it concludes interpretation of the
+           * standard option fields.
            *
            * Legal values for this option are:
            *
@@ -551,7 +596,7 @@ static inline bool dhcpd_parseoptions(void)
 #ifndef CONFIG_NET_DHCP_LIGHT
           case DHCP_OPTION_OVERLOAD:
             optlen = ptr[DHCPD_OPTION_LENGTH] + 2;
-            if (optlen >= 1 && optlen < remaining)
+            if (optlen >= 3 && optlen < remaining)
               {
                 overloaded = ptr[DHCPD_OPTION_DATA];
               }
@@ -585,7 +630,7 @@ static inline bool dhcpd_parseoptions(void)
 
           case DHCP_OPTION_REQ_IPADDR: /* Requested IP Address */
             optlen = ptr[DHCPD_OPTION_LENGTH] + 2;
-            if (optlen >= 4 && optlen < remaining)
+            if (optlen >= 6 && optlen < remaining)
               {
                 memcpy(&tmp, &ptr[DHCPD_OPTION_DATA], 4);
                 g_state.ds_optreqip = (in_addr_t)ntohl(tmp);
@@ -594,7 +639,7 @@ static inline bool dhcpd_parseoptions(void)
 
           case DHCP_OPTION_LEASE_TIME: /* IP address lease time */
              optlen = ptr[DHCPD_OPTION_LENGTH] + 2;
-            if (optlen >= 4 && optlen < remaining)
+            if (optlen >= 6 && optlen < remaining)
               {
                 memcpy(&tmp, &ptr[DHCPD_OPTION_DATA], 4);
                 g_state.ds_optleasetime = (time_t)ntohl(tmp);
@@ -603,7 +648,7 @@ static inline bool dhcpd_parseoptions(void)
 
          case DHCP_OPTION_MSG_TYPE: /* DHCP message type */
             optlen = ptr[DHCPD_OPTION_LENGTH] + 2;
-            if (optlen >= 1 && optlen < remaining)
+            if (optlen >= 3 && optlen < remaining)
               {
                 g_state.ds_optmsgtype = ptr[DHCPD_OPTION_DATA];
               }
@@ -611,7 +656,7 @@ static inline bool dhcpd_parseoptions(void)
 
           case DHCP_OPTION_SERVER_ID: /* Server identifier */
             optlen = ptr[DHCPD_OPTION_LENGTH] + 2;
-            if (optlen >= 4 && optlen < remaining)
+            if (optlen >= 6 && optlen < remaining)
               {
                 memcpy(&tmp, &ptr[DHCPD_OPTION_DATA], 4);
                 g_state.ds_optserverip = (in_addr_t)ntohl(tmp);
@@ -619,6 +664,7 @@ static inline bool dhcpd_parseoptions(void)
             break;
 
           default:
+
             /* Skip over unsupported options */
 
             optlen = ptr[DHCPD_OPTION_LENGTH] + 2;
@@ -643,7 +689,9 @@ static inline bool dhcpd_verifyreqip(void)
 {
   struct lease_s *lease;
 
-  /* Verify that the requested IP address is within the supported lease range */
+  /* Verify that the requested IP address is within the supported lease
+   * range
+   */
 
   if (g_state.ds_optreqip >= CONFIG_NETUTILS_DHCPD_STARTIP &&
       g_state.ds_optreqip <= CONFIG_NETUTILS_DHCP_OPTION_ENDIP)
@@ -674,7 +722,9 @@ static inline bool dhcpd_verifyreqleasetime(uint32_t *leasetime)
 
   if (tmp != 0)
     {
-      /* Yes..  Verify that the requested lease time is within a valid range */
+      /* Yes..  Verify that the requested lease time is within a
+       * valid range
+       */
 
       if (tmp > CONFIG_NETUTILS_DHCPD_MAXLEASETIME)
         {
@@ -765,7 +815,7 @@ static int dhcpd_addoption32(uint8_t code, uint32_t value)
  * Name: dhcp_addoption32p
  ****************************************************************************/
 
-#ifdef HAVE_DSNIP
+#ifdef HAVE_DNSIP
 static int dhcp_addoption32p(uint8_t code, FAR uint8_t *value)
 {
   uint8_t option[6];
@@ -783,7 +833,7 @@ static int dhcp_addoption32p(uint8_t code, FAR uint8_t *value)
 #endif
 
 /****************************************************************************
- * Name: dhcpd_soclet
+ * Name: dhcpd_socket
  ****************************************************************************/
 
 static inline int dhcpd_socket(void)
@@ -796,7 +846,7 @@ static inline int dhcpd_socket(void)
 
   /* Create a socket to listen for requests from DHCP clients */
 
-  sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+  sockfd = socket(PF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
   if (sockfd < 0)
     {
       nerr("ERROR: socket failed: %d\n", errno);
@@ -807,7 +857,8 @@ static inline int dhcpd_socket(void)
 
 #ifdef HAVE_SO_REUSEADDR
   optval = 1;
-  ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void*)&optval, sizeof(int));
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (FAR void *)&optval,
+                   sizeof(int));
   if (ret < 0)
     {
       nerr("ERROR: setsockopt SO_REUSEADDR failed: %d\n", errno);
@@ -818,7 +869,8 @@ static inline int dhcpd_socket(void)
 
 #ifdef HAVE_SO_BROADCAST
   optval = 1;
-  ret = setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, (void*)&optval, sizeof(int));
+  ret = setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, (FAR void *)&optval,
+                   sizeof(int));
   if (ret < 0)
     {
       nerr("ERROR: setsockopt SO_BROADCAST failed: %d\n", errno);
@@ -826,46 +878,6 @@ static inline int dhcpd_socket(void)
       return ERROR;
     }
 #endif
-
-  return sockfd;
-
-}
-
-/****************************************************************************
- * Name: dhcpd_openresponder
- ****************************************************************************/
-
-static inline int dhcpd_openresponder(void)
-{
-  struct sockaddr_in addr;
-  int sockfd;
-  int ret;
-
-  ninfo("Responder: %08lx\n", ntohl(g_state.ds_serverip));
-
-  /* Create a socket to listen for requests from DHCP clients */
-
-  sockfd = dhcpd_socket();
-  if (sockfd < 0)
-    {
-      nerr("ERROR: socket failed: %d\n", errno);
-      return ERROR;
-    }
-
-  /* Bind the socket to a local port.*/
-
-  addr.sin_family      = AF_INET;
-  addr.sin_port        = 0;
-  addr.sin_addr.s_addr = g_state.ds_serverip;
-
-  ret = bind(sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-  if (ret < 0)
-   {
-     nerr("ERROR: bind failed, port=%d addr=%08lx: %d\n",
-          addr.sin_port, (long)addr.sin_addr.s_addr, errno);
-     close(sockfd);
-     return ERROR;
-   }
 
   return sockfd;
 }
@@ -893,11 +905,6 @@ static void dhcpd_initpacket(uint8_t mtype)
     {
       g_state.ds_outpacket.flags  = g_state.ds_inpacket.flags;
     }
-  else
-    {
-      g_state.ds_outpacket.flags  = 0;
-    }
-  memset(g_state.ds_outpacket.giaddr, 0, 4);
 
   /* Add the generic options */
 
@@ -912,45 +919,53 @@ static void dhcpd_initpacket(uint8_t mtype)
  * Name: dhcpd_sendpacket
  ****************************************************************************/
 
-static int dhcpd_sendpacket(int bbroadcast)
+static int dhcpd_sendpacket(int sockfd, int bbroadcast)
 {
   struct sockaddr_in addr;
   in_addr_t ipaddr;
-  int sockfd;
   int len;
-  int ret = ERROR;
 
 #ifdef CONFIG_NETUTILS_DHCPD_IGNOREBROADCAST
   /* This is a hack.  I've had problems with Windows machines responding
    * to unicast.  I think this is associated with a Windows registry key in
-   * HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\DHCPServer\Parameters:
+   * HKEY_LOCAL_MACHINE\
+   * SYSTEM\CurrentControlSet\Services\DHCPServer\Parameters:
    * The IgnoreBroadcastFlag value controls this behavior:  A value of 1 will
    * cause the server to ignore the client broadcast flag and always respond
    * with multicast; the value 0 to allows clients to request unicast.
    */
 
-   ipaddr = INADDR_BROADCAST;
+  ipaddr = INADDR_BROADCAST;
 #else
-  /* Determine which address to respond to (or if we need to broadcast the response)
+  const uint8_t anyipaddr[4] =
+  {
+  };
+
+  /* Determine which address to respond to (or if we need to broadcast the
+   * response)
    *
-   * (1) If he caller know that it needs to multicast the response, it will set bbroadcast.
-   * (2) Otherwise, if the client already has and address (ciaddr), then use that for uni-cast
-   * (3) Broadcast if the client says it can't handle uni-cast (BOOTP_BROADCAST set)
-   * (4) Otherwise, the client claims it can handle the uni-casst response and we
-   *     will uni-cast to the offered address (yiaddr).
+   * (1) If he caller know that it needs to multicast the response, it will
+   *     set broadcast.
+   * (2) Otherwise, if the client already has and address (ciaddr), then use
+   *     that for unicast
+   * (3) Broadcast if the client says it can't handle uni-cast
+   *     (BOOTP_BROADCAST set)
+   * (4) Otherwise, the client claims it can handle the uni-casst response
+   *     and we will uni-cast to the offered address (yiaddr).
    *
-   * NOTE: We really should also check the giaddr field.  If no zero, the server should
-   * send any return messages to the 'DHCP server' port on the BOOTP relay agent whose
-   * address appears in 'giaddr'.
+   * NOTE: We really should also check the giaddr field.  If no zero, the
+   * server should send any return messages to the 'DHCP server' port on the
+   *  BOOTP relay agent whose address appears in 'giaddr'.
    */
 
   if (bbroadcast)
     {
       ipaddr = INADDR_BROADCAST;
     }
-  else if (memcmp(g_state.ds_outpacket.ciaddr, g_anyipaddr, 4) != 0)
+  else if (memcmp(g_state.ds_outpacket.ciaddr, anyipaddr, 4) != 0)
     {
-      dhcpd_arpupdate(g_state.ds_outpacket.ciaddr, g_state.ds_outpacket.chaddr);
+      dhcpd_arpupdate(g_state.ds_outpacket.ciaddr,
+                      g_state.ds_outpacket.chaddr);
       memcpy(&ipaddr, g_state.ds_outpacket.ciaddr, 4);
     }
   else if (g_state.ds_outpacket.flags & HTONS(BOOTP_BROADCAST))
@@ -959,7 +974,8 @@ static int dhcpd_sendpacket(int bbroadcast)
     }
   else
     {
-      dhcpd_arpupdate(g_state.ds_outpacket.yiaddr, g_state.ds_outpacket.chaddr);
+      dhcpd_arpupdate(g_state.ds_outpacket.yiaddr,
+                      g_state.ds_outpacket.chaddr);
       memcpy(&ipaddr, g_state.ds_outpacket.yiaddr, 4);
     }
 #endif
@@ -968,38 +984,32 @@ static int dhcpd_sendpacket(int bbroadcast)
    * cannot re-use the listener socket because it is not bound correctly
    */
 
-  sockfd = dhcpd_openresponder();
-  if (sockfd >= 0)
-    {
-      /* Then send the reponse to the DHCP client port at that address */
+  /* Then send the response to the DHCP client port at that address */
 
-      memset(&addr, 0, sizeof(struct sockaddr_in));
-      addr.sin_family      = AF_INET;
-      addr.sin_port        = HTONS(DHCP_CLIENT_PORT);
-      addr.sin_addr.s_addr = ipaddr;
+  memset(&addr, 0, sizeof(struct sockaddr_in));
+  addr.sin_family      = AF_INET;
+  addr.sin_port        = HTONS(DHCP_CLIENT_PORT);
+  addr.sin_addr.s_addr = ipaddr;
 
-      /* Send the minimum sized packet that includes the END option */
+  /* Send the minimum sized packet that includes the END option */
 
-      len = (g_state.ds_optend - (uint8_t*)&g_state.ds_outpacket) + 1;
-      ninfo("sendto %08lx:%04x len=%d\n",
-            (long)ntohl(addr.sin_addr.s_addr), ntohs(addr.sin_port), len);
+  len = (g_state.ds_optend - (FAR uint8_t *)&g_state.ds_outpacket) + 1;
+  ninfo("sendto %08lx:%04x len=%d\n",
+        (long)ntohl(addr.sin_addr.s_addr), ntohs(addr.sin_port), len);
 
-      ret = sendto(sockfd, &g_state.ds_outpacket, len, 0,
-                   (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-      close(sockfd);
-    }
-
-  return ret;
+  return sendto(sockfd, &g_state.ds_outpacket, len, 0,
+                (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
 }
 
 /****************************************************************************
  * Name: dhcpd_sendoffer
  ****************************************************************************/
 
-static inline int dhcpd_sendoffer(in_addr_t ipaddr, uint32_t leasetime)
+static inline int dhcpd_sendoffer(int sockfd, in_addr_t ipaddr,
+                                  uint32_t leasetime)
 {
   in_addr_t netaddr;
-#ifdef HAVE_DSNIP
+#ifdef HAVE_DNSIP
   uint32_t dnsaddr;
   dnsaddr = htonl(CONFIG_NETUTILS_DHCPD_DNSIP);
 #endif
@@ -1020,21 +1030,23 @@ static inline int dhcpd_sendoffer(in_addr_t ipaddr, uint32_t leasetime)
 
   dhcpd_addoption32(DHCP_OPTION_LEASE_TIME, htonl(leasetime));
 #ifdef HAVE_NETMASK
-  dhcpd_addoption32(DHCP_OPTION_SUBNET_MASK, htonl(CONFIG_NETUTILS_DHCPD_NETMASK));
+  dhcpd_addoption32(DHCP_OPTION_SUBNET_MASK,
+                    htonl(CONFIG_NETUTILS_DHCPD_NETMASK));
 #endif
 #ifdef HAVE_ROUTERIP
-  dhcpd_addoption32(DHCP_OPTION_ROUTER, htonl(CONFIG_NETUTILS_DHCPD_ROUTERIP));
+  dhcpd_addoption32(DHCP_OPTION_ROUTER,
+                    htonl(CONFIG_NETUTILS_DHCPD_ROUTERIP));
 #endif
-#ifdef HAVE_DSNIP
-  dhcp_addoption32p(DHCP_OPTION_DNS_SERVER, (FAR uint8_t*)&dnsaddr);
+#ifdef HAVE_DNSIP
+  dhcp_addoption32p(DHCP_OPTION_DNS_SERVER, (FAR uint8_t *)&dnsaddr);
 #endif
 
   /* Send the offer response */
 
 #ifdef CONFIG_NETUTILS_DHCPD_IGNOREBROADCAST
-  return dhcpd_sendpacket(true);
+  return dhcpd_sendpacket(sockfd, true);
 #else
-  return dhcpd_sendpacket(false);
+  return dhcpd_sendpacket(sockfd, false);
 #endif
 }
 
@@ -1042,24 +1054,24 @@ static inline int dhcpd_sendoffer(in_addr_t ipaddr, uint32_t leasetime)
  * Name: dhcpd_sendnak
  ****************************************************************************/
 
-static int dhcpd_sendnak(void)
+static int dhcpd_sendnak(int sockfd)
 {
   /* Initialize and send the NAK response */
 
   dhcpd_initpacket(DHCPNAK);
   memcpy(g_state.ds_outpacket.ciaddr, g_state.ds_inpacket.ciaddr, 4);
-  return dhcpd_sendpacket(true);
+  return dhcpd_sendpacket(sockfd, true);
 }
 
 /****************************************************************************
  * Name: dhcpd_sendack
  ****************************************************************************/
 
-int dhcpd_sendack(in_addr_t ipaddr)
+int dhcpd_sendack(int sockfd, in_addr_t ipaddr)
 {
   uint32_t leasetime = CONFIG_NETUTILS_DHCPD_LEASETIME;
   in_addr_t netaddr;
-#ifdef HAVE_DSNIP
+#ifdef HAVE_DNSIP
   uint32_t dnsaddr;
   dnsaddr = htonl(CONFIG_NETUTILS_DHCPD_DNSIP);
 #endif
@@ -1076,25 +1088,27 @@ int dhcpd_sendack(in_addr_t ipaddr)
 
   /* Did the client request a specific lease time? */
 
-  (void)dhcpd_verifyreqleasetime(&leasetime);
+  dhcpd_verifyreqleasetime(&leasetime);
 
   /* Add the lease time to the response */
 
   dhcpd_addoption32(DHCP_OPTION_LEASE_TIME, htonl(leasetime));
 #ifdef HAVE_NETMASK
-  dhcpd_addoption32(DHCP_OPTION_SUBNET_MASK, htonl(CONFIG_NETUTILS_DHCPD_NETMASK));
+  dhcpd_addoption32(DHCP_OPTION_SUBNET_MASK,
+                    htonl(CONFIG_NETUTILS_DHCPD_NETMASK));
 #endif
 #ifdef HAVE_ROUTERIP
-  dhcpd_addoption32(DHCP_OPTION_ROUTER, htonl(CONFIG_NETUTILS_DHCPD_ROUTERIP));
+  dhcpd_addoption32(DHCP_OPTION_ROUTER,
+                    htonl(CONFIG_NETUTILS_DHCPD_ROUTERIP));
 #endif
-#ifdef HAVE_DSNIP
-  dhcp_addoption32p(DHCP_OPTION_DNS_SERVER, (FAR uint8_t*)&dnsaddr);
+#ifdef HAVE_DNSIP
+  dhcp_addoption32p(DHCP_OPTION_DNS_SERVER, (FAR uint8_t *)&dnsaddr);
 #endif
 
 #ifdef CONFIG_NETUTILS_DHCPD_IGNOREBROADCAST
-  if (dhcpd_sendpacket(true) < 0)
+  if (dhcpd_sendpacket(sockfd, true) < 0)
 #else
-  if (dhcpd_sendpacket(false) < 0)
+  if (dhcpd_sendpacket(sockfd, false) < 0)
 #endif
     {
       return ERROR;
@@ -1108,13 +1122,13 @@ int dhcpd_sendack(in_addr_t ipaddr)
  * Name: dhcpd_discover
  ****************************************************************************/
 
-static inline int dhcpd_discover(void)
+static inline int dhcpd_discover(int sockfd)
 {
   struct lease_s *lease;
   in_addr_t ipaddr;
   uint32_t leasetime = CONFIG_NETUTILS_DHCPD_LEASETIME;
 
-  /* Check if the client is aleady in the lease table */
+  /* Check if the client is already in the lease table */
 
   lease = dhcpd_findbymac(g_state.ds_inpacket.chaddr);
   if (lease)
@@ -1131,6 +1145,7 @@ static inline int dhcpd_discover(void)
             }
         }
 #endif
+
       /* Get the IP address associated with the lease (host order) */
 
       ipaddr = dhcp_leaseipaddr(lease);
@@ -1148,7 +1163,7 @@ static inline int dhcpd_discover(void)
     }
   else
     {
-      /* No... allocate a new IP address (host order)*/
+      /* No... allocate a new IP address (host order) */
 
       ipaddr = dhcpd_allocipaddr();
       ninfo("Allocated IP %08lx\n", (long)ipaddr);
@@ -1166,7 +1181,8 @@ static inline int dhcpd_discover(void)
 
   /* Reserve the leased IP for a shorter time for the offer */
 
-  if (!dhcpd_setlease(g_state.ds_inpacket.chaddr, ipaddr, CONFIG_NETUTILS_DHCPD_OFFERTIME))
+  if (!dhcpd_setlease(g_state.ds_inpacket.chaddr, ipaddr,
+                      CONFIG_NETUTILS_DHCPD_OFFERTIME))
     {
       nerr("ERROR: Failed to set lease\n");
       return ERROR;
@@ -1174,43 +1190,47 @@ static inline int dhcpd_discover(void)
 
   /* Check if the client has requested a specific lease time */
 
-  (void)dhcpd_verifyreqleasetime(&leasetime);
+  dhcpd_verifyreqleasetime(&leasetime);
 
   /* Send the offer response */
 
-  return dhcpd_sendoffer(ipaddr, leasetime);
+  return dhcpd_sendoffer(sockfd, ipaddr, leasetime);
 }
 
 /****************************************************************************
  * Name: dhcpd_request
  ****************************************************************************/
 
-static inline int dhcpd_request(void)
+static inline int dhcpd_request(int sockfd)
 {
   struct lease_s *lease;
   in_addr_t ipaddr = 0;
   uint8_t response = 0;
 
-  /* Check if this client already holds a lease.  This can happen when the client (1)
-   * the IP is reserved for the client from a previous offer, or (2) the client is
-   * re-initializing or rebooting while the lease is still valid.
+  /* Check if this client already holds a lease. This can happen when the
+   * client (1) the IP is reserved for the client from a previous offer,
+   * or (2) the client is re-initializing or rebooting while the lease is
+   * still valid.
    */
 
   lease = dhcpd_findbymac(g_state.ds_inpacket.chaddr);
   if (lease)
     {
-      /* Yes.. the client already holds a lease.  Verify that the request is consistent
-       * with the existing lease (host order).
+      /* Yes.. the client already holds a lease.  Verify that the request is
+       * consistent* with the existing lease (host order).
        */
 
       ipaddr = dhcp_leaseipaddr(lease);
-      ninfo("Lease ipaddr: %08x Server IP: %08x Requested IP: %08x\n",
-            ipaddr, g_state.ds_optserverip, g_state.ds_optreqip);
+      ninfo("Lease ipaddr: %08" PRIx32 " Server IP: %08" PRIx32
+            " Requested IP: %08" PRIx32 "\n",
+            (uint32_t)ipaddr,
+            (uint32_t)g_state.ds_optserverip,
+            (uint32_t)g_state.ds_optreqip);
 
       if (g_state.ds_optserverip)
         {
-          /* ACK if the serverip is correct and the requested IP address is the one
-           * already offered to the client.
+          /* ACK if the serverip is correct and the requested IP address is
+           * the one already offered to the client.
            */
 
           if (g_state.ds_optserverip == ntohl(g_state.ds_serverip) &&
@@ -1224,8 +1244,8 @@ static inline int dhcpd_request(void)
             }
         }
 
-      /* We have the lease and no server IP was requested. Was a specific IP address
-       * requested? (host order)
+      /* We have the lease and no server IP was requested. Was a specific IP
+       * address requested? (host order)
        */
 
       else if (g_state.ds_optreqip)
@@ -1244,12 +1264,14 @@ static inline int dhcpd_request(void)
             }
         }
 
-      /* The client has specified neither a server IP nor requested IP address */
+      /* The client has specified neither a server IP nor requested
+       * IP address
+       */
 
       else
         {
-          /* ACK if the IP used by the client is the one already assigned to it.
-           * NOTE ipaddr is in host order; ciaddr is network order!
+          /* ACK if the IP used by the client is the one already assigned
+           * to it. NOTE ipaddr is in host order; ciaddr is network order!
            */
 
           uint32_t tmp = htonl(ipaddr);
@@ -1271,8 +1293,9 @@ static inline int dhcpd_request(void)
 
   else if (g_state.ds_optreqip && !g_state.ds_optserverip)
     {
-      ninfo("Server IP: %08x Requested IP: %08x\n",
-            g_state.ds_optserverip, g_state.ds_optreqip);
+      ninfo("Server IP: %08" PRIx32 " Requested IP: %08" PRIx32 "\n",
+            (uint32_t)g_state.ds_optserverip,
+            (uint32_t)g_state.ds_optreqip);
 
       /* Is this IP address already assigned? */
 
@@ -1287,10 +1310,21 @@ static inline int dhcpd_request(void)
             }
         }
 
-      /* No.. is the requested IP address in range? NAK if not */
+      /* DHCPREQUEST without DHCPDISCOVER:
+       * The request IP address is in the range but has not been leased,
+       * maybe requested before the last shutdown, lease again.
+       */
 
-      else if (g_state.ds_optreqip < CONFIG_NETUTILS_DHCPD_STARTIP ||
-               g_state.ds_optreqip > CONFIG_NETUTILS_DHCP_OPTION_ENDIP)
+      else if (g_state.ds_optreqip >= CONFIG_NETUTILS_DHCPD_STARTIP &&
+               g_state.ds_optreqip <= CONFIG_NETUTILS_DHCP_OPTION_ENDIP)
+        {
+          ipaddr = g_state.ds_optreqip;
+          response = DHCPACK;
+        }
+
+      /* The requested IP address out of range, negative */
+
+      else
         {
           response = DHCPNAK;
         }
@@ -1307,12 +1341,12 @@ static inline int dhcpd_request(void)
   if (response == DHCPACK)
     {
       ninfo("ACK IP %08lx\n", (long)ipaddr);
-      dhcpd_sendack(ipaddr);
+      dhcpd_sendack(sockfd, ipaddr);
     }
   else if (response == DHCPNAK)
     {
       ninfo("NAK IP %08lx\n", (long)ipaddr);
-      dhcpd_sendnak();
+      dhcpd_sendnak(sockfd);
     }
   else
     {
@@ -1335,15 +1369,15 @@ static inline int dhcpd_decline(void)
   lease = dhcpd_findbymac(g_state.ds_inpacket.chaddr);
   if (lease)
     {
-       /* Disassociate the IP from the MAC, but prevent re-used of this
-        * address for a period of time.
-        */
+      /* Disassociate the IP from the MAC, but prevent re-used of this
+       * address for a period of time.
+       */
 
-       memset(lease->mac, 0, DHCP_HLEN_ETHERNET);
+      memset(lease->mac, 0, DHCP_HLEN_ETHERNET);
 #ifdef HAVE_LEASE_TIME
-       lease->expiry = dhcpd_time() + CONFIG_NETUTILS_DHCPD_DECLINETIME;
+      lease->expiry = dhcpd_time() + CONFIG_NETUTILS_DHCPD_DECLINETIME;
 #endif
-     }
+    }
 
   return OK;
 }
@@ -1369,7 +1403,7 @@ static inline int dhcpd_release(void)
  * Name: dhcpd_openlistener
  ****************************************************************************/
 
-static inline int dhcpd_openlistener(void)
+static inline int dhcpd_openlistener(FAR const char *interface)
 {
   struct sockaddr_in addr;
   struct ifreq req;
@@ -1387,7 +1421,7 @@ static inline int dhcpd_openlistener(void)
 
   /* Get the IP address of the selected device */
 
-  strncpy(req.ifr_name, CONFIG_NETUTILS_DHCPD_INTERFACE, IFNAMSIZ);
+  strncpy(req.ifr_name, interface, IFNAMSIZ);
   ret = ioctl(sockfd, SIOCGIFADDR, (unsigned long)&req);
   if (ret < 0)
     {
@@ -1396,8 +1430,10 @@ static inline int dhcpd_openlistener(void)
       return ERROR;
     }
 
-  g_state.ds_serverip = ((struct sockaddr_in*)&req.ifr_addr)->sin_addr.s_addr;
-  ninfo("serverip: %08lx\n", ntohl(g_state.ds_serverip));
+  g_state.ds_serverip = ((FAR struct sockaddr_in *)
+    &req.ifr_addr)->sin_addr.s_addr;
+
+  ninfo("serverip: %08" PRIx32 "\n", ntohl(g_state.ds_serverip));
 
   /* Bind the socket to a local port. We have to bind to INADDRY_ANY to
    * receive broadcast messages.
@@ -1420,6 +1456,15 @@ static inline int dhcpd_openlistener(void)
 }
 
 /****************************************************************************
+ * Name: dhcpd_task_run
+ ****************************************************************************/
+
+static int dhcpd_task_run(int argc, char **argv)
+{
+  return dhcpd_run(argv[1]);
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -1427,12 +1472,29 @@ static inline int dhcpd_openlistener(void)
  * Name: dhcpd_run
  ****************************************************************************/
 
-int dhcpd_run(void)
+int dhcpd_run(FAR const char *interface)
 {
   int sockfd;
   int nbytes;
 
   ninfo("Started\n");
+
+  /* Exit if the dhcpd is already executed */
+
+  if (g_dhcpd_daemon.ds_state == DHCPD_RUNNING)
+    {
+      return OK;
+    }
+
+  /* Update the pid if running in daemon mode */
+
+  g_dhcpd_daemon.ds_pid = getpid();
+
+  /* Indicate that we have started */
+
+  g_dhcpd_daemon.ds_state = DHCPD_RUNNING;
+
+  sem_post(&g_dhcpd_daemon.ds_sync);
 
   /* Initialize everything to zero */
 
@@ -1441,13 +1503,13 @@ int dhcpd_run(void)
   /* Now loop indefinitely, reading packets from the DHCP server socket */
 
   sockfd = -1;
-  for (;;)
+  while (g_dhcpd_daemon.ds_state != DHCPD_STOP_REQUESTED)
     {
       /* Create a socket to listen for requests from DHCP clients */
 
       if (sockfd < 0)
         {
-          sockfd = dhcpd_openlistener();
+          sockfd = dhcpd_openlistener(interface);
           if (sockfd < 0)
             {
                 nerr("ERROR: Failed to create socket\n");
@@ -1457,17 +1519,19 @@ int dhcpd_run(void)
 
       /* Read the next g_state.ds_outpacket */
 
-      nbytes = recv(sockfd, &g_state.ds_inpacket, sizeof(struct dhcpmsg_s), 0);
+      nbytes = recv(sockfd, &g_state.ds_inpacket,
+                    sizeof(struct dhcpmsg_s), 0);
       if (nbytes < 0)
         {
           /* On errors (other EINTR), close the socket and try again */
 
           nerr("ERROR: recv failed: %d\n", errno);
-          if (errno != EINTR)
+          if (errno != EINTR && errno != EAGAIN)
             {
               close(sockfd);
               sockfd = -1;
             }
+
           continue;
         }
 
@@ -1484,7 +1548,7 @@ int dhcpd_run(void)
 #ifdef CONFIG_NETUTILS_DHCPD_HOST
       /* Get the poor little uC a change to get its recvfrom in place */
 
-      usleep(500*1000);
+      usleep(500 * 1000);
 #endif
 
       /* Now process the incoming DHCP message by its message type */
@@ -1493,12 +1557,12 @@ int dhcpd_run(void)
         {
           case DHCPDISCOVER:
             ninfo("DHCPDISCOVER\n");
-            dhcpd_discover();
+            dhcpd_discover(sockfd);
             break;
 
           case DHCPREQUEST:
             ninfo("DHCPREQUEST\n");
-            dhcpd_request();
+            dhcpd_request(sockfd);
             break;
 
           case DHCPDECLINE:
@@ -1519,5 +1583,122 @@ int dhcpd_run(void)
         }
     }
 
+  g_dhcpd_daemon.ds_pid   = -1;
+  g_dhcpd_daemon.ds_state = DHCPD_STOPPED;
+  sem_post(&g_dhcpd_daemon.ds_sync);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: dhcpd_start
+ *
+ * Description:
+ *   Start the DHCPD daemon
+ *
+ * Returned Value:
+ *   On success, the non-negative task ID of the DHCPDC daemon is returned;
+ *   On failure, a negated errno value is returned.
+ *
+ ****************************************************************************/
+
+int dhcpd_start(FAR const char *interface)
+{
+  FAR char *argv[2];
+  int pid;
+
+  argv[0] = (char *)interface;
+  argv[1] = NULL;
+
+  /* Is the DHCPD in a non-running state? */
+
+  sem_wait(&g_dhcpd_daemon.ds_lock);
+  if (g_dhcpd_daemon.ds_state == DHCPD_NOT_RUNNING ||
+      g_dhcpd_daemon.ds_state == DHCPD_STOPPED)
+    {
+      /* Start the DHCPD daemon */
+
+      g_dhcpd_daemon.ds_state = DHCPD_STARTED;
+      pid =
+        task_create("DHCPD daemon", CONFIG_NETUTILS_DHCPD_PRIORITY,
+                    CONFIG_NETUTILS_DHCPD_STACKSIZE, dhcpd_task_run,
+                    argv);
+
+      /* Handle failures to start the DHCPD daemon */
+
+      if (pid < 0)
+        {
+          int errval = errno;
+          DEBUGASSERT(errval > 0);
+
+          g_dhcpd_daemon.ds_state = DHCPD_STOPPED;
+          nerr("ERROR: Failed to start the DHCPD daemon: %d\n", errval);
+          sem_post(&g_dhcpd_daemon.ds_lock);
+          return -errval;
+        }
+
+      /* Wait for any daemon state change */
+
+      do
+        {
+          sem_wait(&g_dhcpd_daemon.ds_sync);
+        }
+      while (g_dhcpd_daemon.ds_state == DHCPD_STARTED);
+    }
+
+  sem_post(&g_dhcpd_daemon.ds_lock);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: dhcpd_stop
+ *
+ * Description:
+ *   Stop the DHCPD daemon
+ *
+ * Returned Value:
+ *   Zero on success; a negated errno value on failure.  The current
+ *   implementation only returns success.
+ *
+ ****************************************************************************/
+
+int dhcpd_stop(void)
+{
+  int ret;
+
+  /* Is the DHCPD in a running state? */
+
+  sem_wait(&g_dhcpd_daemon.ds_lock);
+  if (g_dhcpd_daemon.ds_state == DHCPD_STARTED ||
+      g_dhcpd_daemon.ds_state == DHCPD_RUNNING)
+    {
+      /* Yes.. request that the daemon stop. */
+
+      g_dhcpd_daemon.ds_state = DHCPD_STOP_REQUESTED;
+
+      /* Wait for any daemon state change */
+
+      do
+        {
+          /* Signal the DHCPD client */
+
+          ret = kill(g_dhcpd_daemon.ds_pid,
+                     CONFIG_NETUTILS_DHCPD_SIGWAKEUP);
+
+          if (ret < 0)
+            {
+              nerr("ERROR: kill pid %d failed: %d\n",
+                   g_dhcpd_daemon.ds_pid, errno);
+              break;
+            }
+
+          /* Wait for the DHCPD client to respond to the stop request */
+
+          sem_wait(&g_dhcpd_daemon.ds_sync);
+        }
+      while (g_dhcpd_daemon.ds_state == DHCPD_STOP_REQUESTED);
+    }
+
+  sem_post(&g_dhcpd_daemon.ds_lock);
   return OK;
 }

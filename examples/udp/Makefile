@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # UDP Test
 
@@ -82,10 +82,10 @@ HOSTOBJSEXT ?= hobj
 HOST_SRCS = udp_host.c udp_cmdline.c
 ifeq ($(CONFIG_EXAMPLES_UDP_SERVER1),y)
 HOST_SRCS += udp_client.c
-HOST_BIN = udpclient$(EXEEXT)
+HOST_BIN = udpclient$(HOSTEXEEXT)
 else
 HOST_SRCS += udp_server.c
-HOST_BIN = udpserver$(EXEEXT)
+HOST_BIN = udpserver$(HOSTEXEEXT)
 endif
 
 HOST_OBJS = $(HOST_SRCS:.c=.$(HOSTOBJSEXT))
@@ -104,7 +104,9 @@ config.h: $(TOPDIR)/include/nuttx/config.h
 
 ifneq ($(CONFIG_EXAMPLES_UDP_TARGET2),y)
 
-$(HOST_BIN): config.h $(HOST_OBJS)
+$(HOST_OBJS): config.h
+
+$(HOST_BIN): $(HOST_OBJS)
 	$(Q) $(HOSTCC) $(HOSTLDFLAGS) $(HOST_OBJS) -o $@
 
 endif

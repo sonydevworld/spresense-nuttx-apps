@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 ifeq ($(CONFIG_NXWIDGETS),y)
 # Glyphs used by NxWidgets
@@ -86,4 +86,3 @@ endif # CONFIG_NXWIDGETS
 VPATH = src
 
 include $(APPDIR)/Application.mk
-

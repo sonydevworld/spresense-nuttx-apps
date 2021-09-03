@@ -84,21 +84,34 @@ int nsh_catfile(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
   fd = open(filepath, O_RDONLY);
   if (fd < 0)
     {
-      nsh_error(vtbl, g_fmtcmdfailed, cmd, "open", NSH_ERRNO);
+#if defined(CONFIG_NSH_PROC_MOUNTPOINT)
+      if (strncmp(filepath, CONFIG_NSH_PROC_MOUNTPOINT,
+                  strlen(CONFIG_NSH_PROC_MOUNTPOINT)) == 0)
+        {
+          nsh_error(vtbl,
+                    "nsh: %s: Could not open %s (is procfs mounted?): %d\n",
+                    cmd, filepath, NSH_ERRNO);
+        }
+      else
+#endif
+        {
+          nsh_error(vtbl, g_fmtcmdfailed, cmd, "open", NSH_ERRNO);
+        }
+
       return ERROR;
     }
 
   buffer = (FAR char *)malloc(IOBUFFERSIZE);
-  if(buffer == NULL)
+  if (buffer == NULL)
     {
-      (void)close(fd);
+      close(fd);
       nsh_error(vtbl, g_fmtcmdfailed, cmd, "malloc", NSH_ERRNO);
       return ERROR;
     }
 
   /* And just dump it byte for byte into stdout */
 
-  for (;;)
+  for (; ; )
     {
       int nbytesread = read(fd, buffer, IOBUFFERSIZE);
 
@@ -116,7 +129,8 @@ int nsh_catfile(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
             }
           else
             {
-              nsh_error(vtbl, g_fmtcmdfailed, cmd, "read", NSH_ERRNO_OF(errval));
+              nsh_error(vtbl, g_fmtcmdfailed, cmd, "read",
+                        NSH_ERRNO_OF(errval));
             }
 
           ret = ERROR;
@@ -131,7 +145,8 @@ int nsh_catfile(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
 
           while (nbyteswritten < nbytesread)
             {
-              ssize_t n = nsh_write(vtbl, buffer + nbyteswritten, nbytesread - nbyteswritten);
+              ssize_t n = nsh_write(vtbl, buffer + nbyteswritten,
+                                    nbytesread - nbyteswritten);
               if (n < 0)
                 {
                   int errcode = errno;
@@ -166,18 +181,18 @@ int nsh_catfile(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
         }
     }
 
-   /* NOTE that the following NSH prompt may appear on the same line as file
-    * content.  The IEEE Std requires that "The standard output shall
-    * contain the sequence of bytes read from the input files. Nothing else
-    * shall be written to the standard output." Reference:
-    * https://pubs.opengroup.org/onlinepubs/009695399/utilities/cat.html.
-    */
+  /* NOTE that the following NSH prompt may appear on the same line as file
+   * content.  The IEEE Std requires that "The standard output shall
+   * contain the sequence of bytes read from the input files. Nothing else
+   * shall be written to the standard output." Reference:
+   * https://pubs.opengroup.org/onlinepubs/009695399/utilities/cat.html.
+   */
 
-   /* Close the input file and return the result */
+  /* Close the input file and return the result */
 
-   (void)close(fd);
-   free(buffer);
-   return ret;
+  close(fd);
+  free(buffer);
+  return ret;
 }
 #endif
 
@@ -189,7 +204,7 @@ int nsh_catfile(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
  *   be a string and is guaranteed to be NUL-termined.  An error occurs if
  *   the file content (+terminator)  will not fit into the provided 'buffer'.
  *
- * Input Paramters:
+ * Input Parameters:
  *   vtbl     - The console vtable
  *   filepath - The full path to the file to be read
  *   buffer   - The user-provided buffer into which the file is read.
@@ -319,7 +334,20 @@ int nsh_foreach_direntry(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
     {
       /* Failed to open the directory */
 
-      nsh_error(vtbl, g_fmtnosuch, cmd, "directory", dirpath);
+#if defined(CONFIG_NSH_PROC_MOUNTPOINT)
+      if (strncmp(dirpath, CONFIG_NSH_PROC_MOUNTPOINT,
+                  strlen(CONFIG_NSH_PROC_MOUNTPOINT)) == 0)
+        {
+          nsh_error(vtbl,
+                    "nsh: %s: Could not open %s (is procfs mounted?): %d\n",
+                    cmd, dirpath, NSH_ERRNO);
+        }
+      else
+#endif
+        {
+          nsh_error(vtbl, g_fmtnosuch, cmd, "directory", dirpath);
+        }
+
       return ERROR;
     }
 
@@ -357,7 +385,7 @@ int nsh_foreach_direntry(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
  * Description:
  *   Skip any trailing '/' characters (unless it is also the leading '/')
  *
- * Input Parmeters:
+ * Input Parameters:
  *   dirpath - The directory path to be trimmed.  May be modified!
  *
  * Returned value:
@@ -385,8 +413,8 @@ void nsh_trimdir(FAR char *dirpath)
  * Description:
  *   Trim any leading or trailing spaces from a string.
  *
- * Input Parmeters:
- *   str - The sring to be trimmed.  May be modified!
+ * Input Parameters:
+ *   str - The string to be trimmed.  May be modified!
  *
  * Returned value:
  *   The new string pointer.
@@ -417,4 +445,3 @@ FAR char *nsh_trimspaces(FAR char *str)
   return trimmed;
 }
 #endif
-

@@ -33,6 +33,10 @@
  *
  ****************************************************************************/
 
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
 #include <nuttx/config.h>
 
 #include <sys/ioctl.h>
@@ -181,11 +185,7 @@ static int show_bat_status(int fd)
  * charger_main
  ****************************************************************************/
 
-#ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
-#else
-int charger_main(int argc, char *argv[])
-#endif
 {
   int fd;
   int current;
@@ -212,7 +212,7 @@ int charger_main(int argc, char *argv[])
   argc--;
   argv++;
 
-  /* Initialize and create battery charger deivce */
+  /* Initialize and create battery charger device */
 
   board_charger_initialize(DEVPATH);
 
@@ -244,8 +244,8 @@ int charger_main(int argc, char *argv[])
     }
 
   gettimeofday(&tv, NULL);
-  printf("%d.%06d: %d mV, %d mA\n",
-         tv.tv_sec, tv.tv_usec, voltage, current);
+  printf("%ju.%06ld: %d mV, %d mA\n",
+         (uintmax_t)tv.tv_sec, tv.tv_usec, voltage, current);
 
   close(fd);
 

@@ -1,35 +1,20 @@
 /****************************************************************************
  * testing/nxffs/nxffs_main.c
  *
- *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,6 +29,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -58,7 +44,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* The default is to use the RAM MTD device at drivers/mtd/rammtd.c.  But
  * an architecture-specific MTD driver can be used instead by defining
  * CONFIG_TESTING_NXFFS_ARCHINIT.  In this case, the initialization logic
@@ -67,7 +55,9 @@
 
 #ifndef CONFIG_TESTING_NXFFS_ARCHINIT
 
-/* This must exactly match the default configuration in drivers/mtd/rammtd.c */
+/* This must exactly match the default configuration in
+ * drivers/mtd/rammtd.c
+ */
 
 #  ifndef CONFIG_RAMMTD_ERASESIZE
 #    define CONFIG_RAMMTD_ERASESIZE 4096
@@ -129,6 +119,7 @@ struct nxffs_filedesc_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 /* Pre-allocated simulated flash */
 
 #ifndef CONFIG_TESTING_NXFFS_ARCHINIT
@@ -181,11 +172,7 @@ static void nxffs_loopmemusage(void)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmafter = mallinfo();
-#else
-  (void)mallinfo(&g_mmafter);
-#endif
 
   /* Show the change from the previous loop */
 
@@ -194,11 +181,7 @@ static void nxffs_loopmemusage(void)
 
   /* Set up for the next test */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmprevious = g_mmafter;
-#else
-  memcpy(&g_mmprevious, &g_mmafter, sizeof(struct mallinfo));
-#endif
 }
 
 /****************************************************************************
@@ -207,13 +190,10 @@ static void nxffs_loopmemusage(void)
 
 static void nxffs_endmemusage(void)
 {
-#ifdef CONFIG_CAN_PASS_STRUCTS
-      g_mmafter = mallinfo();
-#else
-      (void)mallinfo(&g_mmafter);
-#endif
-      printf("\nFinal memory usage:\n");
-      nxffs_showmemusage(&g_mmbefore, &g_mmafter);
+  g_mmafter = mallinfo();
+
+  printf("\nFinal memory usage:\n");
+  nxffs_showmemusage(&g_mmbefore, &g_mmafter);
 }
 
 /****************************************************************************
@@ -225,7 +205,7 @@ static inline char nxffs_randchar(void)
   int value = rand() % 63;
   if (value == 0)
     {
-      return '/';
+      return '0';
     }
   else if (value <= 10)
     {
@@ -258,7 +238,7 @@ static inline void nxffs_randname(FAR struct nxffs_filedesc_s *file)
   namelen  = (rand() % maxname) + 1;
   alloclen = namelen + dirlen;
 
-  file->name = (FAR char*)malloc(alloclen + 1);
+  file->name = (FAR char *)malloc(alloclen + 1);
   if (!file->name)
     {
       printf("ERROR: Failed to allocate name, length=%d\n", namelen);
@@ -288,6 +268,7 @@ static inline void nxffs_randfile(FAR struct nxffs_filedesc_s *file)
     {
       g_fileimage[i] = nxffs_randchar();
     }
+
   file->crc = crc32(g_fileimage, file->len);
 }
 
@@ -301,6 +282,7 @@ static void nxffs_freefile(FAR struct nxffs_filedesc_s *file)
     {
       free(file->name);
     }
+
   memset(file, 0, sizeof(struct nxffs_filedesc_s));
 }
 
@@ -331,6 +313,7 @@ static inline int nxffs_wrfile(FAR struct nxffs_filedesc_s *file)
           printf("  File name: %s\n", file->name);
           printf("  File size: %lu\n", (unsigned long)file->len);
         }
+
       nxffs_freefile(file);
       return ERROR;
     }
@@ -484,6 +467,7 @@ static ssize_t nxffs_rdblock(int fd, FAR struct nxffs_filedesc_s *file,
       printf("  Read size:    %ld\n", (long)len);
       printf("  Bytes read:   %ld\n", (long)nbytesread);
     }
+
   return nbytesread;
 }
 
@@ -509,6 +493,7 @@ static inline int nxffs_rdfile(FAR struct nxffs_filedesc_s *file)
           printf("  File name: %s\n", file->name);
           printf("  File size: %lu\n", (unsigned long)file->len);
         }
+
       return ERROR;
     }
 
@@ -516,7 +501,8 @@ static inline int nxffs_rdfile(FAR struct nxffs_filedesc_s *file)
 
   for (ntotalread = 0; ntotalread < file->len; )
     {
-      nbytesread = nxffs_rdblock(fd, file, ntotalread, file->len - ntotalread);
+      nbytesread = nxffs_rdblock(fd, file, ntotalread,
+                                 file->len - ntotalread);
       if (nbytesread < 0)
         {
           close(fd);
@@ -671,7 +657,7 @@ static int nxffs_delfiles(void)
               ret = unlink(file->name);
               if (ret < 0)
                 {
-                  printf("ERROR: Unlink %d failed: %d\n", i+1, errno);
+                  printf("ERROR: Unlink %d failed: %d\n", i + 1, errno);
                   printf("  File name:  %s\n", file->name);
                   printf("  File size:  %lu\n", (unsigned long)file->len);
                   printf("  File index: %d\n", j);
@@ -710,7 +696,7 @@ static int nxffs_delallfiles(void)
           ret = unlink(file->name);
           if (ret < 0)
             {
-               printf("ERROR: Unlink %d failed: %d\n", i+1, errno);
+               printf("ERROR: Unlink %d failed: %d\n", i + 1, errno);
                printf("  File name:  %s\n", file->name);
                printf("  File size:  %lu\n", (unsigned long)file->len);
                printf("  File index: %d\n", i);
@@ -767,6 +753,7 @@ static int nxffs_directory(void)
                  entryp->d_type == DTYPE_FILE ? "File " : "Error",
                  entryp->d_name);
         }
+
       number++;
     }
   while (entryp != NULL);
@@ -829,13 +816,8 @@ int main(int argc, FAR char *argv[])
 
   /* Set up memory monitoring */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
-  g_mmbefore = mallinfo();
+  g_mmbefore   = mallinfo();
   g_mmprevious = g_mmbefore;
-#else
-  (void)mallinfo(&g_mmbefore);
-  memcpy(&g_mmprevious, &g_mmbefore, sizeof(struct mallinfo));
-#endif
 
   /* Loop a few times ... file the file system with some random, files,
    * delete some files randomly, fill the file system with more random file,
@@ -849,12 +831,12 @@ int main(int argc, FAR char *argv[])
 #endif
     {
       /* Write a files to the NXFFS file system until either (1) all of the
-       * open file structures are utilized or until (2) NXFFS reports an error
-       * (hopefully that the file system is full)
+       * open file structures are utilized or until (2) NXFFS reports an
+       * error (hopefully that the file system is full)
        */
 
       printf("\n=== FILLING %u =============================\n", i);
-      (void)nxffs_fillfs();
+      nxffs_fillfs();
       printf("Filled file system\n");
       printf("  Number of files: %d\n", g_nfiles);
       printf("  Number deleted:  %d\n", g_ndeleted);
@@ -898,6 +880,7 @@ int main(int argc, FAR char *argv[])
           printf("  Number of files: %d\n", g_nfiles);
           printf("  Number deleted:  %d\n", g_ndeleted);
         }
+
       nxffs_dump(mtd, CONFIG_TESTING_NXFFS_VERBOSE);
 
       /* Directory listing */
@@ -935,4 +918,3 @@ int main(int argc, FAR char *argv[])
   fflush(stdout);
   return 0;
 }
-

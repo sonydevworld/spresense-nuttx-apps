@@ -33,11 +33,11 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Add path to cursor images to CXXFLAGS
 
-CXXFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" "$(APPDIR)/graphics/nxglyphs/include"}
+CXXFLAGS += ${shell $(INCDIR) "$(CC)" "$(APPDIR)/graphics/nxglyphs/include"}
 
 # Twm4Nx built-in application info
 

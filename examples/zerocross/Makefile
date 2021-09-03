@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Zero Cross Example
 
@@ -43,7 +43,7 @@ MAINSRC = zerocross_main.c
 
 PROGNAME = zerocross
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_ZEROCROSS)
 
 include $(APPDIR)/Application.mk

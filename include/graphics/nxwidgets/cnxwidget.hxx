@@ -1163,7 +1163,7 @@ namespace NXWidgets
 
     /**
      * Move the widget to the new coordinates.
-     * Co-ordinates are relative to the parent widget.
+     * Coordinates are relative to the parent widget.
      *
      * @param x The new x coordinate.
      * @param y The new y coordinate.
@@ -1310,7 +1310,7 @@ namespace NXWidgets
      * Does not erase the widget from the display.
      *
      * @param widget Pointer to the widget to remove from the hierarchy.
-     * @return True if the widget was succesfully removed.
+     * @return True if the widget was successfully removed.
      */
 
     bool removeChild(CNxWidget *widget);
@@ -1349,4 +1349,3 @@ namespace NXWidgets
 #endif // __cplusplus
 
 #endif // __APPS_INCLUDE_GRAPHICS_NXWIDGETS_CNXWIDGET_HXX
-

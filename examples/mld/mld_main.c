@@ -181,7 +181,7 @@ void mld_catfile(FAR const char *filepath, FAR char **iobuffer)
       *iobuffer = (FAR char *)malloc(IOBUFFERSIZE);
       if (*iobuffer == NULL)
         {
-          (void)close(fd);
+          close(fd);
           fprintf(stderr, "Failed to allocation I/O buffer\n");
           return;
         }
@@ -189,7 +189,7 @@ void mld_catfile(FAR const char *filepath, FAR char **iobuffer)
 
   /* And just dump it byte for byte into stdout */
 
-  for (;;)
+  for (; ; )
     {
       ssize_t nbytesread = read(fd, *iobuffer, IOBUFFERSIZE);
 
@@ -244,14 +244,14 @@ void mld_catfile(FAR const char *filepath, FAR char **iobuffer)
         }
     }
 
-  (void)close(fd);
+  close(fd);
 }
 #endif
 
 #ifdef HAVE_PROC_NET_STATS
 #  define mld_dumpstats(iobuffer) mld_catfile(PROCFS_MLD_PATH, iobuffer)
 #else
-#  define mld_dumpstats(iobuffer) mld_catfile(PROCFS_MLD_PATH, iobuffer)
+#  define mld_dumpstats(iobuffer)
 #endif
 
 #ifdef HAVE_PROC_NET_ROUTE
@@ -332,10 +332,11 @@ int main(int argc, FAR char *argv[])
   printf("Join group...\n");
   mld_dumpstats(&iobuffer);
 
-  memcpy(mrec.ipv6mr_multiaddr.s6_addr16, g_grp_addr, sizeof(struct in6_addr));
+  memcpy(mrec.ipv6mr_multiaddr.s6_addr16,
+         g_grp_addr, sizeof(struct in6_addr));
   mrec.ipv6mr_interface = if_nametoindex("eth0");
 
-  ret = setsockopt(sockfd, SOL_IPV6, IPV6_JOIN_GROUP, (FAR void *)&mrec,
+  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_JOIN_GROUP, (FAR void *)&mrec,
                    sizeof(struct ipv6_mreq));
   if (ret < 0)
     {
@@ -411,7 +412,8 @@ int main(int argc, FAR char *argv[])
       /* Send a garbage packet */
 
       ret = sendto(sockfd, g_garbage, sizeof(g_garbage), 0,
-                   (FAR struct sockaddr *)&target, sizeof(struct sockaddr_in6));
+                   (FAR struct sockaddr *)&target,
+                   sizeof(struct sockaddr_in6));
       if (ret < 0)
         {
           fprintf(stderr, "ERROR: sendto() failed: %d\n", errno);
@@ -438,7 +440,7 @@ int main(int argc, FAR char *argv[])
   /* Leave the group */
 
   printf("Leave group...\n");
-  ret = setsockopt(sockfd, SOL_IPV6, IPV6_LEAVE_GROUP, (FAR void *)&mrec,
+  ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_LEAVE_GROUP, (FAR void *)&mrec,
                    sizeof(struct ipv6_mreq));
   if (ret < 0)
     {

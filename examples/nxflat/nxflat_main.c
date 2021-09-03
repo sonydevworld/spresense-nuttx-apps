@@ -53,10 +53,6 @@
 #include <nuttx/drivers/ramdisk.h>
 #include <nuttx/binfmt/binfmt.h>
 
-#include "tests/romfs.h"
-#include "tests/dirlist.h"
-#include "tests/symtab.h"
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -96,28 +92,15 @@
  * that the output will be synchronous with the debug output.
  */
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  ifdef CONFIG_DEBUG_INFO
-#    define message(format, ...)    syslog(LOG_INFO, format, ##__VA_ARGS__)
-#  else
-#    define message(format, ...)    printf(format, ##__VA_ARGS__)
-#  endif
-#  ifdef CONFIG_DEBUG_ERROR
-#    define errmsg(format, ...)     syslog(LOG_ERR, format, ##__VA_ARGS__)
-#  else
-#    define errmsg(format, ...)     fprintf(stderr, format, ##__VA_ARGS__)
-#  endif
+#ifdef CONFIG_DEBUG_INFO
+#  define message                 _info
 #else
-#  ifdef CONFIG_DEBUG_INFO
-#    define message                 _info
-#  else
-#    define message                 printf
-#  endif
-#  ifdef CONFIG_DEBUG_ERROR
-#    define errmsg                  _err
-#  else
-#    define errmsg                  printf
-#  endif
+#  define message                 printf
+#endif
+#ifdef CONFIG_DEBUG_ERROR
+#  define errmsg                  _err
+#else
+#  define errmsg                  printf
 #endif
 
 /****************************************************************************
@@ -125,11 +108,24 @@
  ****************************************************************************/
 
 static const char delimiter[] =
-  "****************************************************************************";
+  "**************************************"
+  "**************************************";
 
 #ifndef CONFIG_LIB_ENVPATH
 static char fullpath[128];
 #endif
+
+/****************************************************************************
+ * Symbols from Auto-Generated Code
+ ****************************************************************************/
+
+extern const unsigned char romfs_img[];
+extern const unsigned int romfs_img_len;
+
+extern const char *dirlist[];
+
+extern const struct symtab_s g_nxflat_exports[];
+extern const int g_nxflat_nexports;
 
 /****************************************************************************
  * Private Functions
@@ -187,16 +183,16 @@ int main(int argc, FAR char *argv[])
    * the ROMFS mountpoint.
    */
 
-  (void)setenv("PATH", MOUNTPT, 1);
+  setenv("PATH", MOUNTPT, 1);
 #endif
 
-  /* Now excercise every progrm in the ROMFS file system */
+  /* Now exercise every progrm in the ROMFS file system */
 
   for (i = 0; dirlist[i]; i++)
     {
       FAR const char *filename;
 
-      /* Output a seperated so that we can clearly discrinmate the output of
+      /* Output a separated so that we can clearly discrinmate the output of
        * this program from the others.
        */
 
@@ -225,7 +221,7 @@ int main(int argc, FAR char *argv[])
        */
 
       args[0] = NULL;
-      ret = exec(filename, args, g_nxflat_exports, NEXPORTS);
+      ret = exec(filename, args, g_nxflat_exports, g_nxflat_nexports);
       if (ret < 0)
         {
           errmsg("ERROR: exec(%s) failed: %d\n", dirlist[i], errno);

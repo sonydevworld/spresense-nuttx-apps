@@ -33,9 +33,9 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-# DHCP Daemn Library
+# DHCP Daemon Library
 
 ifeq ($(CONFIG_NET_UDP),y)
 CSRCS = dhcpd.c

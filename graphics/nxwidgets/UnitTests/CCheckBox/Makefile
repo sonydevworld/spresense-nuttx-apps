@@ -33,7 +33,7 @@
 #
 #################################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # CCheckBox unit test
 
@@ -42,7 +42,7 @@ MAINSRC = ccheckbox_main.cxx
 
 PROGNAME = ccheckbox
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_NXWIDGETS_UNITTEST_CCHECKBOX)
 
 include $(APPDIR)/Application.mk

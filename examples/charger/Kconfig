@@ -3,7 +3,7 @@ config EXAMPLES_CHARGER
 	bool "Battery charger example"
 	default n
 	---help---
-		This application is an example of using charger deivce.
+		This application is an example of using charger device.
 
 if EXAMPLES_CHARGER
 
@@ -26,6 +26,6 @@ config EXAMPLES_CHARGER_PRIORITY
 
 config EXAMPLES_CHARGER_STACKSIZE
 	int "charger stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 
 endif

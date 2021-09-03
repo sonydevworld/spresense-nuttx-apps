@@ -181,7 +181,7 @@ bool netlib_nodeaddrconv(FAR const char *addrstr,
         }
       else
         {
-          wlwarn("Unexpect delimiter: %s\n", addrstr);
+          wlwarn("Unexpected delimiter: %s\n", addrstr);
           break;
         }
     }
@@ -190,4 +190,3 @@ bool netlib_nodeaddrconv(FAR const char *addrstr,
 }
 
 #endif /* CONFIG_NET_6LOWPAN || CONFIG_NET_IEEE802154 */
-

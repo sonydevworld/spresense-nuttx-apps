@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # I2S character driver test
 
@@ -49,7 +49,7 @@ MAINSRC = i2schar_main.c
 
 PROGNAME = i2schar
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_I2SCHAR)
 
 include $(APPDIR)/Application.mk

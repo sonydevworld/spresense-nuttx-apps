@@ -1,36 +1,20 @@
 /****************************************************************************
  * apps/testing/ostest/ostest_main.c
  *
- *   Copyright (C) 2007-2009, 2011-2012, 2014-2015, 2018 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,6 +28,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
@@ -84,9 +69,12 @@ static const char write_data2[] = "stdio_test: write fd=2\n";
  * pointer types.
  */
 
-static const char *g_argv[NARGS+1];
+static const char *g_argv[NARGS + 1];
 #else
-static const char *g_argv[NARGS+1] = { arg1, arg2, arg3, arg4, NULL };
+static const char *g_argv[NARGS + 1] =
+{
+  arg1, arg2, arg3, arg4, NULL
+};
 #endif
 
 static struct mallinfo g_mmbefore;
@@ -139,11 +127,7 @@ static void check_test_memory_usage(void)
 
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmafter = mallinfo();
-#else
-  (void)mallinfo(&g_mmafter);
-#endif
 
   /* Show the change from the previous time */
 
@@ -152,11 +136,7 @@ static void check_test_memory_usage(void)
 
   /* Set up for the next test */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmprevious = g_mmafter;
-#else
-  memcpy(&g_mmprevious, &g_mmafter, sizeof(struct mallinfo));
-#endif
 
   /* If so enabled, show the use of priority inheritance resources */
 
@@ -168,7 +148,8 @@ static void check_test_memory_usage(void)
  ****************************************************************************/
 
 #ifndef CONFIG_DISABLE_ENVIRON
-static void show_variable(const char *var_name, const char *exptd_value, bool var_valid)
+static void show_variable(const char *var_name, const char *exptd_value,
+                          bool var_valid)
 {
   char *actual_value = getenv(var_name);
   if (actual_value)
@@ -177,24 +158,33 @@ static void show_variable(const char *var_name, const char *exptd_value, bool va
         {
           if (strcmp(actual_value, exptd_value) == 0)
             {
-              printf("show_variable: Variable=%s has value=%s\n", var_name, exptd_value);
+              printf("show_variable: Variable=%s has value=%s\n",
+                     var_name, exptd_value);
             }
           else
             {
-              printf("show_variable: ERROR Variable=%s has the wrong value\n", var_name);
-              printf("show_variable:       found=%s expected=%s\n", actual_value, exptd_value);
+              printf("show_variable: ERROR Variable=%s has the wrong "
+                     "value\n",
+                     var_name);
+              printf("show_variable:       found=%s expected=%s\n",
+                     actual_value, exptd_value);
             }
         }
       else
         {
-          printf("show_variable: ERROR Variable=%s has a value when it should not\n", var_name);
-          printf("show_variable:       value=%s\n", actual_value);
+          printf("show_variable: ERROR Variable=%s has a value when it "
+                 "should not\n",
+                 var_name);
+          printf("show_variable:       value=%s\n",
+                 actual_value);
         }
     }
   else if (var_valid)
     {
-      printf("show_variable: ERROR Variable=%s has no value\n", var_name);
-      printf("show_variable:       Should have had value=%s\n", exptd_value);
+      printf("show_variable: ERROR Variable=%s has no value\n",
+             var_name);
+      printf("show_variable:       Should have had value=%s\n",
+             exptd_value);
     }
   else
     {
@@ -202,7 +192,8 @@ static void show_variable(const char *var_name, const char *exptd_value, bool va
     }
 }
 
-static void show_environment(bool var1_valid, bool var2_valid, bool var3_valid)
+static void show_environment(bool var1_valid, bool var2_valid,
+                             bool var3_valid)
 {
   show_variable(g_var1_name, g_var1_value, var1_valid);
   show_variable(g_var2_name, g_var2_value, var2_valid);
@@ -224,13 +215,8 @@ static int user_main(int argc, char *argv[])
 
   usleep(HALF_SECOND_USEC);
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_mmbefore = mallinfo();
   g_mmprevious = g_mmbefore;
-#else
-  (void)mallinfo(&g_mmbefore);
-  memcpy(&g_mmprevious, &g_mmbefore, sizeof(struct mallinfo));
-#endif
 
   printf("\nuser_main: Begin argument test\n");
   printf("user_main: Started with argc=%d\n", argc);
@@ -240,7 +226,7 @@ static int user_main(int argc, char *argv[])
   if (argc != NARGS + 1)
     {
       printf("user_main: Error expected argc=%d got argc=%d\n",
-             NARGS+1, argc);
+             NARGS + 1, argc);
     }
 
   for (i = 0; i <= NARGS; i++)
@@ -250,13 +236,22 @@ static int user_main(int argc, char *argv[])
 
   for (i = 1; i <= NARGS; i++)
     {
-      if (strcmp(argv[i], g_argv[i-1]) != 0)
+      if (strcmp(argv[i], g_argv[i - 1]) != 0)
         {
-          printf("user_main: ERROR argv[%d]:  Expected \"%s\" found \"%s\"\n",
-                 i, g_argv[i-1], argv[i]);
+          printf("user_main: ERROR argv[%d]:  "
+                 "Expected \"%s\" found \"%s\"\n",
+                 i, g_argv[i - 1], argv[i]);
         }
     }
 
+  check_test_memory_usage();
+
+  /* Test additional getopt(), getopt_long(), and getopt_long_only()
+   * features.
+   */
+
+  printf("\nuser_main: getopt() test\n");
+  getopt_test();
   check_test_memory_usage();
 
   /* If retention of child status is enable, then suppress it for this task.
@@ -270,18 +265,18 @@ static int user_main(int argc, char *argv[])
    */
 
 #if defined(CONFIG_SCHED_HAVE_PARENT) && defined(CONFIG_SCHED_CHILD_STATUS)
-  {
-    struct sigaction sa;
-    int ret;
+    {
+      struct sigaction sa;
+      int ret;
 
-    sa.sa_handler = SIG_IGN;
-    sa.sa_flags = SA_NOCLDWAIT;
-    ret = sigaction(SIGCHLD, &sa, NULL);
-    if (ret < 0)
-      {
-        printf("user_main: ERROR: sigaction failed: %d\n", errno);
-      }
-  }
+      sa.sa_handler = SIG_IGN;
+      sa.sa_flags = SA_NOCLDWAIT;
+      ret = sigaction(SIGCHLD, &sa, NULL);
+      if (ret < 0)
+        {
+          printf("user_main: ERROR: sigaction failed: %d\n", errno);
+        }
+    }
 #endif
 
 #ifndef CONFIG_DISABLE_ENVIRON
@@ -298,7 +293,7 @@ static int user_main(int argc, char *argv[])
   check_test_memory_usage();
 #endif
 
-#ifdef CONFIG_TLS
+#if CONFIG_TLS_NELEM > 0
   /* Test TLS */
 
   tls_test();
@@ -310,7 +305,7 @@ static int user_main(int argc, char *argv[])
 #if CONFIG_TESTING_OSTEST_LOOPS > 1
   for (i = 0; i < CONFIG_TESTING_OSTEST_LOOPS; i++)
 #elif CONFIG_TESTING_OSTEST_LOOPS == 0
-  for (;;)
+  for (; ; )
 #endif
     {
 #ifndef CONFIG_STDIO_DISABLE_BUFFERING
@@ -377,7 +372,7 @@ static int user_main(int argc, char *argv[])
       check_test_memory_usage();
 #endif
 
-#if !defined(CONFIG_DISABLE_PTHREAD) && CONFIG_NPTHREAD_KEYS > 0
+#if !defined(CONFIG_DISABLE_PTHREAD) && CONFIG_TLS_NELEM > 0
       /* Verify pthread-specific data */
 
       printf("\nuser_main: pthread-specific data test\n");
@@ -419,11 +414,12 @@ static int user_main(int argc, char *argv[])
 #endif
 
 #ifndef CONFIG_DISABLE_PTHREAD
-    /* Verify pthreads and condition variables */
+      /* Verify pthreads and condition variables */
 
       printf("\nuser_main: condition variable test\n");
 #ifdef CONFIG_PRIORITY_INHERITANCE
-      printf("\n           Skipping, Test logic incompatible with priority inheritance\n");
+      printf("\n           Skipping, "
+             "Test logic incompatible with priority inheritance\n");
 #else
       cond_test();
       check_test_memory_usage();
@@ -522,6 +518,10 @@ static int user_main(int argc, char *argv[])
       printf("\nuser_main: sporadic scheduler test\n");
       sporadic_test();
       check_test_memory_usage();
+
+      printf("\nuser_main: Dual sporadic thread test\n");
+      sporadic2_test();
+      check_test_memory_usage();
 #endif
 
 #ifndef CONFIG_DISABLE_PTHREAD
@@ -553,11 +553,7 @@ static int user_main(int argc, char *argv[])
 
       usleep(HALF_SECOND_USEC);
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
       g_mmafter = mallinfo();
-#else
-      (void)mallinfo(&g_mmafter);
-#endif
 
       printf("\nFinal memory usage:\n");
       show_memory_usage(&g_mmbefore, &g_mmafter);
@@ -579,7 +575,7 @@ static void stdio_test(void)
   printf("stdio_test: Standard I/O Check: printf\n");
 
   write(2, write_data2, sizeof(write_data2)-1);
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   fprintf(stderr, "stdio_test: Standard I/O Check: fprintf to stderr\n");
 #endif
 }
@@ -655,7 +651,8 @@ int main(int argc, FAR char **argv)
 
       if (waitpid(result, &ostest_result, 0) != result)
         {
-          printf("ostest_main: ERROR Failed to wait for user_main to terminate\n");
+          printf("ostest_main: ERROR Failed to wait for user_main to "
+                 "terminate\n");
           ostest_result = ERROR;
         }
 #endif
@@ -665,7 +662,7 @@ int main(int argc, FAR char **argv)
 
 #ifdef CONFIG_TESTING_OSTEST_POWEROFF
   /* Power down, providing the test result.  This is really only an
-   *interesting case when used with the NuttX simulator.  In that case,
+   * interesting case when used with the NuttX simulator.  In that case,
    * test management logic can received the result of the test.
    */
 

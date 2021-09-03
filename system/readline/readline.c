@@ -117,7 +117,7 @@ static int readline_getc(FAR struct rl_common_s *vtbl)
       else if (nread < 0)
         {
           /* EINTR is not really an error; it simply means that a signal we
-           * received while watiing for intput.
+           * received while watiing for input.
            */
 
           int errcode = errno;
@@ -181,7 +181,7 @@ static void readline_write(FAR struct rl_common_s *vtbl,
   FAR struct readline_s *priv = (FAR struct readline_s *)vtbl;
   DEBUGASSERT(priv && buffer && buflen > 0);
 
-  (void)write(priv->outfd, buffer, buflen);
+  write(priv->outfd, buffer, buflen);
 }
 #endif
 

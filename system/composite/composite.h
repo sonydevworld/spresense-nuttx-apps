@@ -41,13 +41,15 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <stdlib.h>
+#include <malloc.h>
 
 /****************************************************************************
  * Pre-Processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
-/* OS/Driver configuration checkes */
+
+/* OS/Driver configuration checks */
 
 #ifndef CONFIG_USBDEV
 #  error "USB device support is not enabled (CONFIG_USBDEV)"
@@ -55,14 +57,6 @@
 
 #ifndef CONFIG_USBDEV_COMPOSITE
 #  error "USB composite device support is not enabled (CONFIG_USBDEV_COMPOSITE)"
-#endif
-
-#ifndef CONFIG_CDCACM
-#  error "USB CDC/ACM serial device support is not enabled (CONFIG_CDCACM)"
-#endif
-
-#ifndef CONFIG_CDCACM_COMPOSITE
-#  error "USB CDC/ACM serial composite device support is not enabled (CONFIG_CDCACM_COMPOSITE)"
 #endif
 
 /* Trace initialization *****************************************************/
@@ -146,7 +140,7 @@ struct composite_state_s
 extern struct composite_state_s g_composite;
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #endif /* __SYSTEM_COMPOSITE_COMPOSITE_H */

@@ -34,13 +34,13 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Discover built-in application info
 
 PROGNAME = bridge
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_BRIDGE)
 
 MAINSRC = bridge_main.c
@@ -62,14 +62,18 @@ $(HOST_OBJS): %.o: %.c
 	$(Q) $(HOSTCC) -c $(HOSTCFLAGS) $< -o $@
 
 bridge_config.h: $(TOPDIR)/include/nuttx/config.h
-	@echo "CP: brigetconfig.h"
+	@echo "CP: brige_config.h"
 	$(Q) cp $(TOPDIR)/include/nuttx/config.h bridge_config.h
 
-$(HOST_BIN1): bridge_config.h $(HOST_OBJS1)
+$(HOST_OBJS1): bridge_config.h
+
+$(HOST_BIN1): $(HOST_OBJS1)
 	@echo "LD: $@"
 	$(Q) $(HOSTCC) $(HOSTLDFLAGS) $(HOST_OBJS1) -o $@
 
-$(HOST_BIN2): bridge_config.h $(HOST_OBJS2)
+$(HOST_OBJS2): bridge_config.h
+
+$(HOST_BIN2): $(HOST_OBJS2)
 	@echo "LD: $@"
 	$(Q) $(HOSTCC) $(HOSTLDFLAGS) $(HOST_OBJS2) -o $@
 

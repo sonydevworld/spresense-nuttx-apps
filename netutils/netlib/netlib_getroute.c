@@ -158,10 +158,10 @@ ssize_t netlib_get_route(FAR struct rtentry *rtelist,
   addr.nl_family = AF_NETLINK;
   addr.nl_pad    = 0;
   addr.nl_pid    = pid;
-  addr.nl_groups = RTM_GETROUTE;
+  addr.nl_groups = 0;
 
   ret = bind(fd, (FAR const struct sockaddr *)&addr,
-             sizeof( struct sockaddr_nl));
+             sizeof(struct sockaddr_nl));
   if (ret < 0)
     {
       int errcode = errno;
@@ -247,9 +247,6 @@ ssize_t netlib_get_route(FAR struct rtentry *rtelist,
             enddump = true;
             break;
 
-          case RTM_NEWLINK:
-            break;  /* Ignore any link information */
-
           case RTM_NEWROUTE:
             {
               FAR struct rtentry *dest;
@@ -261,7 +258,8 @@ ssize_t netlib_get_route(FAR struct rtentry *rtelist,
               if (nrecvd <= sizeof(struct netlib_recvfrom_response_s) ||
                   u.resp.rte.rtm_family != family)
                 {
-                  fprintf(stderr, "ERROR: Bad massage size: %ld\n", (long)nrecvd);
+                  fprintf(stderr, "ERROR: Bad massage size: %ld\n",
+                          (long)nrecvd);
                   goto errout_with_socket;
                 }
 
@@ -323,8 +321,8 @@ ssize_t netlib_get_route(FAR struct rtentry *rtelist,
             break;
 
           default:
-            fprintf(stderr, "ERROR: Message type %u, length %lu\n",
-                    u.resp.hdr.nlmsg_type, (unsigned long)u.resp.hdr.nlmsg_len);
+            fprintf(stderr, "ERROR: Message type %u, length %u\n",
+                    u.resp.hdr.nlmsg_type, (unsigned)u.resp.hdr.nlmsg_len);
             ret = -EIO;
             goto errout_with_socket;
         }

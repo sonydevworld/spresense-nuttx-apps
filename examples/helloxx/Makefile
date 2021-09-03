@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # Hello, World! C++ Example
 
@@ -43,7 +43,7 @@ MAINSRC = helloxx_main.cxx
 
 PROGNAME = helloxx
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_HELLOXX)
 
 include $(APPDIR)/Application.mk

@@ -33,19 +33,14 @@
 #
 ############################################################################
 
--include $(TOPDIR)/.config
--include $(TOPDIR)/Make.defs
--include $(SDKDIR)/Make.defs
 include $(APPDIR)/Make.defs
+-include $(SDKDIR)/Make.defs
 
 # Audio application info
 
-CONFIG_EXAMPLES_AUDIO_BEEP_PRIORITY ?= SCHED_PRIORITY_DEFAULT
-CONFIG_EXAMPLES_AUDIO_BEEP_STACKSIZE ?= 2048
-
-APPNAME   = audio_rttl
-PRIORITY  = $(CONFIG_EXAMPLES_AUDIO_BEEP_PRIORITY)
-STACKSIZE = $(CONFIG_EXAMPLES_AUDIO_BEEP_STACKSIZE)
+PROGNAME = $(CONFIG_EXAMPLES_AUDIO_SOUND_PROGNAME)
+PRIORITY  = $(CONFIG_EXAMPLES_AUDIO_SOUND_PRIORITY)
+STACKSIZE = $(CONFIG_EXAMPLES_AUDIO_SOUND_STACKSIZE)
 
 # Audio Example
 
@@ -57,15 +52,7 @@ AUDIODIR = $(SDKDIR)$(DELIM)modules$(DELIM)audio
 
 # Audio Example flags
 
-ifeq ($(WINTOOL),y)
-CXXFLAGS += -I "${shell cygpath -w $(AUDIODIR)}"
-else
-CXXFLAGS += -I $(AUDIODIR)
-endif
-
+CXXFLAGS += ${shell $(INCDIR) "$(CC)" "$(AUDIODIR)"}
 CXXFLAGS += -D_POSIX
-
-CONFIG_EXAMPLES_AUDIO_BEEP_PROGNAME ?= audio_rttl$(EXEEXT)
-PROGNAME = $(CONFIG_EXAMPLES_AUDIO_BEEP_PROGNAME)
 
 include $(APPDIR)/Application.mk

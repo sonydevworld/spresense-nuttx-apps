@@ -224,7 +224,7 @@ CRadioButton *CRadioButtonTest::newRadioButton(void)
         }
     }
 
-  // Create the new radio button at the botton of the radio button group and
+  // Create the new radio button at the bottom of the radio button group and
   // with the size of the ON radio button glyph (they all need to be the same
   // size!).  Note that coordinates are relative to the parent bounding box.
 
@@ -264,7 +264,7 @@ void CRadioButtonTest::pushButton(CRadioButton *button)
 
   // Then inject the mouse click
 
-  (void)nx_mousein(handle, buttonX, buttonY, NX_MOUSE_LEFTBUTTON);
+  nx_mousein(handle, buttonX, buttonY, NX_MOUSE_LEFTBUTTON);
 
   // Poll for mouse events
   //
@@ -277,7 +277,7 @@ void CRadioButtonTest::pushButton(CRadioButton *button)
 
   // Then inject the mouse release
 
-  (void)nx_mousein(handle, buttonX, buttonY, 0);
+  nx_mousein(handle, buttonX, buttonY, 0);
 
   // And poll for more mouse events
 

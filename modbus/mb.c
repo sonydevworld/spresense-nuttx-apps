@@ -387,7 +387,7 @@ eMBErrorCode eMBPoll(void)
 
               if ((ucRcvAddress == ucMBAddress) || (ucRcvAddress == MB_ADDRESS_BROADCAST))
                 {
-                  (void)xMBPortEventPost(EV_EXECUTE);
+                  xMBPortEventPost(EV_EXECUTE);
                 }
             }
             break;
@@ -418,7 +418,7 @@ eMBErrorCode eMBPoll(void)
             {
               if (eException != MB_EX_NONE)
                 {
-                  /* An exception occured. Build an error frame. */
+                  /* An exception occurred. Build an error frame. */
 
                   usLength = 0;
                   ucMBFrame[usLength++] = (uint8_t)(ucFunctionCode | MB_FUNC_ERROR);
@@ -431,7 +431,7 @@ eMBErrorCode eMBPoll(void)
                   vMBPortTimersDelay(CONFIG_MB_ASCII_TIMEOUT_WAIT_BEFORE_SEND_MS);
                 }
 #endif
-              (void)peMBFrameSendCur(ucMBAddress, ucMBFrame, usLength);
+              peMBFrameSendCur(ucMBAddress, ucMBFrame, usLength);
             }
             break;
 
