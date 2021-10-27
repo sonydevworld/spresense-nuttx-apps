@@ -3047,7 +3047,7 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
 
   ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
     cmd->outparam, cmd->outparamlen, usockid, NULL, 0, dev, NULL);
-  if (ret < 0)
+  if ((ret < 0) || (ret == RET_NOTAVAIL))
     {
       /* clear callback */
 
@@ -3096,7 +3096,7 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
 
   ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
     cmd->outparam, cmd->outparamlen, usockid, NULL, 0, dev, NULL);
-  if (ret < 0)
+  if ((ret < 0) || (ret == RET_NOTAVAIL))
     {
       /* clear callback */
 
