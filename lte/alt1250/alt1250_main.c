@@ -2783,6 +2783,18 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
               result = -EINVAL;
               goto sendack;
             }
+
+          if (ret == RET_NOTAVAIL)
+            {
+              /* If the container does not exist, this function
+               * will be called again. Therefore, reset the offset
+               * so that it is possible to read from the same offset
+               * as last time.
+               */
+
+              int offset = -req->arglen;
+              lseek(fd, offset, SEEK_CUR);
+            }
         }
         break;
 
@@ -2828,6 +2840,18 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
                 if_req.ifr_flags);
               result = -EINVAL;
               goto sendack;
+            }
+
+          if (ret == RET_NOTAVAIL)
+            {
+              /* If the container does not exist, this function
+               * will be called again. Therefore, reset the offset
+               * so that it is possible to read from the same offset
+               * as last time.
+               */
+
+              int offset = -req->arglen;
+              lseek(fd, offset, SEEK_CUR);
             }
         }
         break;
