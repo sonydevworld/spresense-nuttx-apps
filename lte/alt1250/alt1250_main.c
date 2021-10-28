@@ -80,7 +80,11 @@
 
 #define TABLE_NUM(tbl) (sizeof(tbl)/sizeof(tbl[0]))
 
-#define CONTAINER_MAX 10
+#if defined(CONFIG_LTE_ALT1250_CONTAINERS)
+#  define CONTAINER_MAX CONFIG_LTE_ALT1250_CONTAINERS
+#else
+#  define CONTAINER_MAX 10
+#endif
 #if defined(CONFIG_NET_USRSOCK_CONNS)
 #  if (CONFIG_NET_USRSOCK_CONNS > ALTCOM_NSOCKET)
 #    define SOCKET_COUNT ALTCOM_NSOCKET
