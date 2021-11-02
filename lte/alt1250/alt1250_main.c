@@ -80,7 +80,11 @@
 
 #define TABLE_NUM(tbl) (sizeof(tbl)/sizeof(tbl[0]))
 
-#define CONTAINER_MAX 10
+#if defined(CONFIG_LTE_ALT1250_CONTAINERS)
+#  define CONTAINER_MAX CONFIG_LTE_ALT1250_CONTAINERS
+#else
+#  define CONTAINER_MAX 10
+#endif
 #if defined(CONFIG_NET_USRSOCK_CONNS)
 #  if (CONFIG_NET_USRSOCK_CONNS > ALTCOM_NSOCKET)
 #    define SOCKET_COUNT ALTCOM_NSOCKET
@@ -409,7 +413,6 @@ static uint8_t _tx_buff[TX_BUFF_SIZE];
 static uint8_t _rx_buff[RX_BUFF_SIZE];
 static uint16_t _rx_max_buflen;
 
-
 static struct select_params_s g_select_params[SELECT_CONTAINER_MAX];
 
 static void *g_selectargs[SELECT_CONTAINER_MAX][6];
@@ -521,8 +524,11 @@ static void set_container(FAR struct alt_container_s *container,
   container->inparamlen = insz;
   container->outparam = outp;
   container->outparamlen = outsz;
-  ((FAR struct waithdlr_s *)container->priv)->hdlr = hdlr;
-  ((FAR struct waithdlr_s *)container->priv)->priv = priv;
+  if (container->priv != 0)
+    {
+      ((FAR struct waithdlr_s *)container->priv)->hdlr = hdlr;
+      ((FAR struct waithdlr_s *)container->priv)->priv = priv;
+    }
 
   alt1250_printf("set container: command ID: 0x%08lx\n", container->cmdid);
 }
@@ -1044,24 +1050,37 @@ static int send_commonreq(uint32_t cmdid, FAR void *in[], size_t icnt,
   FAR struct alt_container_s *container)
 {
   int ret = 0;
-
-  if (container)
+  struct alt_container_s tmp_container =
     {
-      alt1250_printf("reuse container\n");
+    };
+
+  if (out == NULL)
+    {
+      if (container != NULL)
+        {
+          free_container(dev, container);
+        }
+
+      container = &tmp_container;
     }
 
-  container = (container == NULL) ? get_container(dev) : container;
-  if (container)
+  container = container == NULL ? get_container(dev) : container;
+  if (container != NULL)
     {
       set_container(container, usockid, cmdid, in, icnt, out, ocnt, hdlr,
         priv);
 
       ret = write_to_altdev(dev, container);
-      if (((ret < 0) && (ret != -ENETRESET)) || (out == NULL))
+      if ((ret < 0) && (ret != -ENETRESET))
         {
-          /* Non ENETRESET error is ocuured or no need to wait response */
+          /* Containers whose lifecycle ends at this time are released,
+           * except for containers of local variables.
+           */
 
-          free_container(dev, container);
+          if (container != &tmp_container)
+            {
+              free_container(dev, container);
+            }
         }
     }
   else
@@ -1584,15 +1603,17 @@ static int socket_request(int fd, FAR struct alt1250_s *dev,
 
           ret = send_socketreq(usock->domain, usock->type, usock->protocol,
             usock->out, 2, usockid, dev);
-          if (ret >= 0)
+          if (ret == 0)
             {
-              if (ret == 0)
-                {
-                  /* Only zero means success */
+              /* Only zero means success */
 
-                  memcpy(&usock->req, &req->head, sizeof(usock->req));
-                  usock->state = OPEN;
-                }
+              memcpy(&usock->req, &req->head, sizeof(usock->req));
+              usock->state = OPEN;
+            }
+          else if (ret == RET_NOTAVAIL)
+            {
+              alt1250_socket_free(dev, usockid);
+              goto noack;
             }
           else
             {
@@ -1617,6 +1638,7 @@ sendack:
       _send_ack_common(fd, req->head.xid, &resp);
     }
 
+noack:
   alt1250_printf("end\n");
 
   return ret;
@@ -1661,30 +1683,34 @@ static int close_request(int fd, FAR struct alt1250_s *dev,
     }
   else
     {
+      if (!is_container_exist(dev))
+        {
+          ret = RET_NOTAVAIL;
+          goto noack;
+        }
+
       /* Cancels the target fd before closing it */
 
       select_cancel(req->usockid, dev, NULL);
+
+      usock->state = CLOSING;
+
+      select_start(req->usockid, dev, NULL);
 
       usock->out[ocnt++] = &usock->ret;
       usock->out[ocnt++] = &usock->errcode;
 
       ret = send_closereq(usock->altsock, usock->out, ocnt, req->usockid,
         dev, NULL);
-      if (ret >= 0)
+      if (ret == 0)
         {
-          if (ret == 0)
-            {
-               memcpy(&usock->req, &req->head, sizeof(usock->req));
-               usock->state = CLOSING;
-            }
+           memcpy(&usock->req, &req->head, sizeof(usock->req));
         }
       else
         {
           result = ret;
           alt1250_socket_free(dev, req->usockid);
         }
-
-      select_start(req->usockid, dev, NULL);
     }
 
 sendack:
@@ -1697,6 +1723,7 @@ sendack:
       _send_ack_common(fd, req->head.xid, &resp);
     }
 
+noack:
   alt1250_printf("end\n");
 
   return ret;
@@ -3323,7 +3350,6 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
                 {
                   alt1250_printf("writeset is set. usockid: %d\n",
                     SOCKID(i));
-                  usock->sockflags |= USRSOCK_EVENT_SENDTO_READY;
 
                   if (usock->state == WAITCONN)
                     {
@@ -3342,12 +3368,15 @@ static int handle_selectevt(int32_t result, int32_t err, int32_t id,
                         usock->o_getoptlv, usock->o_getoptopt,
                         sizeof(int), usock->outgetopt, 6, i,
                         handlereply_getsockopt_conn, dev, NULL);
-
-                      alt1250_printf("writeset is set. usockid: %d\n",
-                        SOCKID(i));
+                      if (ret == 0)
+                        {
+                          usock->sockflags |= USRSOCK_EVENT_SENDTO_READY;
+                        }
                     }
                   else
                     {
+                      usock->sockflags |= USRSOCK_EVENT_SENDTO_READY;
+
                       usock_send_event(dev->usockfd, dev, usock,
                                        USRSOCK_EVENT_SENDTO_READY);
                     }
