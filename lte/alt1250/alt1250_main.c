@@ -38,6 +38,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <crc32.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -115,6 +116,10 @@
 
 #define EVENT_RESET (1)
 #define EVENT_REPLY (2)
+
+#define LTE_IMAGE_PERT_SIZE (256)
+#define DELTA_MAGICNO (('D') + ('T' << 8) + ('F' << 16) + ('W' << 24))
+#define IS_IN_RANGE(a, l, h) (((a) >= (l)) && ((a) < (h)))
 
 #define TX_BUFF_SIZE  (1500)
 #define RX_BUFF_SIZE  (1500)
@@ -214,6 +219,15 @@ struct usock_s
   FAR void *outgetopt[GETSOCKOPT_PARAM_NUM];
 };
 
+struct delta_header_s
+{
+  uint32_t chunk_code;
+  uint32_t reserved;
+  char np_package[LTE_VER_NP_PACKAGE_LEN];
+  uint32_t pert_crc;
+  uint32_t hdr_crc;
+};
+
 struct alt1250_s
 {
   int usockfd;
@@ -231,6 +245,12 @@ struct alt1250_s
   struct usock_s sockets[SOCKET_COUNT];
   lte_pdn_t o_pdn;
   bool recvfrom_processing;
+
+  int hdr_injected;
+  int actual_injected;
+  char fw_version[LTE_VER_NP_PACKAGE_LEN];
+  struct delta_header_s up_img;
+  char img_pert[LTE_IMAGE_PERT_SIZE];
 };
 
 typedef int (*waithdlr_t)(uint8_t event, unsigned long priv,
@@ -295,6 +315,8 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
   FAR struct lte_ioctl_data_s *cm, FAR uint16_t usockid);
 static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
   FAR struct lte_ioctl_data_s *cmd, FAR uint16_t usockid, int8_t *flags);
+static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
+  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, int8_t *flags);
 
 static int handlereply_sockcommon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
@@ -337,6 +359,10 @@ static int handlereply_radiooff(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
 static int handlereply_actpdn(uint8_t event, unsigned long priv,
+  FAR struct alt_container_s *reply, FAR struct usock_s *usock,
+  FAR struct alt1250_s *dev);
+
+static int fwgetversion_postproc(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
   FAR struct alt1250_s *dev);
 
@@ -2803,6 +2829,12 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
                   result = ret;
                 }
             }
+          else if (LTE_ISCMDGRP_FWUPDATE(ltecmd.cmdid))
+            {
+              ret = ioctl_lte_fwupdate(fd, dev, &ltecmd, req->usockid, &flags);
+              result = ret;
+              is_ack = true;
+            }
           else
             {
               alt1250_printf("SIOCLTECMD unexpected cmdid:0x%08lx\n",
@@ -3094,6 +3126,8 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
 {
   int ret = OK;
   FAR struct usock_s *usock = NULL;
+  waithdlr_t postproc_hdlr = NULL;
+  uint32_t cmdid = cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT;
 
   usock = alt1250_socket_get(dev, usockid);
   if (!usock)
@@ -3104,34 +3138,46 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
 
   if ((cmd->cmdid & LTE_CMDOPT_ASYNC_BIT) && (cmd->cb != NULL))
     {
-      ret = alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, cmd->cb);
+      ret = alt1250_regevtcb(cmdid, cmd->cb);
       if (ret < 0)
         {
           goto errout;
         }
 
-      cmd->outparam = alt1250_getevtarg(
-        cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
+      cmd->outparam = alt1250_getevtarg(cmdid);
     }
 
-  if (cmd->cmdid == LTE_CMDID_TLS_SSL_BIO)
+  switch (cmdid)
     {
-      int *altsock_fd;
-      altsock_fd = (int *)cmd->inparam[5];
-      *altsock_fd = usock->altsock;
+      case LTE_CMDID_TLS_SSL_BIO:
+        {
+          int *altsock_fd;
+          altsock_fd = (int *)cmd->inparam[5];
+          *altsock_fd = usock->altsock;
+        }
+        break;
+      case LTE_CMDID_GETVER:
+        {
+          /* The handler is set for post process,
+           * but it will be avoided when the command is asynchronouse.
+           */
+
+          postproc_hdlr = fwgetversion_postproc;
+        }
+        break;
     }
 
   ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
-    cmd->outparam, cmd->outparamlen, usockid, NULL, 0, dev, NULL);
+    cmd->outparam, cmd->outparamlen, usockid, postproc_hdlr, 0, dev, NULL);
   if ((ret < 0) || (ret == RET_NOTAVAIL))
     {
       /* clear callback */
 
-      alt1250_regevtcb(cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT, NULL);
+      alt1250_regevtcb(cmdid, NULL);
     }
   else
     {
-      if ((cmd->cmdid & ~LTE_CMDOPT_ASYNC_BIT) == LTE_CMDID_ACTPDN)
+      if (cmdid == LTE_CMDID_ACTPDN)
         {
           FAR lte_apn_setting_t *apn;
 
@@ -3160,6 +3206,402 @@ static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
 
           *flags |= USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
           ret = -EINPROGRESS;
+        }
+    }
+
+errout:
+  return ret;
+}
+
+static int fwgetimglen_postproc(uint8_t event, unsigned long priv,
+  FAR struct alt_container_s *reply, FAR struct usock_s *usock,
+  FAR struct alt1250_s *dev)
+{
+  struct usrsock_message_req_ack_s resp;
+
+  if (reply->result >= 0)
+    {
+      /* When modem returned non-zero value,
+       * some data have already injected.
+       * But additional header is not counted.
+       * Here is adjustement code for it.
+       */
+
+      if (dev->actual_injected == -1)
+        {
+          /* First call */
+
+          dev->actual_injected = reply->result;
+          dev->hdr_injected = (dev->actual_injected > 0) ?
+            sizeof(struct delta_header_s) : 0;
+        }
+      else if (dev->actual_injected >= LTE_IMAGE_PERT_SIZE)
+        {
+          /* Injection is already done until pert area. */
+
+          if (reply->result == 0)
+            {
+              /* Modem should returl non-zero value.
+               * This is error case because of mis-matched.
+               */
+
+              /* Notice: This case can be happened in normal case
+               * when injection done just until pert area.
+               * But it can't be rescued.
+               */
+
+              dev->hdr_injected = 0;
+              dev->actual_injected = -1;
+            }
+          else
+            {
+              dev->actual_injected = reply->result;
+            }
+        }
+
+
+      if (dev->actual_injected == -1)
+        {
+          reply->result = -ENODATA;
+        }
+      else
+        {
+          /* Reply size should include header injected size */
+
+          reply->result = dev->actual_injected + dev->hdr_injected;
+        }
+    }
+  else
+    {
+      /* In error case from modem, injection is reset. */
+
+      dev->hdr_injected = 0;
+      dev->actual_injected = -1;
+    }
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = reply->result;
+  _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: fwupdate_injection_postproc
+ ****************************************************************************/
+
+static int fwupdate_injection_postproc(uint8_t event, unsigned long priv,
+  FAR struct alt_container_s *reply, FAR struct usock_s *usock,
+  FAR struct alt1250_s *dev)
+{
+  int app_injected = (int)priv;
+  struct usrsock_message_req_ack_s resp;
+
+  if (app_injected >= 0)
+    {
+      reply->result = app_injected;
+    }
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = reply->result;
+  _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: fwupdate_dummy_postproc
+ ****************************************************************************/
+
+static int fwupdate_dummy_postproc(uint8_t event, unsigned long priv,
+  FAR struct alt_container_s *reply, FAR struct usock_s *usock,
+  FAR struct alt1250_s *dev)
+{
+  struct usrsock_message_req_ack_s resp;
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = reply->result;
+  _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: fwgetversion_postproc
+ ****************************************************************************/
+
+static int fwgetversion_postproc(uint8_t event, unsigned long priv,
+  FAR struct alt_container_s *reply, FAR struct usock_s *usock,
+  FAR struct alt1250_s *dev)
+{
+  struct usrsock_message_req_ack_s resp;
+  int altcom_result = *((int *)(reply->outparam[0]));
+  lte_version_t *version = (lte_version_t *)(reply->outparam[1]);
+
+  if ((reply->result == 0) && (altcom_result == 0))
+    {
+      /* Keep version information on the device context */
+
+      strncpy(dev->fw_version, version->np_package, LTE_VER_NP_PACKAGE_LEN);
+    }
+
+  memset(&resp, 0, sizeof(resp));
+  resp.result = reply->result;
+  _send_ack_common(dev->usockfd, usock->req.xid, &resp);
+
+  free_container(dev, reply);
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: store_injection_data
+ ****************************************************************************/
+
+static bool store_injection_data(FAR char *dist, FAR int *ofst, int sz,
+    FAR uint8_t **src, FAR int *len)
+{
+  bool ret = false;
+  int rest;
+
+  if (IS_IN_RANGE(*ofst, 0, sz))
+    {
+      rest = sz - *ofst;
+      rest = (rest > *len) ? *len : rest;
+      memcpy(&dist[*ofst], *src, rest);
+      *len -= rest;
+      *ofst += rest;
+      *src += rest;
+      if (*ofst == sz)
+        {
+          ret = true;
+        }
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: verify_header_crc32
+ ****************************************************************************/
+
+static bool verify_header_crc32(FAR struct alt1250_s *dev)
+{
+  uint32_t crc_result = crc32((uint8_t *)&dev->up_img,
+      sizeof(struct delta_header_s));
+
+  return (crc_result == 0);
+}
+
+/****************************************************************************
+ * Name: verify_pert_crc32
+ ****************************************************************************/
+
+static bool verify_pert_crc32(FAR struct alt1250_s *dev)
+{
+  uint32_t crc_result = crc32((uint8_t *)dev->img_pert, LTE_IMAGE_PERT_SIZE);
+  return (crc_result == dev->up_img.pert_crc);
+}
+
+/****************************************************************************
+ * Name: fwupdate_header_injection
+ ****************************************************************************/
+
+static int fwupdate_header_injection(FAR struct alt1250_s *dev,
+                                    FAR struct lte_ioctl_data_s *cmd,
+                                    FAR bool *send_pert)
+{
+  FAR uint8_t *data = (FAR uint8_t *)cmd->inparam[0];
+  int len = *(FAR int *)cmd->inparam[1];
+  bool init = *(FAR bool *)cmd->inparam[2];
+  bool filled_all;
+
+  if (init)
+    {
+      dev->actual_injected = 0;
+      dev->hdr_injected = 0;
+    }
+
+  *send_pert = false;
+
+  /* Make sure lte_get_version() and
+   * ltefwupdate_injected_datasize() have been already called.
+   */
+
+  if ((dev->fw_version[0] == 'R') && (dev->fw_version[1] == 'K')
+      && (dev->actual_injected != -1) && (len > 0))
+    {
+      /* Check if under header injection phase */
+
+      if (dev->actual_injected == 0)
+        {
+          filled_all
+            = store_injection_data((char *)&dev->up_img, &dev->hdr_injected,
+                                   sizeof(struct delta_header_s), &data, &len);
+          if (filled_all)
+            {
+              if (!verify_header_crc32(dev) ||
+                  (dev->up_img.chunk_code != DELTA_MAGICNO) ||
+                  strncmp(dev->fw_version, dev->up_img.np_package,
+                    LTE_VER_NP_PACKAGE_LEN))
+                {
+                  /* CRC error or Version mis-match */
+
+                  alt1250_printf("FWUP: Error CRC Header\n");
+                  dev->hdr_injected = 0;
+                  dev->actual_injected = -1;
+                  return -EINVAL;
+                }
+            }
+        }
+
+      /* Check if under pert injection phase */
+
+      if ((dev->hdr_injected >= sizeof(struct delta_header_s)) &&
+          (len > 0))
+        {
+          filled_all
+            = store_injection_data(dev->img_pert,&dev->actual_injected,
+                                   LTE_IMAGE_PERT_SIZE, &data, &len);
+          if (filled_all)
+            {
+              if (!verify_pert_crc32(dev))
+                {
+                  /* CRC error */
+
+                  alt1250_printf("FWUP: Error CRC Pertition\n");
+                  dev->hdr_injected = 0;
+                  dev->actual_injected = -1;
+                  return -EINVAL;
+                }
+              else
+                {
+                  *send_pert = true;
+                }
+            }
+        }
+      return len;
+    }
+  else
+    {
+      alt1250_printf("FWUP: Not initialized.\n");
+      return -ENODATA;
+    }
+}
+
+/****************************************************************************
+ * Name: ioctl_lte_fwupdate
+ ****************************************************************************/
+
+static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
+  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, int8_t *flags)
+{
+  int ret = OK;
+  waithdlr_t postproc_hdlr = NULL;
+  FAR struct usock_s *usock = NULL;
+  bool send_cmd = true;
+  int postproc_priv = -1;
+
+  usock = alt1250_socket_get(dev, usockid);
+  if (!usock)
+    {
+      ret = -EBADFD;
+      goto errout;
+    }
+
+  /* FW Update APIs are all synchronouse. */
+
+  if ((cmd->cmdid & LTE_CMDOPT_ASYNC_BIT) || (cmd->cb != NULL))
+    {
+      ret = -EINVAL;
+      goto errout;
+    }
+
+  /* Special operation for each commands */
+
+  switch (cmd->cmdid)
+    {
+      case LTE_CMDID_INJECTIMAGE:
+        {
+          ret = fwupdate_header_injection(dev, cmd, &send_cmd);
+          if (ret < 0)
+            {
+              goto errout;
+            }
+          else
+            {
+              /* That send_cmd is set to true means
+               * that pert image should be sent.
+               */
+
+              if (send_cmd)
+                {
+                  /* Need to care for reply value as actual injected
+                   * size from application point of view
+                   */
+
+                  postproc_priv = *(FAR int *)cmd->inparam[1] - ret;
+                  cmd->inparam[0] = dev->img_pert;
+                  *(FAR int *)cmd->inparam[1] = LTE_IMAGE_PERT_SIZE;
+                  *(FAR bool *)cmd->inparam[2] = true;
+                }
+              else if (ret > 0)
+                {
+                  send_cmd = true;
+                }
+              else  /* In case of ret == 0 */
+                {
+                  /* No send injecting data to modem,
+                   * but the data is all accepted.
+                   */
+
+                  ret = *(FAR int *)cmd->inparam[1];
+                }
+              postproc_hdlr = fwupdate_injection_postproc;
+            }
+        }
+        break;
+      case LTE_CMDID_GETIMAGELEN:
+        {
+          postproc_hdlr = fwgetimglen_postproc;
+        }
+        break;
+      case LTE_CMDID_EXEUPDATE:
+        {
+          /* When execution starts, injection is reset */
+
+          dev->hdr_injected = 0;
+          dev->actual_injected = -1;
+          dev->fw_version[0] = '\0';
+          postproc_hdlr = fwupdate_dummy_postproc;
+        }
+        break;
+      default:
+        {
+          ret = -EINVAL;
+          goto errout;
+        }
+        break;
+    }
+
+  if (send_cmd)
+    {
+      ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
+        cmd->outparam, cmd->outparamlen, usockid, postproc_hdlr, postproc_priv,
+        dev, NULL);
+      if ((ret >= 0) && (ret != RET_NOTAVAIL))
+        {
+          if (postproc_hdlr)
+            {
+              *flags |= USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
+              ret = -EINPROGRESS;
+            }
         }
     }
 
@@ -4394,6 +4836,12 @@ static int alt1250_request(int fd, FAR struct alt1250_s *dev)
       memset(&dev->net_dev.d_ipv6addr, 0, sizeof(dev->net_dev.d_ipv6addr));
 #endif
 
+      /* Reset fw information */
+
+      dev->hdr_injected = 0;
+      dev->actual_injected = -1;
+      dev->fw_version[0] = '\0';
+
       while ((container = pick_containertop(&next)) != NULL)
         {
           rcvcontainers++;
@@ -4740,6 +5188,9 @@ int main(int argc, FAR char *argv[])
   g_daemon->syncsem = syncsem;
   g_daemon->evtq = (mqd_t)-1;
   g_daemon->sid = -1;
+  g_daemon->hdr_injected = 0;
+  g_daemon->actual_injected = -1;
+  g_daemon->fw_version[0] = '\0';
 
   ret = alt1250_loop(g_daemon);
   if (g_daemon)
