@@ -3303,7 +3303,12 @@ static int fwupdate_injection_postproc(uint8_t event, unsigned long priv,
   int app_injected = (int)priv;
   struct usrsock_message_req_ack_s resp;
 
-  if (app_injected >= 0)
+  if (reply->result < 0)
+    {
+      dev->hdr_injected = 0;
+      dev->actual_injected = -1;
+    }
+  else if (app_injected >= 0)
     {
       reply->result = app_injected;
     }
