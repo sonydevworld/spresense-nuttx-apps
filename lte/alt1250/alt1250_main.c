@@ -316,7 +316,8 @@ static int ioctl_lte_event(int fd, FAR struct alt1250_s *dev,
 static int ioctl_lte_normal(int fd, FAR struct alt1250_s *dev,
   FAR struct lte_ioctl_data_s *cmd, FAR uint16_t usockid, int8_t *flags);
 static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
-  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, int8_t *flags);
+  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, FAR int *result,
+  FAR int8_t *flags);
 
 static int handlereply_sockcommon(uint8_t event, unsigned long priv,
   FAR struct alt_container_s *reply, FAR struct usock_s *usock,
@@ -2831,9 +2832,12 @@ static int ioctl_request(int fd, FAR struct alt1250_s *dev,
             }
           else if (LTE_ISCMDGRP_FWUPDATE(ltecmd.cmdid))
             {
-              ret = ioctl_lte_fwupdate(fd, dev, &ltecmd, req->usockid, &flags);
-              result = ret;
-              is_ack = true;
+              ret = ioctl_lte_fwupdate(fd, dev, &ltecmd, req->usockid,
+                &result, &flags);
+              if (ret != RET_NOTAVAIL)
+                {
+                  is_ack = true;
+                }
             }
           else
             {
@@ -3500,7 +3504,8 @@ static int fwupdate_header_injection(FAR struct alt1250_s *dev,
  ****************************************************************************/
 
 static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
-  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, int8_t *flags)
+  FAR struct lte_ioctl_data_s *cmd, uint16_t usockid, FAR int *result,
+  FAR int8_t *flags)
 {
   int ret = OK;
   waithdlr_t postproc_hdlr = NULL;
@@ -3508,10 +3513,12 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
   bool send_cmd = true;
   int postproc_priv = -1;
 
+  *result = OK;
+
   usock = alt1250_socket_get(dev, usockid);
   if (!usock)
     {
-      ret = -EBADFD;
+      *result = -EBADFD;
       goto errout;
     }
 
@@ -3519,7 +3526,7 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
 
   if ((cmd->cmdid & LTE_CMDOPT_ASYNC_BIT) || (cmd->cb != NULL))
     {
-      ret = -EINVAL;
+      *result = -EINVAL;
       goto errout;
     }
 
@@ -3529,8 +3536,8 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
     {
       case LTE_CMDID_INJECTIMAGE:
         {
-          ret = fwupdate_header_injection(dev, cmd, &send_cmd);
-          if (ret < 0)
+          *result = fwupdate_header_injection(dev, cmd, &send_cmd);
+          if (*result < 0)
             {
               goto errout;
             }
@@ -3546,22 +3553,22 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
                    * size from application point of view
                    */
 
-                  postproc_priv = *(FAR int *)cmd->inparam[1] - ret;
+                  postproc_priv = *(FAR int *)cmd->inparam[1] - *result;
                   cmd->inparam[0] = dev->img_pert;
                   *(FAR int *)cmd->inparam[1] = LTE_IMAGE_PERT_SIZE;
                   *(FAR bool *)cmd->inparam[2] = true;
                 }
-              else if (ret > 0)
+              else if (*result > 0)
                 {
                   send_cmd = true;
                 }
-              else  /* In case of ret == 0 */
+              else  /* In case of *result == 0 */
                 {
                   /* No send injecting data to modem,
                    * but the data is all accepted.
                    */
 
-                  ret = *(FAR int *)cmd->inparam[1];
+                  *result = *(FAR int *)cmd->inparam[1];
                 }
               postproc_hdlr = fwupdate_injection_postproc;
             }
@@ -3584,7 +3591,7 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
         break;
       default:
         {
-          ret = -EINVAL;
+          *result = -EINVAL;
           goto errout;
         }
         break;
@@ -3600,8 +3607,13 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
           if (postproc_hdlr)
             {
               *flags |= USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS;
-              ret = -EINPROGRESS;
+              *result = -EINPROGRESS;
             }
+        }
+      else if (ret < 0)
+        {
+          *result = ret;
+          ret = OK;
         }
     }
 
