@@ -23,12 +23,13 @@
 
 /* API call type
  *
- * |     Sync API                 |
- * | ---------------------------- |
- * | ltefw_inject_deltaimage      |
- * | ltefw_get_deltaimage_len     |
- * | ltefw_exec_deltaupdate       |
- * | ltefw_get_deltaupdate_result |
+ * |     Sync API                  |
+ * | ----------------------------- |
+ * | ltefwupdate_initialize        |
+ * | ltefwupdate_injectrest        |
+ * | ltefwupdate_injected_datasize |
+ * | ltefwupdate_execute           |
+ * | ltefwupdate_result            |
  *
  * attention
  * This API notifies the progress of the update by the callback set by
@@ -57,23 +58,47 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
-/* Inject delta image to LTE modem.
+/* Initialze injection delta image to LTE modem.
+ * 
+ * Initialize LTE modem delta image injection with some data of top of delta
+ * image.
  *
- * [in] inject_data: Setting of delta image to inject.
- * [out] ltefw_result: The pointer to the area to store an
- *                     LTEFW function result. As below value stored.
- * - LTEFW_RESULT_OK
+ * [in] initial_data: Pointer to top data of update image.
+ * [in] len: Size of initial_data.
+ *
+ * Return value : Positive value is the injected length. Negative falue is any
+ *                error. In error case, the value can be below values.
+ *
  * - LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE
  * - LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR
  * - LTEFW_RESULT_DELTAIMAGE_HDR_UNSUPPORTED
+ * - EINVAL
+ * - ENODATA
  *
- * On success, The length of the image successfully injected
- * to the modem is returned. On failure, a negative value or the
- * injected length will be returned. Negative values follow <errno.h>.
  */
 
-int ltefw_inject_deltaimage(const struct ltefw_injectdata_s *inject_data,
-  uint16_t *ltefw_result);
+int ltefwupdate_initialize(const char *initial_data, int len);
+
+/* Inject rest delta image to LTE modem.
+ * 
+ * Inject the rest of the delta image following the data injected
+ * by the ltefwupdate_initialize() and ltefwupdate_injectrest() functions.
+ *
+ * [in] rest_data: Pointer to top data of update image.
+ * [in] len: Size of initial_data.
+ *
+ * Return value : Positive value is the injected length. Negative falue is any
+ *                error. In error case, the value can be below values.
+ *
+ * - LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE
+ * - LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR
+ * - LTEFW_RESULT_DELTAIMAGE_HDR_UNSUPPORTED
+ * - EINVAL
+ * - ENODATA
+ *
+ */
+
+int ltefwupdate_injectrest(const char *rest_data, int len);
 
 /* Get length of injected delta image file.
  *
@@ -81,16 +106,16 @@ int ltefw_inject_deltaimage(const struct ltefw_injectdata_s *inject_data,
  * On failure, a negative value is returned according to <errno.h>.
  */
 
-int ltefw_get_deltaimage_len(void);
+int ltefwupdate_injected_datasize(void);
 
 /* Execute delta update.
  * attention When this function is executed, the modem is automatically
  * rebooted multiple times. The progress of the update can be checked by
  * the callback set by lte_set_report_restart().
  *
- * [out] ltefw_result: The pointer to the area to store an
- *                      LTEFW function result. As below value stored.
- * - LTEFW_RESULT_OK
+ * On success, 0 is returned. On failure,
+ * negative value is returned as below values.
+ * 
  * - LTEFW_RESULT_PRECHK_SET_DELTAIMAGE_FAILED
  * - LTEFW_RESULT_PRECHK_DELTAIMAGE_MISSING
  * - LTEFW_RESULT_PRECHK_OOM
@@ -98,27 +123,24 @@ int ltefw_get_deltaimage_len(void);
  * - LTEFW_RESULT_PRECHK_PKG_ERROR
  * - LTEFW_RESULT_PRECHK_CRC_ERROR
  *
- * On success, 0 is returned. On failure,
- * negative value is returned according to <errno.h>.
  */
 
-int ltefw_exec_deltaupdate(uint16_t *ltefw_result);
+int ltefwupdate_execute(void);
 
 /* Get the result of delta update.
  * Execute this function after LTE_RESTART_MODEM_UPDATED is
  * notified to the callback set by lte_set_report_restart().
  *
- * [out] ltefw_result: The pointer to the area to store an
- *                     LTEFW function result. As below value stored.
+ * On success, 0 is returned. On failure,
+ * negative value is returned as below values.
+
  * - LTEFW_RESULT_OK
  * - LTEFW_RESULT_DELTAUPDATE_FAILED
  * - LTEFW_RESULT_DELTAUPDATE_NORESULT
  *
- * On success, 0 is returned. On failure,
- * negative value is returned according to <errno.h>.
  */
 
-int ltefw_get_deltaupdate_result(uint16_t *ltefw_result);
+int ltefwupdate_result(void);
 
 #undef EXTERN
 #ifdef __cplusplus
