@@ -3263,7 +3263,6 @@ static int fwgetimglen_postproc(uint8_t event, unsigned long priv,
             }
         }
 
-
       if (dev->actual_injected == -1)
         {
           reply->result = -ENODATA;
@@ -3303,7 +3302,12 @@ static int fwupdate_injection_postproc(uint8_t event, unsigned long priv,
   int app_injected = (int)priv;
   struct usrsock_message_req_ack_s resp;
 
-  if (app_injected >= 0)
+  if (reply->result < 0)
+    {
+      dev->hdr_injected = 0;
+      dev->actual_injected = -1;
+    }
+  else if (app_injected >= 0)
     {
       reply->result = app_injected;
     }
@@ -3447,7 +3451,8 @@ static int fwupdate_header_injection(FAR struct alt1250_s *dev,
         {
           filled_all
             = store_injection_data((char *)&dev->up_img, &dev->hdr_injected,
-                                   sizeof(struct delta_header_s), &data, &len);
+                                   sizeof(struct delta_header_s), &data,
+                                   &len);
           if (filled_all)
             {
               if (!verify_header_crc32(dev) ||
@@ -3471,7 +3476,7 @@ static int fwupdate_header_injection(FAR struct alt1250_s *dev,
           (len > 0))
         {
           filled_all
-            = store_injection_data(dev->img_pert,&dev->actual_injected,
+            = store_injection_data(dev->img_pert, &dev->actual_injected,
                                    LTE_IMAGE_PERT_SIZE, &data, &len);
           if (filled_all)
             {
@@ -3490,6 +3495,7 @@ static int fwupdate_header_injection(FAR struct alt1250_s *dev,
                 }
             }
         }
+
       return len;
     }
   else
@@ -3570,6 +3576,7 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
 
                   *result = *(FAR int *)cmd->inparam[1];
                 }
+
               postproc_hdlr = fwupdate_injection_postproc;
             }
         }
@@ -3600,8 +3607,8 @@ static int ioctl_lte_fwupdate(int fd, FAR struct alt1250_s *dev,
   if (send_cmd)
     {
       ret = send_commonreq(cmd->cmdid, cmd->inparam, cmd->inparamlen,
-        cmd->outparam, cmd->outparamlen, usockid, postproc_hdlr, postproc_priv,
-        dev, NULL);
+        cmd->outparam, cmd->outparamlen, usockid, postproc_hdlr,
+        postproc_priv, dev, NULL);
       if ((ret >= 0) && (ret != RET_NOTAVAIL))
         {
           if (postproc_hdlr)
