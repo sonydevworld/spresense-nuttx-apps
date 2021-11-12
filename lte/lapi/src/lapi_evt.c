@@ -32,6 +32,7 @@
 #include <mqueue.h>
 #include <time.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 #include <nuttx/wireless/lte/lte_ioctl.h>
@@ -132,7 +133,10 @@ int lapi_evtyield(int timeout_ms)
 
   if (timeout_ms >= 0)
     {
-      clock_gettime(CLOCK_REALTIME, &ts);
+      if (clock_gettime(CLOCK_REALTIME, &ts) != OK)
+        {
+          return -errno;
+        }
 
       ts.tv_sec += timeout_ms / 1000;
       timeout_ms -= timeout_ms / 1000;

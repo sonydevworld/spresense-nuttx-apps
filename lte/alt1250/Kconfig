@@ -45,6 +45,17 @@ config LTE_ALT1250_EVENT_TASK_STACKSIZE
 
 endif
 
+config LTE_ALT1250_CONTAINERS
+	int "Number of containers"
+	default 10
+	range 1 255
+	---help---
+		Determines the maximum number of containers.
+		The container is a buffer used to communicate with the ALT1250
+		that contains the relevant information for communication.
+		Increasing this value may improve the performance during parallel processing.
+		On the other hand, decreasing this value will reduce the memory usage.
+
 config LTE_ALT1250_DEBUG_MSG
 	bool "Enable debug output messages"
 	default n

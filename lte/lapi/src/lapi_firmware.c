@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
@@ -31,34 +32,34 @@
 
 #include "lte/lapi.h"
 #include "lte/lte_api.h"
-#include "lte/lte_fw_api.h"
+#include "lte/lte_fwupdate.h"
 
 #include "lapi_util.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define SPLIT_LEN 1500
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static int ltefw_inject_deltaimage_inparam_check(
-  const struct ltefw_injectdata_s *inject_data, uint16_t *ltefw_result)
+static int fw_inject_internal(const char *data, int len, bool init)
 {
-  if ((inject_data == NULL) || (ltefw_result == NULL))
+  FAR void *inarg[3] = { (void *)data, &len, &init };
+  int dummy_arg; /* Dummy for blocking API call */
+
+  if (data == NULL || len < 0)
     {
       return -EINVAL;
     }
 
-  if (inject_data->inject_mode > LTEFW_INJECTION_MODE_APPEND)
-    {
-      return -EINVAL;
-    }
+  return lapi_req(LTE_CMDID_INJECTIMAGE,
+                 (FAR void *)inarg, ARRAY_SZ(inarg),
+                 (FAR void *)&dummy_arg, 0, NULL);
+}
 
-  return OK;
+static int fw_generic_request(int cmdid)
+{
+  int dummy_arg; /* Dummy for blocking API call */
+
+  return lapi_req(cmdid, NULL, 0, (FAR void *)&dummy_arg, 0, NULL);
 }
 
 /****************************************************************************
@@ -85,178 +86,38 @@ int lte_get_version_sync(lte_version_t *version)
                  NULL, 0,
                  (FAR void *)outarg, ARRAY_SZ(outarg),
                  NULL);
-  if (ret == 0)
-    {
-      ret = result;
-    }
+  return (ret == 0) ? result : ret;
+}
 
-  return ret;
+int ltefwupdate_initialize(const char *initial_data, int len)
+{
+  return fw_inject_internal(initial_data, len, true);
+}
+
+int ltefwupdate_injectrest(const char *rest_data, int len)
+{
+  return fw_inject_internal(rest_data, len, false);
+}
+
+int ltefwupdate_injected_datasize(void)
+{
+  return fw_generic_request(LTE_CMDID_GETIMAGELEN);
+}
+
+int ltefwupdate_execute(void)
+{
+  return fw_generic_request(LTE_CMDID_EXEUPDATE);
+}
+
+int ltefwupdate_result(void)
+{
+  return fw_generic_request(LTE_CMDID_GETUPDATERES);
 }
 
 /* Asynchronous APIs */
 
 int lte_get_version(get_ver_cb_t callback)
 {
-  if (callback == NULL)
-    {
-      return -EINVAL;
-    }
-
-  return lapi_req(LTE_CMDID_GETVER | LTE_CMDOPT_ASYNC_BIT,
-                  NULL, 0, NULL, 0, callback);
-}
-
-int ltefw_inject_deltaimage(const struct ltefw_injectdata_s *inject_data,
-  uint16_t *ltefw_result)
-{
-  int ret;
-  int result;
-  uint32_t totallen = 0;
-  struct ltefw_injectdata_s req;
-  FAR void *inarg[] =
-    {
-      &req
-    };
-
-  FAR void *outarg[] =
-    {
-      &result, ltefw_result
-    };
-
-  if (ltefw_inject_deltaimage_inparam_check(inject_data, ltefw_result))
-    {
-      return -EINVAL;
-    }
-
-  /* If 0 is input to data_len, return 0 without performing
-   * the subsequent processing.
-   */
-
-  if (inject_data->data_len == 0)
-    {
-      return 0;
-    }
-
-  /* copy to working area */
-
-  memcpy(&req, inject_data, sizeof(req));
-  totallen = inject_data->data_len;
-
-  do
-    {
-      req.data_len = (totallen > SPLIT_LEN) ? SPLIT_LEN : totallen;
-
-      ret = lapi_req(LTE_CMDID_INJECTIMAGE,
-                     (FAR void *)inarg, ARRAY_SZ(inarg),
-                     (FAR void *)outarg, ARRAY_SZ(outarg),
-                     NULL);
-      if (ret < 0)
-        {
-          break;
-        }
-      else if (result < 0)
-        {
-          ret = result;
-          break;
-        }
-
-      /* result is injected len */
-
-      if (result > req.data_len)
-        {
-          ret = -EFAULT;
-          break;
-        }
-
-      req.data += result;
-      totallen -= result;
-      req.inject_mode = LTEFW_INJECTION_MODE_APPEND;
-    }
-  while (totallen > 0);
-
-  if (ret >= 0)
-    {
-      /* return value is injected size */
-
-      ret = inject_data->data_len;
-    }
-
-  return ret;
-}
-
-int ltefw_get_deltaimage_len(void)
-{
-  int ret;
-  int result;
-  uint16_t ltefw_result;
-  FAR void *outarg[] =
-    {
-      &result, &ltefw_result
-    };
-
-  ret = lapi_req(LTE_CMDID_GETIMAGELEN,
-                 NULL, 0,
-                 (FAR void *)outarg, ARRAY_SZ(outarg),
-                 NULL);
-
-  if (ret == 0)
-    {
-      ret = result;
-    }
-
-  return ret;
-}
-
-int ltefw_exec_deltaupdate(uint16_t *ltefw_result)
-{
-  int ret;
-  int result;
-  FAR void *outarg[] =
-    {
-      &result, ltefw_result
-    };
-
-  if (ltefw_result == NULL)
-    {
-      return -EINVAL;
-    }
-
-  ret = lapi_req(LTE_CMDID_EXEUPDATE,
-                 NULL, 0,
-                 (FAR void *)outarg, ARRAY_SZ(outarg),
-                 NULL);
-
-  if (ret == 0)
-    {
-      ret = result;
-    }
-
-  return ret;
-}
-
-int ltefw_get_deltaupdate_result(uint16_t *ltefw_result)
-{
-  int ret;
-  int result;
-  FAR void *outarg[] =
-    {
-      &result, ltefw_result
-    };
-
-  if (ltefw_result == NULL)
-    {
-      return -EINVAL;
-    }
-
-  ret = lapi_req(LTE_CMDID_GETUPDATERES,
-                 NULL, 0,
-                 (FAR void *)outarg, ARRAY_SZ(outarg),
-                 NULL);
-
-  if (ret == 0)
-    {
-      ret = result;
-    }
-
-  return ret;
+  printf("This API is discarded. Please use lte_get_version_sync().\n");
+  return -ENOTSUP;
 }
