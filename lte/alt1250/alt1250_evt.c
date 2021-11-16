@@ -1223,6 +1223,8 @@ static void clear_callback(uint32_t cmdid)
 {
   int i;
 
+  sem_wait(&g_cbtablelock);
+
   for (i = 0; i < ARRAY_SZ(g_cbtable); i++)
     {
       if (g_cbtable[i].cmdid == cmdid)
@@ -1232,6 +1234,8 @@ static void clear_callback(uint32_t cmdid)
           break;
         }
     }
+
+  sem_post(&g_cbtablelock);
 }
 
 /****************************************************************************
@@ -1261,27 +1265,25 @@ static uint64_t exec_callback(uint32_t cmdid,
   uint64_t (*func)(FAR void *cb, FAR void **arg, FAR bool *set_writable),
   FAR void **arg, FAR bool *set_writable)
 {
-  int i;
   uint64_t evtbitmap = 0ULL;
   FAR int32_t *result = NULL;
+  FAR void *callback = NULL;
 
-  for (i = 0; i < ARRAY_SZ(g_cbtable); i++)
+  callback = get_cbfunc(cmdid);
+  if (callback)
     {
-      /* APIs that have result as a callback argument
-       * change the value before execution.
-       */
-
-      if (g_cbtable[i].cmdid == cmdid)
+      if (!IS_REPORT_API(cmdid))
         {
-          if (!IS_REPORT_API(cmdid))
-            {
-              result = (int32_t *)arg[0];
-              errno2result(result);
-            }
+          /* APIs that have result as a callback argument
+           * change the value before execution.
+           */
 
-          evtbitmap = func(g_cbtable[i].cb, arg, set_writable);
-          return evtbitmap;
+          result = (int32_t *)arg[0];
+          errno2result(result);
         }
+
+      evtbitmap = func(callback, arg, set_writable);
+      return evtbitmap;
     }
 
   /* When callback is not found,
@@ -1385,16 +1387,22 @@ static void *get_execfunc(int idx)
 static void *get_cbfunc(uint32_t cmdid)
 {
   int i;
+  FAR void *ret = NULL;
+
+  sem_wait(&g_cbtablelock);
 
   for (i = 0; i < ARRAY_SZ(g_cbtable); i++)
     {
       if (g_cbtable[i].cmdid == cmdid)
         {
-          return g_cbtable[i].cb;
+          ret = g_cbtable[i].cb;
+          break;
         }
     }
 
-  return NULL;
+  sem_post(&g_cbtablelock);
+
+  return ret;
 }
 
 /****************************************************************************
@@ -1415,8 +1423,6 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
         {
           alt1250_printf("idx=%d\n", idx);
 
-          sem_wait(&g_cbtablelock);
-
           set_writable = false;
 
           func = get_execfunc(idx);
@@ -1432,8 +1438,6 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
                   clear_callback(g_evtbuffers[idx].cmdid);
                 }
             }
-
-          sem_post(&g_cbtablelock);
 
           if (l_evtbitmap == 0ULL)
             {
