@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/alt1250_devevent.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,15 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __LTE_ALT1250_ALT1250_DEVEVENT_H__
+#define __LTE_ALT1250_ALT1250_DEVEVENT_H__
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <stdio.h>
+#include "alt1250_daemon.h"
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+int perform_alt1250events(FAR struct alt1250_s *dev);
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
-#endif
-
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+#endif  /* __LTE_ALT1250_ALT1250_DEVEVENT_H__ */
