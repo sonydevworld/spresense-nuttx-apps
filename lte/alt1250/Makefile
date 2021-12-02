@@ -71,6 +71,7 @@ CSRCS += alt1250_ioctl_event.c
 CSRCS += alt1250_ioctl_other.c
 CSRCS += alt1250_ioctl_power.c
 CSRCS += alt1250_ioctl_fwupdate.c
+CSRCS += alt1250_ioctl_denyinetsock.c
 
 MAINSRC = alt1250_main.c
 

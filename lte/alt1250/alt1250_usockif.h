@@ -82,6 +82,7 @@ union usrsock_request_ioctl_u
 {
   struct lte_ioctl_data_s ltecmd;
   struct ifreq ifreq;
+  uint8_t sock_type;
 };
 
 struct usrsock_request_buff_s

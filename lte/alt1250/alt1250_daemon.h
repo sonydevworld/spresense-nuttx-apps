@@ -69,6 +69,7 @@ struct alt1250_s
 {
   int usockfd;
   int altfd;
+  int usock_enable;
 
   int32_t scnt;
   int32_t sid;        /* Select ID requested to Alt1250 module.
