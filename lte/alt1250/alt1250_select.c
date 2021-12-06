@@ -175,10 +175,10 @@ static void select_start(FAR struct alt1250_s *dev)
             }
 
           ALTCOM_FD_SET(USOCKET_ALTSOCKID(usock), &exceptset);
-        }
 
-      maxfds = ((maxfds > USOCKET_ALTSOCKID(usock)) ? maxfds :
-        USOCKET_ALTSOCKID(usock));
+          maxfds = ((maxfds > USOCKET_ALTSOCKID(usock)) ? maxfds :
+            USOCKET_ALTSOCKID(usock));
+        }
     }
 
   if (maxfds != -1)
