@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/alt1250_util.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,32 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __LTE_ALT1250_ALT1250_UTIL_H__
+#define __LTE_ALT1250_ALT1250_UTIL_H__
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <stdio.h>
+#include "alt1250_daemon.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
+#ifndef MIN
+#  define MIN(a,b)  (((a) < (b)) ? (a) : (b))
 #endif
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+#ifndef ARRAY_SZ
+#  define ARRAY_SZ(array) (sizeof(array)/sizeof(array[0]))
+#endif
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+void alt1250_saveapn(FAR struct alt1250_s *dev, FAR lte_apn_setting_t *apn);
+void alt1250_getapn(FAR struct alt1250_s *dev, FAR lte_apn_setting_t *apn);
+
+#endif  /* __LTE_ALT1250_ALT1250_UTIL_H__ */

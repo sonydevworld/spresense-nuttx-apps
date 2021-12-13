@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/alt1250_devif.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,34 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __LTE_ALT1250_ALT1250_DEVIF_H__
+#define __LTE_ALT1250_ALT1250_DEVIF_H__
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <stdio.h>
+#include <stdint.h>
+
+#include <nuttx/modem/alt1250.h>
+
+#include "alt1250_container.h"
+
+#define DEV_ALT1250  "/dev/alt1250"
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Function Prototypes
  ****************************************************************************/
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
-#endif
+int init_alt1250_device(void);
+void finalize_alt1250_device(int fd);
+FAR struct alt_container_s *altdevice_exchange_selcontainer(int fd,
+    FAR struct alt_container_s *container);
+int altdevice_send_command(int fd, FAR struct alt_container_s *container,
+    FAR int32_t *usock_res);
+int altdevice_powercontrol(int fd, uint32_t cmd);
+int altdevice_seteventbuff(int fd, FAR struct alt_evtbuffer_s *buffers);
+int altdevice_getevent(int fd, FAR uint64_t *evtbitmap,
+    FAR struct alt_container_s **replys);
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+#endif  /* __LTE_ALT1250_ALT1250_DEVIF_H__ */

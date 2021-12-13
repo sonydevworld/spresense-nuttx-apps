@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_evt.c
+ * apps/lte/alt1250/callback_handlers/alt1250_evt.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -28,6 +28,8 @@
 #include <nuttx/wireless/lte/lte_ioctl.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <assert.h>
 
@@ -51,6 +53,8 @@
 
 #define IS_REPORT_API(cmdid) \
   ( LTE_ISCMDGRP_EVENT(cmdid) || cmdid == LTE_CMDID_SETRESTART )
+
+#define EVTTASK_NAME "lteevt_task"
 
 /****************************************************************************
  * Private Function Prototypes
@@ -141,6 +145,10 @@ struct cbinfo_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+int g_cbpid;
+#endif
 
 /* event argument for LTE_CMDID_SETRESTART */
 
@@ -1197,9 +1205,8 @@ static uint64_t tls_config_verify_exec_cb(FAR void *cb,
  * Name: evtbuffer_init
  ****************************************************************************/
 
-static void evtbuffer_init(int fd)
+static FAR struct alt_evtbuffer_s *evtbuffer_init(void)
 {
-  int ret;
   int i;
 
   for (i = 0; i < ARRAY_SZ(g_evtbuffers); i++)
@@ -1211,8 +1218,7 @@ static void evtbuffer_init(int fd)
   g_evtbuff.ninst = ARRAY_SZ(g_evtbuffers);
   g_evtbuff.inst = g_evtbuffers;
 
-  ret = ioctl(fd, ALT1250_IOC_SETEVTBUFF, (unsigned long)&g_evtbuff);
-  ASSERT(0 == ret);
+  return &g_evtbuff;
 }
 
 /****************************************************************************
@@ -1421,7 +1427,7 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
     {
       if (evtbitmap & (1ULL << idx))
         {
-          alt1250_printf("idx=%d\n", idx);
+          dbg_alt1250("idx=%d\n", idx);
 
           set_writable = false;
 
@@ -1449,7 +1455,7 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
         }
     }
 
-  alt1250_printf("evtbitmap=0x%llx\n", ret);
+  dbg_alt1250("evtbitmap=0x%llx\n", ret);
 
   return ret;
 }
@@ -1483,19 +1489,17 @@ static uint64_t alt1250_evt_search(uint32_t cmdid)
  * Name: alt1250_setevtbuff
  ****************************************************************************/
 
-int alt1250_setevtbuff(int altfd)
+FAR struct alt_evtbuffer_s *init_event_buffer(void)
 {
   sem_init(&g_cbtablelock, 0, 1);
-  evtbuffer_init(altfd);
-
-  return 0;
+  return evtbuffer_init();
 }
 
 /****************************************************************************
- * Name: alt1250_evtdestroy
+ * Name: alt1250_evtdatadestroy
  ****************************************************************************/
 
-int alt1250_evtdestroy(void)
+int alt1250_evtdatadestroy(void)
 {
   sem_destroy(&g_cbtablelock);
 
@@ -1637,7 +1641,7 @@ bool alt1250_checkcmdid(uint32_t cmdid, uint64_t evtbitmap,
     {
       if (evtbitmap & (1ULL << idx))
         {
-          alt1250_printf("idx=%d\n", idx);
+          dbg_alt1250("idx=%d\n", idx);
 
           if (g_evtbuffers[idx].cmdid == cmdid)
             {
@@ -1709,6 +1713,118 @@ int alt1250_clrevtcb(uint8_t mode)
     }
 
   sem_post(&g_cbtablelock);
+
+  return ret;
+}
+
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+static int internal_evttask(int argc, FAR char *argv[])
+{
+  int ret;
+  bool is_running = true;
+
+  ret = lapi_evtinit("/lapievt");
+  if (ret < 0)
+    {
+      dbg_alt1250("lapi_evtinit() failed: %d\n", ret);
+      goto errout;
+    }
+
+  while (is_running)
+    {
+      ret = lapi_evtyield(-1);
+      if (ret == 0)
+        {
+          dbg_alt1250("lapi_evtyield() finish normaly\n");
+          is_running = false;
+        }
+      else if (ret < 0)
+        {
+          dbg_alt1250("lapi_evtyield() failed: %d\n", ret);
+        }
+    }
+
+errout:
+  lapi_evtdestoy();
+
+  return 0;
+}
+#endif
+
+static int evt_qsend(FAR mqd_t *mqd, uint64_t evtbitmap)
+{
+  int ret = ERROR;
+
+  if (*mqd != (mqd_t)-1)
+    {
+      ret = mq_send(*mqd, (FAR const char *)&evtbitmap, sizeof(evtbitmap),
+        0);
+      if (ret < 0)
+        {
+          ret = -errno;
+          dbg_alt1250("failed to send mq: %d\n", errno);
+        }
+    }
+
+  return ret;
+}
+
+int alt1250_evttask_sendmsg(FAR struct alt1250_s *dev, uint64_t msg)
+{
+  return evt_qsend(&dev->evtq, msg);
+}
+
+int alt1250_evttask_start(void)
+{
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+  g_cbpid = task_create(EVTTASK_NAME, CONFIG_LTE_ALT1250_EVENT_TASK_PRIORITY,
+    CONFIG_LTE_ALT1250_EVENT_TASK_STACKSIZE, internal_evttask, NULL);
+  return g_cbpid;
+#else
+  return 1; /* Always success */
+#endif
+}
+
+void alt1250_evttask_stop(FAR struct alt1250_s *dev)
+{
+  if (alt1250_evttask_sendmsg(dev, 0ULL) == OK)
+    {
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+      int stat;
+
+      waitpid(g_cbpid, &stat, WEXITED);
+#endif
+    }
+
+  alt1250_evttask_msgclose(dev);
+}
+
+void alt1250_evttask_msgclose(FAR struct alt1250_s *dev)
+{
+  if (dev->evtq != (mqd_t)-1)
+    {
+      /* FIXME: In case of the event callback task is not launched yet,
+       *        this message may be dropped.
+       *        Now, above behavior is not rescued..
+       */
+
+      mq_close(dev->evtq);
+    }
+}
+
+int alt1250_evttask_msgconnect(FAR const char *qname,
+      FAR struct alt1250_s *dev)
+{
+  int ret = OK;
+
+  alt1250_evttask_msgclose(dev);
+
+  dev->evtq = mq_open(qname, O_WRONLY);
+  if (dev->evtq == (mqd_t)-1)
+    {
+      ret = -errno;
+      dbg_alt1250("failed to open mq(%s): %d\n", qname, errno);
+    }
 
   return ret;
 }

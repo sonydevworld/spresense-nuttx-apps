@@ -27,10 +27,53 @@ PRIORITY = $(CONFIG_LTE_ALT1250_PRIORITY)
 STACKSIZE = $(CONFIG_LTE_ALT1250_STACKSIZE)
 MODULE = $(CONFIG_LTE_ALT1250)
 
-# Files
+VPATH += callback_handlers usock_handlers
+CSRCS =
 
-CSRCS = alt1250_evt.c
+# Framework source files
+
+CSRCS += alt1250_container.c
+CSRCS += alt1250_devevent.c
+CSRCS += alt1250_devif.c
+CSRCS += alt1250_select.c
+CSRCS += alt1250_socket.c
+CSRCS += alt1250_usockevent.c
+CSRCS += alt1250_usockif.c
+CSRCS += alt1250_netdev.c
+CSRCS += alt1250_util.c
+
+# Callback task sources
+
+CSRCS += alt1250_evt.c
+
+# Usersock request handling source files
+
+CSRCS += alt1250_sockethdlr.c
+CSRCS += alt1250_closehdlr.c
+CSRCS += alt1250_connecthdlr.c
+CSRCS += alt1250_sendtohdlr.c
+CSRCS += alt1250_recvfromhdlr.c
+CSRCS += alt1250_setsockopthdlr.c
+CSRCS += alt1250_getsockopthdlr.c
+CSRCS += alt1250_getsocknamehdlr.c
+CSRCS += alt1250_getpeernamehdlr.c
+CSRCS += alt1250_bindhdlr.c
+CSRCS += alt1250_listenhdlr.c
+CSRCS += alt1250_accepthdlr.c
+CSRCS += alt1250_ioctlhdlr.c
+
+# Usersock ioctl LAPI command handling source files
+
+CSRCS += alt1250_ioctl_ltecmd.c
+CSRCS += alt1250_ioctl_ifreq.c
+CSRCS += alt1250_ioctl_normal.c
+CSRCS += alt1250_ioctl_event.c
+CSRCS += alt1250_ioctl_other.c
+CSRCS += alt1250_ioctl_power.c
+CSRCS += alt1250_ioctl_fwupdate.c
 
 MAINSRC = alt1250_main.c
+
+CFLAGS += -I callback_handlers -I usock_handlers
 
 include $(APPDIR)/Application.mk
