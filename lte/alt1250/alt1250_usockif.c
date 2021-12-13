@@ -263,6 +263,9 @@ int usockif_readreqioctl(int fd, FAR struct usrsock_request_buff_s *buf)
       case SIOCSIFFLAGS:
         rsize = sizeof(struct ifreq);
         break;
+      case SIOCDENYINETSOCK:
+        rsize = sizeof(uint8_t);
+        break;
       default:
         dbg_alt1250("Unsupported command:0x%08lx\n", req->cmd);
         return -EINVAL;

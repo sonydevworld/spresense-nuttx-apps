@@ -250,6 +250,7 @@ int main(int argc, FAR char *argv[])
   g_daemon->evtq = (mqd_t)-1;
   g_daemon->sid = -1;
   g_daemon->is_usockrcvd = false;
+  g_daemon->usock_enable = TRUE;
 
   reset_fwupdate_info(g_daemon);
 

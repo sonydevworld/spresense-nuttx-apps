@@ -9,6 +9,7 @@ config LTE_ALT1250
 	depends on NET_USRSOCK && MODEM_ALT1250
 	select NET_USRSOCK_TCP
 	select PIPES
+	select NET_USRSOCK_OTHER
 	---help---
 		Enable support for the alt1250 usrsock daemon
 

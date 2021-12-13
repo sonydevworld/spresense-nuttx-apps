@@ -37,7 +37,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define IS_SUPPORTED_DOMAIN(d) (((d) == AF_INET) || ((d) == AF_INET6))
+#define IS_SUPPORTED_INET_DOMAIN(d) (((d) == AF_INET) || ((d) == AF_INET6))
 
 /****************************************************************************
  * Private Functions Prototypes
@@ -383,10 +383,21 @@ int usockreq_socket(FAR struct alt1250_s *dev,
 
   *usock_xid = request->head.xid;
 
-  if (!IS_SUPPORTED_DOMAIN(request->domain))
+  if (!IS_SUPPORTED_INET_DOMAIN(request->domain) &&
+      request->domain != PF_USRSOCK)
     {
       dbg_alt1250("Not support this domain: %u\n", request->domain);
       *usock_result = -EAFNOSUPPORT;
+      return REP_SEND_ACK_WOFREE;
+    }
+  else if (!dev->usock_enable && IS_SUPPORTED_INET_DOMAIN(request->domain))
+    {
+      /* If domain is AF_INET while usock_enable is false,
+       * set usockid to -EPROTONOSUPPORT to fallback kernel
+       * network stack.
+       */
+
+      *usock_result = -EPROTONOSUPPORT;
       return REP_SEND_ACK_WOFREE;
     }
 
