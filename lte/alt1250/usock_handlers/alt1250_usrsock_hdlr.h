@@ -205,4 +205,20 @@ int send_reportnet_command(FAR struct alt1250_s *dev,
                            unsigned long priv,
                            FAR int32_t *usock_result);
 
+int send_lapi_command(FAR struct alt1250_s *dev,
+                      FAR struct alt_container_s *container,
+                      FAR struct usock_s *usock,
+                      FAR struct lte_ioctl_data_s *ltecmd,
+                      FAR postproc_hdlr_t hdlr,
+                      unsigned long priv,
+                      FAR int32_t *usock_result);
+
+int postproc_fwgetversion(FAR struct alt1250_s *dev,
+                          FAR struct alt_container_s *reply,
+                          FAR struct usock_s *usock,
+                          FAR int32_t *usock_result,
+                          FAR uint8_t *usock_xid,
+                          FAR struct usock_ackinfo_s *ackinfo,
+                          unsigned long arg);
+
 #endif  /* __LTE_ALT1250_USOCK_HANDLERS_ALT1250_SOCKETHDLR_H__ */

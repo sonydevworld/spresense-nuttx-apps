@@ -33,6 +33,7 @@
 #include "alt1250_devif.h"
 #include "alt1250_evt.h"
 #include "alt1250_ioctl_subhdlr.h"
+#include "alt1250_usrsock_hdlr.h"
 
 /****************************************************************************
  * Public Functions
@@ -63,16 +64,24 @@ int usockreq_ioctl_power(FAR struct alt1250_s *dev,
       case LTE_CMDID_TAKEWLOCK:
       case LTE_CMDID_GIVEWLOCK:
         *usock_result = altdevice_powercontrol(dev->altfd, ltecmd->cmdid);
+        if (MODEM_STATE_IS_POFF(dev) && ltecmd->cmdid == LTE_CMDID_POWERON)
+          {
+            /* For special reset sequence on power-on case */
+
+            MODEM_STATE_B4PON(dev);
+          }
         break;
 
       case LTE_CMDID_POWEROFF:
         alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
         *usock_result = altdevice_powercontrol(dev->altfd, ltecmd->cmdid);
+        MODEM_STATE_POFF(dev);
         break;
 
       case LTE_CMDID_FIN:
         alt1250_clrevtcb(ALT1250_CLRMODE_ALL);
         ret = REP_SEND_TERM;
+        MODEM_STATE_POFF(dev);
         break;
 
       default:
@@ -82,4 +91,3 @@ int usockreq_ioctl_power(FAR struct alt1250_s *dev,
 
   return ret;
 }
-

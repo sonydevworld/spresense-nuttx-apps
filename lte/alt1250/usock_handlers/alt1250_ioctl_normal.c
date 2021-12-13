@@ -95,6 +95,8 @@ static int postproc_radioon(FAR struct alt1250_s *dev,
     {
       ret = send_reportnet_command(dev, reply, usock, postproc_reportnet,
                                    arg, usock_result);
+
+      MODEM_STATE_RON(dev);
     }
 
   return ret;
@@ -104,13 +106,13 @@ static int postproc_radioon(FAR struct alt1250_s *dev,
  * name: postproc_fwgetversion
  ****************************************************************************/
 
-static int postproc_fwgetversion(FAR struct alt1250_s *dev,
-                                 FAR struct alt_container_s *reply,
-                                 FAR struct usock_s *usock,
-                                 FAR int32_t *usock_result,
-                                 FAR uint8_t *usock_xid,
-                                 FAR struct usock_ackinfo_s *ackinfo,
-                                 unsigned long arg)
+int postproc_fwgetversion(FAR struct alt1250_s *dev,
+                          FAR struct alt_container_s *reply,
+                          FAR struct usock_s *usock,
+                          FAR int32_t *usock_result,
+                          FAR uint8_t *usock_xid,
+                          FAR struct usock_ackinfo_s *ackinfo,
+                          unsigned long arg)
 {
   FAR void **resp = CONTAINER_RESPONSE(reply);
   int altcom_result = *((int *)(resp[0]));
@@ -127,20 +129,20 @@ static int postproc_fwgetversion(FAR struct alt1250_s *dev,
       strncpy(dev->fw_version, version->np_package, LTE_VER_NP_PACKAGE_LEN);
     }
 
-  return REP_SEND_ACK;
+  return usock ? REP_SEND_ACK : REP_NO_ACK;
 }
 
 /****************************************************************************
  * name: send_lapi_command
  ****************************************************************************/
 
-static int send_lapi_command(FAR struct alt1250_s *dev,
-                             FAR struct alt_container_s *container,
-                             FAR struct usock_s *usock,
-                             FAR struct lte_ioctl_data_s *ltecmd,
-                             FAR postproc_hdlr_t hdlr,
-                             unsigned long priv,
-                             FAR int32_t *usock_result)
+int send_lapi_command(FAR struct alt1250_s *dev,
+                      FAR struct alt_container_s *container,
+                      FAR struct usock_s *usock,
+                      FAR struct lte_ioctl_data_s *ltecmd,
+                      FAR postproc_hdlr_t hdlr,
+                      unsigned long priv,
+                      FAR int32_t *usock_result)
 {
   set_container_ids(container, USOCKET_USOCKID(usock), ltecmd->cmdid);
   set_container_argument(container, ltecmd->inparam, ltecmd->inparamlen);
@@ -250,6 +252,11 @@ int usockreq_ioctl_normal(FAR struct alt1250_s *dev,
                    RADIOON_ASYNC : RADIOON_SYNC;
         }
         break;
+
+      case LTE_CMDID_RADIOOFF:
+        {
+          /* TODO: add internal postproc for changing state */
+        }
 
       default:
         break;
