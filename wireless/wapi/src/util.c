@@ -187,7 +187,7 @@ static bool wapi_json_update(FAR cJSON *root,
 
 int wapi_make_socket(void)
 {
-  return socket(PF_INETX, SOCK_WAPI, 0);
+  return socket(PF_USOCKAPI, SOCK_WAPI, 0);
 }
 
 /****************************************************************************

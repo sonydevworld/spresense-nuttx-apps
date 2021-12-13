@@ -9,6 +9,7 @@ config WIRELESS_GS2200M
 	depends on NET_USRSOCK && WL_GS2200M
 	select NET_USRSOCK_TCP
 	select PIPES
+	select NET_USRSOCK_OTHER
 	---help---
 		Enable support for the gs2200m usrsock daemon
 
