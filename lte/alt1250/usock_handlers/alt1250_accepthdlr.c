@@ -85,7 +85,7 @@ static int postproc_accept(FAR struct alt1250_s *dev,
                                   *(uint16_t *)(resp[2]));
           ackinfo->valuelen_nontrunc = *(uint16_t *)(resp[2]);
           ackinfo->value_ptr = resp[3];
-          ackinfo->buf_ptr = resp[0];
+          ackinfo->buf_ptr = (FAR uint8_t *)&USOCKET_USOCKID(accept_sock);
 
           ret = REP_SEND_DACK;
         }
