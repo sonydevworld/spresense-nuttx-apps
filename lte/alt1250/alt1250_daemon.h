@@ -71,8 +71,8 @@
 #define MODEM_STATE_IS_RON(d)  ((d)->modem_state == MODEM_RADIO_ON)
 #define MODEM_STATE_IS_POFF(d) ((d)->modem_state == MODEM_POWER_OFF)
 
-#define OLD_FWVERSION "RK02_01_01_10_41_15"
-#define IS_OLD_FWVERSION(d) (!strncmp(&((d)->fw_version), OLD_FWVERSION, 20))
+#define OLD_FWVERSION "RK_02_01_01_10_41_15"
+#define IS_OLD_FWVERSION(d) (!strncmp(((d)->fw_version), OLD_FWVERSION, 20))
 
 /****************************************************************************
  * Public Data Types
