@@ -178,47 +178,55 @@ int usockreq_recvfrom(FAR struct alt1250_s *dev,
       return REP_SEND_ACK_WOFREE;
     }
 
-  /* Check if this socket is connected. */
-
-  if ((SOCK_STREAM == USOCKET_TYPE(usock)) &&
-      (USOCKET_STATE(usock) != SOCKET_STATE_CONNECTED))
-    {
-      dbg_alt1250("Unexpected state: %d\n", USOCKET_STATE(usock));
-      *usock_result = -ENOTCONN;
-      return REP_SEND_ACK_WOFREE;
-    }
-
-  container = container_alloc();
-  if (container == NULL)
-    {
-      dbg_alt1250("no container\n");
-      return REP_NO_CONTAINER;
-    }
-
   USOCKET_SET_REQUEST(usock, request->head.reqid, request->head.xid);
   USOCKET_SET_REQADDRLEN(usock, request->max_addrlen);
+  USOCKET_SET_REQBUFLEN(usock, request->max_buflen);
 
-  if (USOCKET_DOMAIN(usock) == AF_INET)
+  if (IS_SMS_SOCKET(usock))
     {
-      addrlen = sizeof(struct sockaddr_in);
+      ret = alt1250_sms_recv(dev, request, usock, usock_result, ackinfo);
     }
   else
     {
-      addrlen = sizeof(struct sockaddr_in6);
-    }
+      /* Check if this socket is connected. */
 
-  _rx_max_buflen = MIN(request->max_buflen, RX_BUFF_SIZE);
+      if ((SOCK_STREAM == USOCKET_TYPE(usock)) &&
+          (USOCKET_STATE(usock) != SOCKET_STATE_CONNECTED))
+        {
+          dbg_alt1250("Unexpected state: %d\n", USOCKET_STATE(usock));
+          *usock_result = -ENOTCONN;
+          return REP_SEND_ACK_WOFREE;
+        }
 
-  ret = send_recvfrom_command(dev, container, usock, request->flags,
-                              _rx_max_buflen, addrlen, usock_result);
-  if (IS_NEED_CONTAINER_FREE(ret))
-    {
-      container_free(container);
-    }
+      container = container_alloc();
+      if (container == NULL)
+        {
+          dbg_alt1250("no container\n");
+          return REP_NO_CONTAINER;
+        }
 
-  if (*usock_result >= 0)
-    {
-      dev->recvfrom_processing = true;
+      if (USOCKET_DOMAIN(usock) == AF_INET)
+        {
+          addrlen = sizeof(struct sockaddr_in);
+        }
+      else
+        {
+          addrlen = sizeof(struct sockaddr_in6);
+        }
+
+      _rx_max_buflen = MIN(request->max_buflen, RX_BUFF_SIZE);
+
+      ret = send_recvfrom_command(dev, container, usock, request->flags,
+                                  _rx_max_buflen, addrlen, usock_result);
+      if (IS_NEED_CONTAINER_FREE(ret))
+        {
+          container_free(container);
+        }
+
+      if (*usock_result >= 0)
+        {
+          dev->recvfrom_processing = true;
+        }
     }
 
   return ret;

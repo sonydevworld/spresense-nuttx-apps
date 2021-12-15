@@ -42,6 +42,7 @@
 #include "alt1250_usockif.h"
 #include "alt1250_util.h"
 #include "alt1250_fwupdate.h"
+#include "alt1250_sms.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -56,6 +57,8 @@
 #else
 #  define SOCKET_COUNT ALTCOM_NSOCKET
 #endif
+
+#define _TX_BUFF_SIZE  (1500)
 
 #define ACCEPT_USOCK_REQUEST(dev) (!(dev)->is_usockrcvd && !(dev)->recvfrom_processing)
 #define IS_USOCKREQ_RECEIVED(dev) ((dev)->is_usockrcvd)
@@ -113,8 +116,11 @@ struct alt1250_s
                        * usrsock request */
   bool recvfrom_processing;
 
+  uint8_t tx_buff[_TX_BUFF_SIZE];
   char fw_version[LTE_VER_NP_PACKAGE_LEN];
   struct update_info_s fwup_info;
+
+  struct sms_info_s sms_info;
 };
 
 #endif  /* __LTE_ALT1250_ALT1250_DAEMON_H__ */

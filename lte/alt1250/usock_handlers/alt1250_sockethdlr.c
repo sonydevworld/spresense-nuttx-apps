@@ -384,7 +384,7 @@ int usockreq_socket(FAR struct alt1250_s *dev,
   *usock_xid = request->head.xid;
 
   if (!IS_SUPPORTED_INET_DOMAIN(request->domain) &&
-      request->domain != PF_USRSOCK)
+      request->domain != PF_USRSOCK && request->domain != PF_SMSSOCK)
     {
       dbg_alt1250("Not support this domain: %u\n", request->domain);
       *usock_result = -EAFNOSUPPORT;
@@ -418,30 +418,47 @@ int usockreq_socket(FAR struct alt1250_s *dev,
   switch (request->type)
     {
       case SOCK_STREAM:
-
-       /* Do nothing */
-
-       dbg_alt1250("allocated usockid: %d\n", *usock_result);
-       break;
+        if (IS_SMS_SOCKET(usock))
+          {
+            dbg_alt1250("SOCK_STREAM is not supported by PF_SMSSOCK\n");
+            *usock_result = -EINVAL;
+            usocket_free(usock);
+          }
+        else
+          {
+            dbg_alt1250("allocated usockid: %d\n", *usock_result);
+          }
+        break;
 
       case SOCK_DGRAM:
-        container = container_alloc();
-        if (container == NULL)
+        if (IS_SMS_SOCKET(usock))
           {
-            dbg_alt1250("no container\n");
-            usocket_free(usock);
-            return REP_NO_CONTAINER;
+            ret = alt1250_sms_init(dev, usock, usock_result);
+            if (*usock_result < 0)
+              {
+                usocket_free(usock);
+              }
           }
-
-        ret = open_altsocket(dev, container, usock, usock_result);
-        if (IS_NEED_CONTAINER_FREE(ret))
+        else
           {
-            container_free(container);
-          }
+            container = container_alloc();
+            if (container == NULL)
+              {
+                dbg_alt1250("no container\n");
+                usocket_free(usock);
+                return REP_NO_CONTAINER;
+              }
 
-        if (*usock_result < 0)
-          {
-            usocket_free(usock);
+            ret = open_altsocket(dev, container, usock, usock_result);
+            if (IS_NEED_CONTAINER_FREE(ret))
+              {
+                container_free(container);
+              }
+
+            if (*usock_result < 0)
+              {
+                usocket_free(usock);
+              }
           }
 
         break;

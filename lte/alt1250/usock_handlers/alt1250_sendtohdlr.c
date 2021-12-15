@@ -34,18 +34,6 @@
 #include "alt1250_usrsock_hdlr.h"
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define TX_BUFF_SIZE  (1500)
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-static uint8_t _tx_buff[TX_BUFF_SIZE];
-
-/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -73,7 +61,7 @@ static int send_sendto_command(FAR struct alt1250_s *dev,
   inparam[2] = &req->addrlen;
   inparam[3] = &buflen;
   inparam[4] = addr;
-  inparam[5] = _tx_buff;
+  inparam[5] = dev->tx_buff;
 
   USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_RESULT(usock));
   USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_ERRCODE(usock));
@@ -95,10 +83,10 @@ static int send_sendto_command(FAR struct alt1250_s *dev,
  ****************************************************************************/
 
 int usockreq_sendto(FAR struct alt1250_s *dev,
-                        FAR struct usrsock_request_buff_s *req,
-                        FAR int32_t *usock_result,
-                        FAR uint8_t *usock_xid,
-                        FAR struct usock_ackinfo_s *ackinfo)
+                    FAR struct usrsock_request_buff_s *req,
+                    FAR int32_t *usock_result,
+                    FAR uint8_t *usock_xid,
+                    FAR struct usock_ackinfo_s *ackinfo)
 {
   FAR struct usrsock_request_sendto_s *request = &req->request.send_req;
   FAR struct usock_s *usock;
@@ -120,76 +108,84 @@ int usockreq_sendto(FAR struct alt1250_s *dev,
       return REP_SEND_ACK_WOFREE;
     }
 
-  /* Check if this socket is connected. */
-
-  if ((SOCK_STREAM == USOCKET_TYPE(usock)) &&
-      (USOCKET_STATE(usock) != SOCKET_STATE_CONNECTED))
-    {
-      dbg_alt1250("Unexpected state: %d\n", USOCKET_STATE(usock));
-      *usock_result = -ENOTCONN;
-      return REP_SEND_ACK_WOFREE;
-    }
-
-  container = container_alloc();
-  if (container == NULL)
-    {
-      dbg_alt1250("no container\n");
-      return REP_NO_CONTAINER;
-    }
-
   USOCKET_SET_REQUEST(usock, request->head.reqid, request->head.xid);
+  USOCKET_SET_REQBUFLEN(usock, request->buflen);
 
-  if (request->addrlen > 0)
+  if (IS_SMS_SOCKET(usock))
     {
-      /* Read address. */
-
-      ret = usockif_readreqaddr(dev->usockfd, &addr, request->addrlen);
-      if (ret < 0)
-        {
-          *usock_result = ret;
-          container_free(container);
-          return REP_SEND_ACK_WOFREE;
-        }
+      ret = alt1250_sms_send(dev, request, usock, usock_result);
     }
-
-  /* Check if the request has data. */
-
-  if (request->buflen > 0)
+  else
     {
-      size_t sendlen = MIN(request->buflen, TX_BUFF_SIZE);
+      /* Check if this socket is connected. */
 
-      ret = usockif_readreqsendbuf(dev->usockfd, _tx_buff, sendlen);
-      if (ret < 0)
+      if ((SOCK_STREAM == USOCKET_TYPE(usock)) &&
+          (USOCKET_STATE(usock) != SOCKET_STATE_CONNECTED))
         {
-          *usock_result = ret;
-          container_free(container);
+          dbg_alt1250("Unexpected state: %d\n", USOCKET_STATE(usock));
+          *usock_result = -ENOTCONN;
           return REP_SEND_ACK_WOFREE;
         }
 
-      /* If the send size exceeds TX_BUFF_SIZE,
-       * use seek to discard the exceeded buffer.
-       */
-
-      if (request->buflen > sendlen)
+      container = container_alloc();
+      if (container == NULL)
         {
-          usockif_discard(dev->usockfd, request->buflen - sendlen);
+          dbg_alt1250("no container\n");
+          return REP_NO_CONTAINER;
         }
 
-      ret = send_sendto_command(dev, container, usock, request, sendlen,
-                                (request->addrlen > 0 ? &addr : NULL),
-                                usock_result);
-      if (IS_NEED_CONTAINER_FREE(ret))
+      if (request->addrlen > 0)
+        {
+          /* Read address. */
+
+          ret = usockif_readreqaddr(dev->usockfd, &addr, request->addrlen);
+          if (ret < 0)
+            {
+              *usock_result = ret;
+              container_free(container);
+              return REP_SEND_ACK_WOFREE;
+            }
+        }
+
+      /* Check if the request has data. */
+
+      if (request->buflen > 0)
+        {
+          size_t sendlen = MIN(request->buflen, _TX_BUFF_SIZE);
+
+          ret = usockif_readreqsendbuf(dev->usockfd, dev->tx_buff, sendlen);
+          if (ret < 0)
+            {
+              *usock_result = ret;
+              container_free(container);
+              return REP_SEND_ACK_WOFREE;
+            }
+
+          /* If the send size exceeds TX_BUFF_SIZE,
+           * use seek to discard the exceeded buffer.
+           */
+
+          if (request->buflen > sendlen)
+            {
+              usockif_discard(dev->usockfd, request->buflen - sendlen);
+            }
+
+          ret = send_sendto_command(dev, container, usock, request, sendlen,
+                                    (request->addrlen > 0 ? &addr : NULL),
+                                    usock_result);
+          if (IS_NEED_CONTAINER_FREE(ret))
+            {
+              container_free(container);
+            }
+        }
+      else if(request->buflen == 0)
         {
           container_free(container);
+          ret = REP_SEND_ACK_WOFREE;
+          *usock_result = 0;
+          USOCKET_SET_SELECTABLE(usock, SELECT_WRITABLE);
+          usocket_commitstate(dev);
         }
-    }
-  else if(request->buflen == 0)
-    {
-      container_free(container);
-      ret = REP_SEND_ACK_WOFREE;
-      *usock_result = 0;
-      USOCKET_SET_SELECTABLE(usock, SELECT_WRITABLE);
-      usocket_commitstate(dev);
     }
 
   return ret;

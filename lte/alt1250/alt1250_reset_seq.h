@@ -31,7 +31,7 @@
 #include "alt1250_daemon.h"
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 int handle_poweron_reset(FAR struct alt1250_s *dev);

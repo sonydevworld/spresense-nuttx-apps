@@ -88,7 +88,7 @@ static int send_dataack(int fd, uint8_t ackxid, int32_t ackresult,
       return ret;
     }
 
-  if (valuelen > 0)
+  if ((valuelen > 0) && (value_ptr != NULL))
     {
       ret = write_to_usock(fd, value_ptr, valuelen);
       if (ret < 0)
@@ -97,7 +97,7 @@ static int send_dataack(int fd, uint8_t ackxid, int32_t ackresult,
         }
     }
 
-  if (ackresult > 0)
+  if ((ackresult > 0) && (buf_ptr != NULL))
     {
       ret = write_to_usock(fd, buf_ptr, ackresult);
       if (ret < 0)
@@ -265,6 +265,11 @@ int usockif_readreqioctl(int fd, FAR struct usrsock_request_buff_s *buf)
         break;
       case SIOCDENYINETSOCK:
         rsize = sizeof(uint8_t);
+        break;
+      case SIOCSMSENSTREP:
+      case SIOCSMSGREFID:
+      case SIOCSMSSSCA:
+        rsize = sizeof(struct lte_smsreq_s);
         break;
       default:
         dbg_alt1250("Unsupported command:0x%08lx\n", req->cmd);

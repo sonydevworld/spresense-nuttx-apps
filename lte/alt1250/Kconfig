@@ -26,6 +26,82 @@ config LTE_ALT1250_STACKSIZE
 	int "alt1250 stack size"
 	default 2048
 
+menu "SMS configuration"
+
+config LTE_ALT1250_SMS_TOA
+	bool "Configure type of address of destination address"
+	default n
+	---help---
+		Change the type of address of the destination address.
+
+choice
+	prompt "Configure Nature of Address Indicator"
+	depends on LTE_ALT1250_SMS_TOA
+
+config LTE_ALT1250_SMS_NAI_UNKNOWN
+	bool "Unkown"
+
+config LTE_ALT1250_SMS_NAI_INTERNATIONAL
+	bool "International number"
+
+config LTE_ALT1250_SMS_NAI_NATIONAL
+	bool "National number"
+
+config LTE_ALT1250_SMS_NAI_NETWORK_SPEC
+	bool "Network specific number"
+
+config LTE_ALT1250_SMS_NAI_SUBSCRIBER
+	bool "Subscriber number"
+
+config LTE_ALT1250_SMS_NAI_ALPANUMERIC
+	bool "Alphanumeric"
+
+config LTE_ALT1250_SMS_NAI_ABBREVIATED
+	bool "Abbreviated number"
+
+config LTE_ALT1250_SMS_NAI_RESERVED
+	bool "Reserved for extension"
+
+endchoice # Configure Nature of Address Indicator
+
+choice
+	prompt "Configure Numbering Plan Indicator"
+	depends on LTE_ALT1250_SMS_TOA
+
+config LTE_ALT1250_SMS_NPI_UNKNOWN
+	bool "Unkown"
+
+config LTE_ALT1250_SMS_NPI_ISDN
+	bool "ISDN/telephone numbering plan"
+
+config LTE_ALT1250_SMS_NPI_DATA
+	bool "Data numbering plan"
+
+config LTE_ALT1250_SMS_NPI_TELEX
+	bool "Telex numbering plan"
+
+config LTE_ALT1250_SMS_NPI_SERVICE_CENTRE_SPEC
+	bool "Service Centre Specific plan"
+
+config LTE_ALT1250_SMS_NPI_SERVICE_CENTRE_SPEC2
+	bool "Service Centre Specific plan-2"
+
+config LTE_ALT1250_SMS_NPI_NATIONAL
+	bool "National numbering plan"
+
+config LTE_ALT1250_SMS_NPI_PRIVATE
+	bool "Private numbering plan"
+
+config LTE_ALT1250_SMS_NPI_ERMES
+	bool "ERMES numbering plan"
+
+config LTE_ALT1250_SMS_NPI_RESERVED
+	bool "Reserved for extension"
+
+endchoice # Configure Numbering Plan Indicator
+
+endmenu # SMS configuration
+
 config LTE_ALT1250_LAUNCH_EVENT_TASK
 	bool "Launches an internal task to handle events"
 	default y

@@ -29,8 +29,6 @@
 
 #include <nuttx/modem/alt1250.h>
 
-#include "alt1250_container.h"
-
 #define DEV_ALT1250  "/dev/alt1250"
 
 /****************************************************************************

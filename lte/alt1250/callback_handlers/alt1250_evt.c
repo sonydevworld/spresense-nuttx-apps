@@ -26,6 +26,7 @@
 #include <semaphore.h>
 #include <nuttx/modem/alt1250.h>
 #include <nuttx/wireless/lte/lte_ioctl.h>
+#include <nuttx/net/sms.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -529,6 +530,18 @@ static void *g_vrfycbargs[] =
   &g_crt, &g_depth
 };
 
+/* event argument for LTE_CMDID_SMS_REPORT_RECV */
+
+static uint16_t g_smsmsg_index;
+static uint16_t g_smsrecv_sz;
+static uint8_t g_sms_maxnum;
+static uint8_t g_sms_seqnum;
+static struct sms_deliver_msg_max_s g_recvmsg;
+static void *g_smsreportargs[] =
+{
+  &g_smsmsg_index, &g_smsrecv_sz, &g_sms_maxnum, &g_sms_seqnum, &g_recvmsg
+};
+
 static struct alt_evtbuffer_s g_evtbuff;
 static struct alt_evtbuf_inst_s g_evtbuffers[] =
 {
@@ -571,6 +584,7 @@ static struct alt_evtbuf_inst_s g_evtbuffers[] =
   TABLE_CONTENT(GETERRINFO, ERRINFO, g_geterrinfoargs),
   TABLE_CONTENT(TLS_CONFIG_VERIFY, TLS_CONFIG_VERIFY_CALLBACK,
     g_vrfycbargs),
+  TABLE_CONTENT(SMS_REPORT_RECV, SMS_REPORT_RECV, g_smsreportargs),
 
   /* Add the command ID of LTE_CMDID_SELECT to the table so that the driver
    * can identify the bitmap of the select event.

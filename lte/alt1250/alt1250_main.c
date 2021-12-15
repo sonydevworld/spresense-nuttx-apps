@@ -42,6 +42,7 @@
 #include "alt1250_usrsock_hdlr.h"
 #include "alt1250_evt.h"
 #include "alt1250_netdev.h"
+#include "alt1250_sms.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -113,6 +114,7 @@ static int initialize_daemon(FAR struct alt1250_s *dev)
 
   init_containers();
   init_selectcontainer(dev);
+  alt1250_sms_initcontainer(dev);
   alt1250_netdev_register(dev);
 
   return OK;

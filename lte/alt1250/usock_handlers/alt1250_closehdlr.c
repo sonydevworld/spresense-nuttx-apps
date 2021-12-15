@@ -148,44 +148,51 @@ int usockreq_close(FAR struct alt1250_s *dev,
 
   USOCKET_SET_REQUEST(usock, request->head.reqid, request->head.xid);
 
-  switch (USOCKET_STATE(usock))
+  if (IS_SMS_SOCKET(usock))
     {
-      case SOCKET_STATE_CLOSED:
-      case SOCKET_STATE_CLOSING:
-        dbg_alt1250("Unexpected state: %d\n", USOCKET_STATE(usock));
-        *usock_result = -EBADFD;
-        ret = REP_SEND_ACK_WOFREE;
-        break;
+      ret = alt1250_sms_fin(dev, usock, usock_result);
+    }
+  else
+    {
+      switch (USOCKET_STATE(usock))
+        {
+          case SOCKET_STATE_CLOSED:
+          case SOCKET_STATE_CLOSING:
+            dbg_alt1250("Unexpected state: %d\n", USOCKET_STATE(usock));
+            *usock_result = -EBADFD;
+            ret = REP_SEND_ACK_WOFREE;
+            break;
 
-      case SOCKET_STATE_PREALLOC:
-        usocket_free(usock);
-        ret = REP_SEND_ACK_WOFREE;
-        break;
-
-      default:
-        container = container_alloc();
-        if (container == NULL)
-          {
-            dbg_alt1250("no container\n");
-            return REP_NO_CONTAINER;
-          }
-
-        USOCKET_SET_STATE(usock, SOCKET_STATE_CLOSING);
-        usocket_commitstate(dev);
-
-        ret = send_close_command(dev, container, usock, usock_result);
-
-        if (IS_NEED_CONTAINER_FREE(ret))
-          {
-            container_free(container);
-          }
-
-        if  (*usock_result < 0)
-          {
+          case SOCKET_STATE_PREALLOC:
             usocket_free(usock);
-          }
+            ret = REP_SEND_ACK_WOFREE;
+            break;
 
-        break;
+          default:
+            container = container_alloc();
+            if (container == NULL)
+              {
+                dbg_alt1250("no container\n");
+                return REP_NO_CONTAINER;
+              }
+
+            USOCKET_SET_STATE(usock, SOCKET_STATE_CLOSING);
+            usocket_commitstate(dev);
+
+            ret = send_close_command(dev, container, usock, usock_result);
+
+            if (IS_NEED_CONTAINER_FREE(ret))
+              {
+                container_free(container);
+              }
+
+            if  (*usock_result < 0)
+              {
+                usocket_free(usock);
+              }
+
+            break;
+        }
     }
 
   return ret;

@@ -221,4 +221,6 @@ int postproc_fwgetversion(FAR struct alt1250_s *dev,
                           FAR struct usock_ackinfo_s *ackinfo,
                           unsigned long arg);
 
+void alt1250_geterrinfo(FAR lte_errinfo_t *errinfo);
+
 #endif  /* __LTE_ALT1250_USOCK_HANDLERS_ALT1250_SOCKETHDLR_H__ */
