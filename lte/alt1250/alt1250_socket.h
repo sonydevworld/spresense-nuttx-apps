@@ -51,13 +51,13 @@
 }
 
 #define USOCKET_SET_REQADDRLEN(sock, _addrlen) \
-  { (sock)->sock_req.addr.addrlen = _addrlen; }
+  { (sock)->sock_req.addrbuflen.addr.addrlen = _addrlen; }
 
 #define USOCKET_SET_REQBACKLOG(sock, _backlog) \
   { (sock)->sock_req.backlog = _backlog; }
 
 #define USOCKET_SET_REQBUFLEN(sock, _buflen) \
-  { (sock)->sock_req.buflen = _buflen; }
+  { (sock)->sock_req.addrbuflen.buflen = _buflen; }
 
 #define USOCKET_SET_REQSOCKOPT(sock, _level, _opt, _optlen) { \
   (sock)->sock_req.opt.level = _level; \
@@ -70,10 +70,10 @@
 #define USOCKET_DOMAIN(sock)      ((sock)->domain)
 #define USOCKET_TYPE(sock)        ((sock)->type)
 #define USOCKET_PROTOCOL(sock)    ((sock)->protocol)
-#define USOCKET_REQADDRLEN(sock)  ((sock)->sock_req.addr.addrlen)
-#define USOCKET_REQADDR(sock)     ((sock)->sock_req.addr.addr)
+#define USOCKET_REQADDRLEN(sock)  ((sock)->sock_req.addrbuflen.addr.addrlen)
+#define USOCKET_REQADDR(sock)     ((sock)->sock_req.addrbuflen.addr.addr)
 #define USOCKET_REQBACKLOG(sock)  ((sock)->sock_req.backlog)
-#define USOCKET_REQBUFLEN(sock)   ((sock)->sock_req.buflen)
+#define USOCKET_REQBUFLEN(sock)   ((sock)->sock_req.addrbuflen.buflen)
 #define USOCKET_REQOPTLEVEL(sock) ((sock)->sock_req.opt.level)
 #define USOCKET_REQOPTOPT(sock)   ((sock)->sock_req.opt.option)
 #define USOCKET_REQOPTLEN(sock)   ((sock)->sock_req.opt.optlen)
@@ -183,19 +183,23 @@ struct usock_s
 
   union sock_request_param_u
     {
-      /* store the input arguments of connect(),
-       * recvfrom(), bind(), accept(), getsockname()
-       */
 
-      struct usock_addr_s addr;
+      struct
+        {
+          /* store the input arguments of connect(),
+           * recvfrom(), bind(), accept(), getsockname()
+           */
+
+          struct usock_addr_s addr;
+
+          /* store the input arguments of sendto(), recvfrom() */
+
+          uint16_t buflen;
+        } addrbuflen;
 
       /* store the input arguments of listen() */
 
       uint16_t backlog;
-
-      /* store the input arguments of sendto(), recvfrom() */
-
-      uint16_t buflen;
 
       /* store the input arguments of setsockopt(), getsockopt() */
 
