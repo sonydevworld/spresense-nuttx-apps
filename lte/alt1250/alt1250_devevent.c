@@ -133,6 +133,8 @@ static int perform_alt1250_resetevt(FAR struct alt1250_s *dev,
 
   container_free_all(rlist);
 
+  dev->sid = -1;
+
   switch (MODEM_STATE(dev))
     {
       case MODEM_BEFORE_POWER_ON:
