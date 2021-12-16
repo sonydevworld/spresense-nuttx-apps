@@ -32,6 +32,7 @@
 #include <queue.h>
 #include <mqueue.h>
 #include <semaphore.h>
+#include <string.h>
 
 #include <nuttx/net/netdev.h>
 #include <nuttx/wireless/lte/lte.h>
@@ -59,9 +60,28 @@
 #define ACCEPT_USOCK_REQUEST(dev) (!(dev)->is_usockrcvd && !(dev)->recvfrom_processing)
 #define IS_USOCKREQ_RECEIVED(dev) ((dev)->is_usockrcvd)
 
+#define MODEM_STATE(d)         ((d)->modem_state)
+#define MODEM_STATE_POFF(d)    ((d)->modem_state = MODEM_POWER_OFF)
+#define MODEM_STATE_PON(d)     ((d)->modem_state = MODEM_POWER_ON)
+#define MODEM_STATE_B4PON(d)   ((d)->modem_state = MODEM_BEFORE_POWER_ON)
+#define MODEM_STATE_RON(d)     ((d)->modem_state = MODEM_RADIO_ON)
+#define MODEM_STATE_IS_RON(d)  ((d)->modem_state == MODEM_RADIO_ON)
+#define MODEM_STATE_IS_POFF(d) ((d)->modem_state == MODEM_POWER_OFF)
+
+#define OLD_FWVERSION "RK02_01_01_10_41_15"
+#define IS_OLD_FWVERSION(d) (!strncmp(&((d)->fw_version), OLD_FWVERSION, 20))
+
 /****************************************************************************
  * Public Data Types
  ****************************************************************************/
+
+enum alt1250_state_e
+{
+  MODEM_POWER_OFF = 0,
+  MODEM_BEFORE_POWER_ON,
+  MODEM_POWER_ON,
+  MODEM_RADIO_ON,
+};
 
 struct usrsock_request_buff_s;
 
@@ -77,6 +97,8 @@ struct alt1250_s
   FAR sem_t *syncsem; /* Semaphore to synchronize LAPI Caller */
   mqd_t evtq;         /* Event queue to communicate "Callback task" */
   struct net_driver_s net_dev;
+
+  enum alt1250_state_e modem_state;
 
   lte_apn_setting_t apn;
   char apn_name[LTE_APN_LEN];

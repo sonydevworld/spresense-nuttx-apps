@@ -40,6 +40,7 @@
 #include "alt1250_usrsock_hdlr.h"
 #include "alt1250_select.h"
 #include "alt1250_netdev.h"
+#include "alt1250_reset_seq.h"
 
 /****************************************************************************
  * Private Functions
@@ -54,17 +55,17 @@ static int handle_replypkt(FAR struct alt1250_s *dev,
   FAR int32_t *usock_result, uint8_t *usock_xid,
   FAR struct usock_ackinfo_s *ackinfo)
 {
-  int ret = REP_SEND_ACK;
+  int ret;
   FAR struct usock_s *usock;
   FAR struct postproc_s *pp = CONTAINER_POSTPROC(reply);
 
   usock = usocket_search(dev, CONTAINER_SOCKETID(reply));
-  ASSERT(usock != NULL);
 
   dbg_alt1250("reply->result: %d\n", CONTAINER_RESPRES(reply));
 
   *usock_result = OK;
-  *usock_xid = USOCKET_XID(usock);
+  *usock_xid = usock ? USOCKET_XID(usock) : -1;
+  ret = usock ? REP_SEND_ACK : REP_NO_ACK;
 
   if (pp && pp->hdlr)
     {
@@ -100,25 +101,46 @@ static int perform_alt1250_reply(FAR struct alt1250_s *dev,
 }
 
 /****************************************************************************
- * Name: perform_alt1250_resetevt
+ * Name: handle_normal_reset
  ****************************************************************************/
 
-static int perform_alt1250_resetevt(FAR struct alt1250_s *dev,
-                                    FAR struct alt_container_s *rlist)
+static int handle_normal_reset(FAR struct alt1250_s *dev)
 {
-  int ret = REP_MODEM_RESET;
-
   alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
 
   dev->recvfrom_processing = false;
 
   alt1250_netdev_ifdown(dev);
 
-  container_free_all(rlist);
   usocket_freeall(dev);
 
   reset_fwupdate_info(dev);
   reset_usock_device(dev->usockfd);
+
+  return REP_MODEM_RESET;
+}
+
+/****************************************************************************
+ * Name: perform_alt1250_resetevt
+ ****************************************************************************/
+
+static int perform_alt1250_resetevt(FAR struct alt1250_s *dev,
+                                    FAR struct alt_container_s *rlist)
+{
+  int ret;
+
+  container_free_all(rlist);
+
+  switch(MODEM_STATE(dev))
+    {
+      case MODEM_BEFORE_POWER_ON:
+        ret = handle_poweron_reset(dev);
+        break;
+
+      default:
+        ret = handle_normal_reset(dev);
+        break;
+    }
 
   return ret;
 }
@@ -147,6 +169,12 @@ int perform_alt1250events(FAR struct alt1250_s *dev)
       /* Handling reset event */
 
       ret = perform_alt1250_resetevt(dev, reply_list);
+      if (ret != REP_MODEM_RESET)
+        {
+          /* No need to send reset command in case of intentional reset */
+
+          bitmap |= ~ALT1250_EVTBIT_RESET;
+        }
     }
   else
     {
