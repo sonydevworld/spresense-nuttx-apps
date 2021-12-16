@@ -39,6 +39,7 @@
 #include "alt1250_socket.h"
 #include "alt1250_usrsock_hdlr.h"
 #include "alt1250_select.h"
+#include "alt1250_sms.h"
 #include "alt1250_netdev.h"
 #include "alt1250_reset_seq.h"
 
@@ -115,6 +116,7 @@ static int handle_normal_reset(FAR struct alt1250_s *dev)
   usocket_freeall(dev);
 
   reset_fwupdate_info(dev);
+  alt1250_reset_sms_info(dev);
   reset_usock_device(dev->usockfd);
 
   return REP_MODEM_RESET;
@@ -131,7 +133,7 @@ static int perform_alt1250_resetevt(FAR struct alt1250_s *dev,
 
   container_free_all(rlist);
 
-  switch(MODEM_STATE(dev))
+  switch (MODEM_STATE(dev))
     {
       case MODEM_BEFORE_POWER_ON:
         ret = handle_poweron_reset(dev);
@@ -158,6 +160,7 @@ int perform_alt1250events(FAR struct alt1250_s *dev)
   int ret = OK;
   uint64_t bitmap;
   uint64_t select_bit;
+  uint64_t smsreport_bit;
   FAR struct alt_container_s *reply_list;
   FAR struct alt_container_s *container;
 
@@ -199,6 +202,13 @@ int perform_alt1250events(FAR struct alt1250_s *dev)
       if ((select_bit = perform_select_event(dev, bitmap)) != 0ULL)
         {
           bitmap &= ~select_bit;
+        }
+
+      /* Handling sms report event */
+
+      if ((smsreport_bit = perform_sms_report_event(dev, bitmap)) != 0ULL)
+        {
+          bitmap &= ~smsreport_bit;
         }
     }
 

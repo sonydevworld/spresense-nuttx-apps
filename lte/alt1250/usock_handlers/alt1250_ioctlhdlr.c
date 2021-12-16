@@ -31,6 +31,7 @@
 #include "alt1250_usockevent.h"
 #include "alt1250_postproc.h"
 #include "alt1250_ioctl_subhdlr.h"
+#include "alt1250_sms.h"
 
 /****************************************************************************
  * Public Functions
@@ -71,6 +72,10 @@ int usockreq_ioctl(FAR struct alt1250_s *dev,
           case SIOCDENYINETSOCK:
             ioctl_subhdlr = usockreq_ioctl_denyinetsock;
             break;
+          case SIOCSMSENSTREP:
+          case SIOCSMSGREFID:
+          case SIOCSMSSSCA:
+            ioctl_subhdlr = usockreq_ioctl_sms;
           default:
             *usock_result = -EINVAL;
             break;

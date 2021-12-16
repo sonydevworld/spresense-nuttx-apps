@@ -58,7 +58,10 @@ static postproc_hdlr_t ponreset_seq[] =
 
 static int tmp_res;
 static lte_version_t tmp_ver;
-static void *tmp_verout[2] = { &tmp_res, &tmp_ver };
+static void *tmp_verout[2] =
+{
+  &tmp_res, &tmp_ver
+};
 
 /****************************************************************************
  * Private Functions

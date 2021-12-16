@@ -26,7 +26,10 @@
  ****************************************************************************/
 
 #include <nuttx/net/usrsock.h>
+#include <nuttx/net/sms.h>
 #include <assert.h>
+
+#include "alt1250_usockif.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -53,6 +56,9 @@
 #define USOCKET_SET_REQBACKLOG(sock, _backlog) \
   { (sock)->sock_req.backlog = _backlog; }
 
+#define USOCKET_SET_REQBUFLEN(sock, _buflen) \
+  { (sock)->sock_req.buflen = _buflen; }
+
 #define USOCKET_SET_REQSOCKOPT(sock, _level, _opt, _optlen) { \
   (sock)->sock_req.opt.level = _level; \
   (sock)->sock_req.opt.option = _opt; \
@@ -67,6 +73,7 @@
 #define USOCKET_REQADDRLEN(sock)  ((sock)->sock_req.addr.addrlen)
 #define USOCKET_REQADDR(sock)     ((sock)->sock_req.addr.addr)
 #define USOCKET_REQBACKLOG(sock)  ((sock)->sock_req.backlog)
+#define USOCKET_REQBUFLEN(sock)   ((sock)->sock_req.buflen)
 #define USOCKET_REQOPTLEVEL(sock) ((sock)->sock_req.opt.level)
 #define USOCKET_REQOPTOPT(sock)   ((sock)->sock_req.opt.option)
 #define USOCKET_REQOPTLEN(sock)   ((sock)->sock_req.opt.optlen)
@@ -74,6 +81,7 @@
 #define USOCKET_STATE(sock)       ((sock)->state)
 #define USOCKET_ALTSOCKID(sock)   ((sock)->altsockid)
 #define USOCKET_USOCKID(sock)     ((sock)->usockid)
+#define USOCKET_REFID(sock)       (&(sock)->refids)
 
 #define USOCKET_REP_RESPONSE(sock) ((sock)->sock_reply.outparams)
 #define USOCKET_REP_RESULT(sock)  (&(sock)->sock_reply.rep_result)
@@ -120,8 +128,13 @@
 #define IS_STATE_READABLE(s) ((s)->select_condition & SELECT_READABLE)
 #define IS_STATE_WRITABLE(s) ((s)->select_condition & SELECT_WRITABLE)
 
+#define IS_SMS_SOCKET(s) ((s)->domain == PF_SMSSOCK)
+
 #define _OUTPUT_ARG_MAX 7
 #define _OPTVAL_LEN_MAX 16
+
+#define usocket_smssock_writeready(d, s) \
+  (usockif_sendtxready((d)->usockfd, USOCKET_USOCKID((s))))
 
 /****************************************************************************
  * Public Data Type
@@ -166,6 +179,8 @@ struct usock_s
   int altsockid;
   int usockid;
 
+  struct sms_refids_s refids;
+
   union sock_request_param_u
     {
       /* store the input arguments of connect(),
@@ -177,6 +192,10 @@ struct usock_s
       /* store the input arguments of listen() */
 
       uint16_t backlog;
+
+      /* store the input arguments of sendto(), recvfrom() */
+
+      uint16_t buflen;
 
       /* store the input arguments of setsockopt(), getsockopt() */
 
@@ -220,5 +239,8 @@ FAR struct usock_s *usocket_alloc(FAR struct alt1250_s *dev);
 void usocket_free(FAR struct usock_s *sock);
 void usocket_freeall(FAR struct alt1250_s *dev);
 void usocket_commitstate(FAR struct alt1250_s *dev);
+int usocket_smssock_num(FAR struct alt1250_s *dev);
+void usocket_smssock_readready(FAR struct alt1250_s *dev);
+void usocket_smssock_abort(FAR struct alt1250_s *dev);
 
 #endif  /* __LTE_ALT1250_ALT1250_SOCKET_H__ */

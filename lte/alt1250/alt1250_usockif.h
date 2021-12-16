@@ -83,6 +83,7 @@ union usrsock_request_ioctl_u
   struct lte_ioctl_data_s ltecmd;
   struct ifreq ifreq;
   uint8_t sock_type;
+  struct lte_smsreq_s smsreq;
 };
 
 struct usrsock_request_buff_s
@@ -97,6 +98,7 @@ struct usock_ackinfo_s
   uint16_t valuelen_nontrunc;
   FAR uint8_t *value_ptr;
   FAR uint8_t *buf_ptr;
+  int usockid;
 };
 
 /****************************************************************************

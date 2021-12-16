@@ -115,3 +115,63 @@ void usocket_commitstate(FAR struct alt1250_s *dev)
 {
   restart_select(dev);
 }
+
+/****************************************************************************
+ * name: usocket_smssock_num
+ ****************************************************************************/
+
+int usocket_smssock_num(FAR struct alt1250_s *dev)
+{
+  int i;
+  int num = 0;
+  FAR struct usock_s *sock;
+
+  for (i = 0; i < ARRAY_SZ(dev->sockets); i++)
+    {
+      sock = &dev->sockets[i];
+      if (IS_SMS_SOCKET(sock) && sock->state == SOCKET_STATE_PREALLOC)
+        {
+          num++;
+        }
+    }
+
+  return num;
+}
+
+/****************************************************************************
+ * name: usocket_smssock_readready
+ ****************************************************************************/
+
+void usocket_smssock_readready(FAR struct alt1250_s *dev)
+{
+  int i;
+  FAR struct usock_s *sock;
+
+  for (i = 0; i < ARRAY_SZ(dev->sockets); i++)
+    {
+      sock = &dev->sockets[i];
+      if (IS_SMS_SOCKET(sock) && sock->state == SOCKET_STATE_PREALLOC)
+        {
+          usockif_sendrxready(dev->usockfd, USOCKET_USOCKID(sock));
+        }
+    }
+}
+
+/****************************************************************************
+ * name: usocket_smssock_abort
+ ****************************************************************************/
+
+void usocket_smssock_abort(FAR struct alt1250_s *dev)
+{
+  int i;
+  FAR struct usock_s *sock;
+
+  for (i = 0; i < ARRAY_SZ(dev->sockets); i++)
+    {
+      sock = &dev->sockets[i];
+      if (IS_SMS_SOCKET(sock) && sock->state == SOCKET_STATE_PREALLOC)
+        {
+          usockif_sendabort(dev->usockfd, USOCKET_USOCKID(sock));
+        }
+    }
+}
