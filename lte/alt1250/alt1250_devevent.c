@@ -64,7 +64,7 @@ static int handle_replypkt(FAR struct alt1250_s *dev,
 
   dbg_alt1250("reply->result: %d\n", CONTAINER_RESPRES(reply));
 
-  *usock_result = OK;
+  *usock_result = CONTAINER_RESPRES(reply);
   *usock_xid = usock ? USOCKET_XID(usock) : -1;
   ret = usock ? REP_SEND_ACK : REP_NO_ACK;
 
