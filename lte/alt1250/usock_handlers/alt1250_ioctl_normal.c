@@ -268,7 +268,10 @@ int usockreq_ioctl_normal(FAR struct alt1250_s *dev,
     {
       /* In error case, clear callback */
 
-      alt1250_regevtcb(cmdid, NULL);
+      if (LTE_IS_ASYNC_CMD(ltecmd->cmdid) && (ltecmd->cb != NULL))
+        {
+          alt1250_regevtcb(cmdid, NULL);
+        }
     }
   else if ((ltecmd->cmdid == LTE_CMDID_ACTPDN) ||
            (cmdid == LTE_CMDID_TLS_SSL_HANDSHAKE))
