@@ -112,7 +112,7 @@ int altdevice_send_command(int fd, FAR struct alt_container_s *container,
     {
       /* In case of send successed */
 
-      ret = REP_NO_ACK_WOFREE;
+      ret = container->outparam ? REP_NO_ACK_WOFREE : REP_NO_ACK;
     }
 
   return ret;
