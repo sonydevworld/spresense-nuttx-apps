@@ -421,7 +421,7 @@ int usockreq_socket(FAR struct alt1250_s *dev,
         if (IS_SMS_SOCKET(usock))
           {
             dbg_alt1250("SOCK_STREAM is not supported by PF_SMSSOCK\n");
-            *usock_result = -EINVAL;
+            *usock_result = -EAFNOSUPPORT;
             usocket_free(usock);
           }
         else
@@ -431,7 +431,8 @@ int usockreq_socket(FAR struct alt1250_s *dev,
         break;
 
       case SOCK_DGRAM:
-        if (IS_SMS_SOCKET(usock))
+      case SOCK_RAW:
+        if ((IS_SMS_SOCKET(usock)) && (request->type == SOCK_DGRAM))
           {
             ret = alt1250_sms_init(dev, usock, usock_result);
             if (*usock_result < 0)
@@ -465,7 +466,7 @@ int usockreq_socket(FAR struct alt1250_s *dev,
 
       default:
         dbg_alt1250("Not support this type: %u\n", request->type);
-        *usock_result = -EINVAL;
+        *usock_result = -EAFNOSUPPORT;
         usocket_free(usock);
         break;
     }
