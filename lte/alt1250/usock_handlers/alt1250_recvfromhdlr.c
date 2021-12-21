@@ -38,13 +38,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define RX_BUFF_SIZE  (1500)
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static uint8_t _rx_buff[RX_BUFF_SIZE];
 static uint16_t _rx_max_buflen;
 
 /****************************************************************************
@@ -134,7 +131,7 @@ static int send_recvfrom_command(FAR struct alt1250_s *dev,
   USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_ERRCODE(usock));
   USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_ADDRLEN(usock));
   USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_ADDR(usock));
-  USOCKET_SET_RESPONSE(usock, idx++, _rx_buff);
+  USOCKET_SET_RESPONSE(usock, idx++, dev->rx_buff);
 
   set_container_ids(container, USOCKET_USOCKID(usock), LTE_CMDID_RECVFROM);
   set_container_argument(container, inparam, ARRAY_SZ(inparam));
@@ -214,7 +211,7 @@ int usockreq_recvfrom(FAR struct alt1250_s *dev,
           addrlen = sizeof(struct sockaddr_in6);
         }
 
-      _rx_max_buflen = MIN(request->max_buflen, RX_BUFF_SIZE);
+      _rx_max_buflen = MIN(request->max_buflen, _RX_BUFF_SIZE);
 
       ret = send_recvfrom_command(dev, container, usock, request->flags,
                                   _rx_max_buflen, addrlen, usock_result);

@@ -141,12 +141,12 @@ int lte_send_atcmd_sync(const char *cmd, int cmdlen,
   int32_t ret;
   FAR void *inarg[] =
     {
-      (FAR void *)cmd, &cmdlen
+      (void *)cmd, (void *)cmdlen
     };
 
   FAR void *outarg[] =
     {
-      respbuff, &respbufflen, resplen
+      respbuff, (void *)respbufflen, resplen
     };
 
   if (!cmd

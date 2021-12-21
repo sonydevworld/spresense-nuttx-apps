@@ -109,7 +109,7 @@ int usockreq_ioctl_event(FAR struct alt1250_s *dev,
   USOCKET_SET_REQUEST(usock, request->head.reqid, request->head.xid);
 
   ret = send_eventnotice_command(dev, container, usock, ltecmd,
-                                 usock_result);
+                                usock_result);
 
   if (IS_NEED_CONTAINER_FREE(ret))
     {
@@ -135,5 +135,5 @@ int usockreq_ioctl_event(FAR struct alt1250_s *dev,
       alt1250_regevtcb(cmdid, NULL);
     }
 
-  return ret;
+  return 0;
 }

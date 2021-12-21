@@ -59,17 +59,19 @@
 #endif
 
 #define _TX_BUFF_SIZE  (1500)
+#define _RX_BUFF_SIZE  (1500)
 
 #define ACCEPT_USOCK_REQUEST(dev) (!(dev)->is_usockrcvd && !(dev)->recvfrom_processing)
 #define IS_USOCKREQ_RECEIVED(dev) ((dev)->is_usockrcvd)
 
-#define MODEM_STATE(d)         ((d)->modem_state)
-#define MODEM_STATE_POFF(d)    ((d)->modem_state = MODEM_POWER_OFF)
-#define MODEM_STATE_PON(d)     ((d)->modem_state = MODEM_POWER_ON)
-#define MODEM_STATE_B4PON(d)   ((d)->modem_state = MODEM_BEFORE_POWER_ON)
-#define MODEM_STATE_RON(d)     ((d)->modem_state = MODEM_RADIO_ON)
-#define MODEM_STATE_IS_RON(d)  ((d)->modem_state == MODEM_RADIO_ON)
-#define MODEM_STATE_IS_POFF(d) ((d)->modem_state == MODEM_POWER_OFF)
+#define MODEM_STATE(d)           ((d)->modem_state)
+#define MODEM_STATE_POFF(d)      ((d)->modem_state = MODEM_POWER_OFF)
+#define MODEM_STATE_PON(d)       ((d)->modem_state = MODEM_POWER_ON)
+#define MODEM_STATE_B4PON(d)     ((d)->modem_state = MODEM_BEFORE_PON)
+#define MODEM_STATE_B4PON_2ND(d) ((d)->modem_state = MODEM_BEFORE_PON_STAGE2)
+#define MODEM_STATE_RON(d)       ((d)->modem_state = MODEM_RADIO_ON)
+#define MODEM_STATE_IS_RON(d)    ((d)->modem_state == MODEM_RADIO_ON)
+#define MODEM_STATE_IS_POFF(d)   ((d)->modem_state == MODEM_POWER_OFF)
 
 #define OLD_FWVERSION "RK_02_01_01_10_41_15"
 #define IS_OLD_FWVERSION(d) (!strncmp(((d)->fw_version), OLD_FWVERSION, 20))
@@ -81,7 +83,8 @@
 enum alt1250_state_e
 {
   MODEM_POWER_OFF = 0,
-  MODEM_BEFORE_POWER_ON,
+  MODEM_BEFORE_PON,
+  MODEM_BEFORE_PON_STAGE2,
   MODEM_POWER_ON,
   MODEM_RADIO_ON,
 };
@@ -117,6 +120,8 @@ struct alt1250_s
   bool recvfrom_processing;
 
   uint8_t tx_buff[_TX_BUFF_SIZE];
+  uint8_t rx_buff[_RX_BUFF_SIZE];
+
   char fw_version[LTE_VER_NP_PACKAGE_LEN];
   struct update_info_s fwup_info;
 
