@@ -123,5 +123,5 @@ int usockreq_ioctl_event(FAR struct alt1250_s *dev,
       alt1250_regevtcb(cmdid, NULL);
     }
 
-  return 0;
+  return ret;
 }
