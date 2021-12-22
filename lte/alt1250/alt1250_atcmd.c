@@ -246,3 +246,57 @@ int lwm2mstub_send_setversion(FAR struct alt1250_s *dev,
       "AT%%SETACFG=LWM2M.Config.Version,\"%s\"\r", is_v1_1 ? "1.1" : "1.0");
   return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }
+
+/****************************************************************************
+ * name: lwm2mstub_send_getwriteattr
+ ****************************************************************************/
+
+int lwm2mstub_send_getwriteattr(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container)
+{
+  int32_t dummy;
+  snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
+      "AT%%GETACFG=LWM2M.HostObjects.HostEnableWriteAttrURCMode\r");
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
+}
+
+/****************************************************************************
+ * name: lwm2mstub_send_setwriteattr
+ ****************************************************************************/
+
+int lwm2mstub_send_setwriteattr(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, bool en)
+{
+  int32_t dummy;
+  snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
+      "AT%%SETACFG=LWM2M.HostObjects.HostEnableWriteAttrURCMode,\"%s\"\r",
+                            en ? "true" : "false");
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
+}
+
+/****************************************************************************
+ * name: lwm2mstub_send_getautoconnect
+ ****************************************************************************/
+
+int lwm2mstub_send_getautoconnect(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container)
+{
+  int32_t dummy;
+  snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
+      "AT%%GETACFG=LWM2M.Config.AutoConnect\r");
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
+}
+
+/****************************************************************************
+ * name: lwm2mstub_send_setautoconnect
+ ****************************************************************************/
+
+int lwm2mstub_send_setautoconnect(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, bool en)
+{
+  int32_t dummy;
+  snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
+      "AT%%SETACFG=LWM2M.Config.AutoConnect,\"%s\"\r",
+                            en ? "true" : "false");
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
+}

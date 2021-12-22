@@ -81,4 +81,16 @@ int lwm2mstub_send_getversion(FAR struct alt1250_s *dev,
 int lwm2mstub_send_setversion(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, bool is_v1_1);
 
+int lwm2mstub_send_getwriteattr(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container);
+
+int lwm2mstub_send_setwriteattr(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, bool en);
+
+int lwm2mstub_send_getautoconnect(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container);
+
+int lwm2mstub_send_setautoconnect(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, bool en);
+
 #endif  /* __LTE_ALT1250_ALT1250_ATCMD_H__ */
