@@ -92,9 +92,8 @@ static int postproc_internal_atcmd(FAR struct alt1250_s *dev,
 
 int send_internal_at_command(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container,
-      atcmd_postproc_t proc, unsigned long arg)
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *usock_result)
 {
-  int32_t dummy;
   FAR void *inparam[2];
 
   inparam[0] = dev->tx_buff;
@@ -113,7 +112,7 @@ int send_internal_at_command(FAR struct alt1250_s *dev,
   set_container_postproc(container, postproc_internal_atcmd,
                                     (unsigned long)&postproc_argument);
 
-  return altdevice_send_command(dev->altfd, container, &dummy);
+  return altdevice_send_command(dev->altfd, container, usock_result);
 }
 
 /****************************************************************************
@@ -164,8 +163,9 @@ int check_atreply_truefalse(FAR char *reply, int len, void *arg)
 int lwm2mstub_send_reset(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container)
 {
+  int32_t dummy;
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE, "ATZ\r");
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }
 
 /****************************************************************************
@@ -175,10 +175,11 @@ int lwm2mstub_send_reset(FAR struct alt1250_s *dev,
 int lwm2mstub_send_setenable(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, bool en)
 {
+  int32_t dummy;
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
       "AT%%SETACFG=modem_apps.LWM2M.AppEnable,\"%s\"\r",
                                       en ? "true" : "false");
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }
 
 /****************************************************************************
@@ -186,11 +187,11 @@ int lwm2mstub_send_setenable(FAR struct alt1250_s *dev,
  ****************************************************************************/
 
 int lwm2mstub_send_getenable(FAR struct alt1250_s *dev,
-      FAR struct alt_container_s *container)
+      FAR struct alt_container_s *container, FAR int32_t *usock_result)
 {
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
       "AT%%GETACFG=modem_apps.LWM2M.AppEnable\r");
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, usock_result);
 }
 
 /****************************************************************************
@@ -200,9 +201,10 @@ int lwm2mstub_send_getenable(FAR struct alt1250_s *dev,
 int lwm2mstub_send_getnamemode(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container)
 {
+  int32_t dummy;
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
       "AT%%GETACFG=LWM2M.Config.NameMode\r");
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }
 
 /****************************************************************************
@@ -212,9 +214,10 @@ int lwm2mstub_send_getnamemode(FAR struct alt1250_s *dev,
 int lwm2mstub_send_setnamemode(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, int mode)
 {
+  int32_t dummy;
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
       "AT%%SETACFG=LWM2M.Config.NameMode,%d\r", mode);
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }
 
 /****************************************************************************
@@ -224,9 +227,10 @@ int lwm2mstub_send_setnamemode(FAR struct alt1250_s *dev,
 int lwm2mstub_send_getversion(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container)
 {
+  int32_t dummy;
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
       "AT%%GETACFG=LWM2M.Config.Version\r");
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }
 
 /****************************************************************************
@@ -236,7 +240,8 @@ int lwm2mstub_send_getversion(FAR struct alt1250_s *dev,
 int lwm2mstub_send_setversion(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, bool is_v1_1)
 {
+  int32_t dummy;
   snprintf((char *)dev->tx_buff, _TX_BUFF_SIZE,
       "AT%%SETACFG=LWM2M.Config.Version,\"%s\"\r", is_v1_1 ? "1.1" : "1.0");
-  return send_internal_at_command(dev, container, NULL, 0);
+  return send_internal_at_command(dev, container, NULL, 0, &dummy);
 }

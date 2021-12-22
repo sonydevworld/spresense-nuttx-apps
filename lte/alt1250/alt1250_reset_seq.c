@@ -205,11 +205,17 @@ static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
   int ret = REP_NO_ACK;
   int recv_ret;
   struct atreply_truefalse_s t_or_f;
+  int32_t usock_result = OK;
 
   /* Make sure LwM2M func disabled */
 
   t_or_f.target_str = "\nTRUE\r";
-  lwm2mstub_send_getenable(dev, container);
+  lwm2mstub_send_getenable(dev, container, &usock_result);
+  if (usock_result == -ENOTSUP)
+    {
+      return REP_NO_ACK;
+    }
+
   recv_ret = recv_atreply_onreset(check_atreply_truefalse, dev, &t_or_f);
   if (recv_ret == REP_MODEM_RESET)
     {

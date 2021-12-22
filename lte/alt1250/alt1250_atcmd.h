@@ -56,7 +56,7 @@ struct atreply_truefalse_s
 
 int send_internal_at_command(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container,
-      atcmd_postproc_t proc, unsigned long arg);
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *usock_result);
 
 int check_atreply_ok(FAR char *reply, int len, void *arg);
 int check_atreply_truefalse(FAR char *reply, int len, void *arg);
@@ -65,7 +65,7 @@ int lwm2mstub_send_reset(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container);
 
 int lwm2mstub_send_getenable(FAR struct alt1250_s *dev,
-      FAR struct alt_container_s *container);
+      FAR struct alt_container_s *container, FAR int32_t *usock_result);
 
 int lwm2mstub_send_setenable(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, bool en);
