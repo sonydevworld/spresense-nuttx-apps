@@ -42,6 +42,7 @@ CSRCS += alt1250_usockif.c
 CSRCS += alt1250_netdev.c
 CSRCS += alt1250_util.c
 CSRCS += alt1250_reset_seq.c
+CSRCS += alt1250_atcmd.c
 
 # Callback task sources
 

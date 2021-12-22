@@ -183,7 +183,6 @@ struct usock_s
 
   union sock_request_param_u
     {
-
       struct
         {
           /* store the input arguments of connect(),

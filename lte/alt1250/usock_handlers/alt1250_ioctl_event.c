@@ -109,19 +109,31 @@ int usockreq_ioctl_event(FAR struct alt1250_s *dev,
   USOCKET_SET_REQUEST(usock, request->head.reqid, request->head.xid);
 
   ret = send_eventnotice_command(dev, container, usock, ltecmd,
-                                 usock_result);
+                                usock_result);
 
   if (IS_NEED_CONTAINER_FREE(ret))
     {
       container_free(container);
     }
 
-  if (*usock_result < 0)
+  if (*usock_result == -ENOSYS)
+    {
+      /* -ENOSYS means that there is no composer.
+       * There are cases where the LAPI command ID group is an event,
+       * but no composer is needed.
+       * In that case, it is necessary to send OK to usrsock after
+       * registering the callback function.
+       */
+
+      ret = REP_SEND_ACK_WOFREE;
+      *usock_result = OK;
+    }
+  else if (*usock_result < 0)
     {
       /* clear callback */
 
       alt1250_regevtcb(cmdid, NULL);
     }
 
-  return ret;
+  return 0;
 }

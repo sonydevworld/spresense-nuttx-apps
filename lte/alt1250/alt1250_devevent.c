@@ -137,8 +137,12 @@ static int perform_alt1250_resetevt(FAR struct alt1250_s *dev,
 
   switch (MODEM_STATE(dev))
     {
-      case MODEM_BEFORE_POWER_ON:
+      case MODEM_BEFORE_PON:
         ret = handle_poweron_reset(dev);
+        break;
+
+      case MODEM_BEFORE_PON_STAGE2:
+        ret = handle_poweron_reset_stage2(dev);
         break;
 
       default:
@@ -176,9 +180,11 @@ int perform_alt1250events(FAR struct alt1250_s *dev)
       ret = perform_alt1250_resetevt(dev, reply_list);
       if (ret != REP_MODEM_RESET)
         {
-          /* No need to send reset command in case of intentional reset */
+          /* No need to send reset event to application
+           * in case of intentional reset
+           */
 
-          bitmap |= ~ALT1250_EVTBIT_RESET;
+          bitmap &= ~ALT1250_EVTBIT_RESET;
         }
     }
   else

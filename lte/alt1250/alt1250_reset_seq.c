@@ -25,6 +25,11 @@
 #include <nuttx/config.h>
 #include <nuttx/net/usrsock.h>
 
+#include <sys/poll.h>
+#include <assert.h>
+#include <ctype.h>
+#include <unistd.h>
+
 #include "alt1250_dbg.h"
 #include "alt1250_devif.h"
 #include "alt1250_devevent.h"
@@ -33,6 +38,7 @@
 #include "alt1250_ioctl_subhdlr.h"
 #include "alt1250_usrsock_hdlr.h"
 #include "alt1250_reset_seq.h"
+#include "alt1250_atcmd.h"
 
 /****************************************************************************
  * Private Data Type
@@ -65,6 +71,10 @@ static void *tmp_verout[2] =
 
 /****************************************************************************
  * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * name: postproc_ponresetseq
  ****************************************************************************/
 
 static int postproc_ponresetseq(FAR struct alt1250_s *dev,
@@ -112,14 +122,182 @@ static int send_getversion_onreset(FAR struct alt1250_s *dev,
 }
 
 /****************************************************************************
+ * name: str_toupper_case
+ ****************************************************************************/
+
+static void str_toupper_case(FAR char *data, int len)
+{
+  int i;
+
+  for (i = 0; i < len; i++)
+    {
+      data[i] = (char)toupper(data[i]);
+    }
+}
+
+/****************************************************************************
+ * name: recv_atreply_onreset
+ ****************************************************************************/
+
+static int recv_atreply_onreset(atreply_parser_t parse,
+                                FAR struct alt1250_s *dev,
+                                void *arg)
+{
+  int ret;
+  uint64_t bitmap;
+  struct pollfd fds;
+  nfds_t nfds;
+  FAR struct alt_container_s *rlist;
+  FAR struct alt_container_s *container;
+  FAR char *reply;
+  int rlen;
+
+  fds.fd = dev->altfd;
+  fds.events = POLLIN;
+  nfds = 1;
+
+  ret = poll(&fds, nfds, -1);
+  ASSERT(ret > 0);
+  ASSERT(fds.revents & POLLIN);
+
+  ret = altdevice_getevent(dev->altfd, &bitmap, &rlist);
+  ASSERT(ret == OK);
+
+  if (bitmap & ALT1250_EVTBIT_RESET)
+    {
+      /* Reset is happened again... */
+
+      container_free_all(rlist);
+      dev->sid = -1;
+
+      ret = REP_MODEM_RESET;
+    }
+  else if (bitmap & ALT1250_EVTBIT_REPLY)
+    {
+      container = container_pick_listtop(&rlist);
+      ASSERT(rlist == NULL);
+
+      reply = (FAR char *)container->outparam[0];
+      rlen = *(int *)container->outparam[2];
+
+      str_toupper_case(reply, rlen);
+      ret = parse(reply, rlen, arg);
+      ASSERT(ret == OK);
+
+      ret = REP_NO_ACK;
+    }
+  else
+    {
+      ASSERT(0);  /* Should not be here */
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * name: alt1250_lwm2m_ponreset
+ ****************************************************************************/
+
+static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
+                                  FAR struct alt_container_s *container)
+{
+  int ret = REP_NO_ACK;
+  int recv_ret;
+  struct atreply_truefalse_s t_or_f;
+  int32_t usock_result = OK;
+
+  /* Make sure LwM2M func disabled */
+
+  t_or_f.target_str = "\nTRUE\r";
+  lwm2mstub_send_getenable(dev, container, &usock_result);
+  if (usock_result == -ENOTSUP)
+    {
+      return REP_NO_ACK;
+    }
+
+  recv_ret = recv_atreply_onreset(check_atreply_truefalse, dev, &t_or_f);
+  if (recv_ret == REP_MODEM_RESET)
+    {
+      return recv_ret;
+    }
+
+  if (t_or_f.result)
+    {
+      lwm2mstub_send_setenable(dev, container, false);
+      recv_ret = recv_atreply_onreset(check_atreply_ok, dev, NULL);
+      if (recv_ret == REP_MODEM_RESET)
+        {
+          return recv_ret;
+        }
+
+      ret = REP_SEND_ACK;
+    }
+
+  /* Make sure LwM2M Version is 1.1 */
+
+  t_or_f.target_str = "\n1.1\r";
+  lwm2mstub_send_getversion(dev, container);
+  recv_ret = recv_atreply_onreset(check_atreply_truefalse, dev, &t_or_f);
+  if (recv_ret == REP_MODEM_RESET)
+    {
+      return recv_ret;
+    }
+
+  if (!t_or_f.result)
+    {
+      lwm2mstub_send_setversion(dev, container, true);
+      recv_ret = recv_atreply_onreset(check_atreply_ok, dev, NULL);
+      if (recv_ret == REP_MODEM_RESET)
+        {
+          return recv_ret;
+        }
+
+      ret = REP_SEND_ACK;
+    }
+
+  /* Make sure LwM2M NameMode is 0:UserName */
+
+  t_or_f.target_str = "\n0\r";
+  lwm2mstub_send_getnamemode(dev, container);
+  recv_ret = recv_atreply_onreset(check_atreply_truefalse, dev, &t_or_f);
+  if (recv_ret == REP_MODEM_RESET)
+    {
+      return recv_ret;
+    }
+
+  if (!t_or_f.result)
+    {
+      lwm2mstub_send_setnamemode(dev, container, 0);
+      recv_ret = recv_atreply_onreset(check_atreply_ok, dev, NULL);
+      if (recv_ret == REP_MODEM_RESET)
+        {
+          return recv_ret;
+        }
+
+      ret = REP_SEND_ACK;
+    }
+
+  if (ret == REP_SEND_ACK)
+    {
+      /* Force Reset is needed. */
+
+      altdevice_powercontrol(dev->altfd, LTE_CMDID_POWEROFF);
+      usleep(1);
+      altdevice_powercontrol(dev->altfd, LTE_CMDID_POWERON);
+    }
+
+  return ret;
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * name: handle_reset_sequence
+ * name: handle_poweron_reset_stage2
  ****************************************************************************/
 
-int handle_poweron_reset(FAR struct alt1250_s *dev)
+int handle_poweron_reset_stage2(FAR struct alt1250_s *dev)
 {
   int ret;
   int32_t unused;
@@ -140,7 +318,43 @@ int handle_poweron_reset(FAR struct alt1250_s *dev)
     {
       /* for blocking next usrsock request */
 
+      ret = REP_MODEM_RESET;
       dev->recvfrom_processing = true;
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * name: handle_poweron_reset
+ ****************************************************************************/
+
+int handle_poweron_reset(FAR struct alt1250_s *dev)
+{
+  int ret = REP_MODEM_RESET;
+  FAR struct alt_container_s *container;
+
+  container = container_alloc();
+  ASSERT(container);
+
+  while (ret == REP_MODEM_RESET)
+    {
+      ret = alt1250_lwm2m_ponreset(dev, container);
+    }
+
+  container_free(container);
+
+  MODEM_STATE_B4PON_2ND(dev);
+
+  if (ret == REP_NO_ACK)
+    {
+      /* In this sequence,
+       * NO_ACK means no force reset.
+       * In that case, get version is needed to send here.
+       */
+
+      handle_poweron_reset_stage2(dev);
+      ret = REP_MODEM_RESET;
     }
 
   return ret;
