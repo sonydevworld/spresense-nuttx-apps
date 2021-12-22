@@ -403,6 +403,7 @@ int usockreq_ioctl_fwupdate(FAR struct alt1250_s *dev,
                    */
 
                   *usock_result = *(FAR int *)ltecmd->inparam[1];
+                  container_free(container);
                 }
 
               postproc_hdlr = postproc_fwupdate_injection;
@@ -428,6 +429,7 @@ int usockreq_ioctl_fwupdate(FAR struct alt1250_s *dev,
       default:
         {
           *usock_result = -EINVAL;
+          container_free(container);
           return REP_SEND_ACK_WOFREE;
         }
         break;
