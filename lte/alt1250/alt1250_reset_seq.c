@@ -86,7 +86,6 @@ static int postproc_ponresetseq(FAR struct alt1250_s *dev,
   struct reset_arg_s *rarg = (struct reset_arg_s *)arg;
   ASSERT(rarg->seq_no < PONRESET_SEQ_NUM);
 
-
   ponreset_seq[rarg->seq_no](dev, reply, usock, usock_result, usock_xid,
                              ackinfo, rarg->arg);
   rarg->seq_no++;
@@ -130,7 +129,7 @@ static void str_toupper_case(FAR char *data, int len)
 {
   int i;
 
-  for(i = 0; i < len; i++)
+  for (i = 0; i < len; i++)
     {
       data[i] = (char)toupper(data[i]);
     }
@@ -278,7 +277,6 @@ static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
       ret = REP_SEND_ACK;
     }
 
-
   if (ret == REP_SEND_ACK)
     {
       /* Force Reset is needed. */
@@ -287,7 +285,6 @@ static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
       usleep(1);
       altdevice_powercontrol(dev->altfd, LTE_CMDID_POWERON);
     }
-
 
   return ret;
 }
@@ -354,7 +351,7 @@ int handle_poweron_reset(FAR struct alt1250_s *dev)
       /* In this sequence,
        * NO_ACK means no force reset.
        * In that case, get version is needed to send here.
-       */ 
+       */
 
       handle_poweron_reset_stage2(dev);
       ret = REP_MODEM_RESET;

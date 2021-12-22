@@ -76,7 +76,8 @@ static int postproc_internal_atcmd(FAR struct alt1250_s *dev,
   if (parg->proc != NULL)
     {
       ret = parg->proc(reply,
-        (FAR char *)reply->outparam[0], *(int *)reply->outparam[2], parg->arg);
+        (FAR char *)reply->outparam[0], *(int *)reply->outparam[2],
+        parg->arg);
     }
 
   return ret;
