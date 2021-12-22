@@ -206,7 +206,7 @@ static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
   struct atreply_truefalse_s t_or_f;
   int32_t usock_result = OK;
 
-  /* Make sure LwM2M func disabled */
+  /* Make sure LwM2M func enabled */
 
   t_or_f.target_str = "\nTRUE\r";
   lwm2mstub_send_getenable(dev, container, &usock_result);
@@ -221,9 +221,31 @@ static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
       return recv_ret;
     }
 
-  if (t_or_f.result)
+  if (!t_or_f.result)
     {
-      lwm2mstub_send_setenable(dev, container, false);
+      lwm2mstub_send_setenable(dev, container, true);
+      recv_ret = recv_atreply_onreset(check_atreply_ok, dev, NULL);
+      if (recv_ret == REP_MODEM_RESET)
+        {
+          return recv_ret;
+        }
+
+      ret = REP_SEND_ACK;
+    }
+
+  /* Make sure LwM2M AutoConnect is disabled */
+
+  t_or_f.target_str = "\nFALSE\r";
+  lwm2mstub_send_getautoconnect(dev, container);
+  recv_ret = recv_atreply_onreset(check_atreply_truefalse, dev, &t_or_f);
+  if (recv_ret == REP_MODEM_RESET)
+    {
+      return recv_ret;
+    }
+
+  if (!t_or_f.result)
+    {
+      lwm2mstub_send_setautoconnect(dev, container, false);
       recv_ret = recv_atreply_onreset(check_atreply_ok, dev, NULL);
       if (recv_ret == REP_MODEM_RESET)
         {
