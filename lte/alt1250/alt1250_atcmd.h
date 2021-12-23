@@ -41,7 +41,8 @@
 
 typedef int (*atreply_parser_t)(FAR char *reply, int len, void *arg);
 typedef int (*atcmd_postproc_t)(FAR struct alt_container_s *container,
-                                FAR char *rdata, int len, unsigned long arg);
+                                FAR char *rdata, int len, unsigned long arg,
+                                FAR int32_t *usock_result);
 
 struct atreply_truefalse_s
 {
@@ -54,7 +55,7 @@ struct atreply_truefalse_s
  ****************************************************************************/
 
 int send_internal_at_command(FAR struct alt1250_s *dev,
-      FAR struct alt_container_s *container,
+      FAR struct alt_container_s *container, int16_t usockid,
       atcmd_postproc_t proc, unsigned long arg, FAR int32_t *usock_result);
 
 int check_atreply_ok(FAR char *reply, int len, void *arg);
@@ -92,5 +93,17 @@ int lwm2mstub_send_getautoconnect(FAR struct alt1250_s *dev,
 
 int lwm2mstub_send_setautoconnect(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, bool en);
+
+int lwm2mstub_send_m2mopev(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, bool en);
+
+int lwm2mstub_send_m2mobjcmd(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, bool en);
+
+int lwm2mstub_send_m2mev(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, bool en);
 
 #endif  /* __LTE_ALT1250_ALT1250_ATCMD_H__ */

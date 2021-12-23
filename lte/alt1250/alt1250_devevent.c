@@ -123,6 +123,24 @@ static int handle_normal_reset(FAR struct alt1250_s *dev)
 }
 
 /****************************************************************************
+ * name: handle_intentional_reset
+ ****************************************************************************/
+
+static int handle_intentional_reset(FAR struct alt1250_s *dev)
+{
+  alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
+  dev->recvfrom_processing = false;
+  alt1250_netdev_ifdown(dev);
+  usocket_freeall(dev);
+  alt1250_reset_sms_info(dev);
+  reset_usock_device(dev->usockfd);
+
+  MODEM_STATE_PON(dev);
+
+  return REP_NO_ACK;
+}
+
+/****************************************************************************
  * Name: perform_alt1250_resetevt
  ****************************************************************************/
 
@@ -143,6 +161,10 @@ static int perform_alt1250_resetevt(FAR struct alt1250_s *dev,
 
       case MODEM_BEFORE_PON_STAGE2:
         ret = handle_poweron_reset_stage2(dev);
+        break;
+
+      case MODEM_RST_INTENTIONAL:
+        ret = handle_intentional_reset(dev);
         break;
 
       default:

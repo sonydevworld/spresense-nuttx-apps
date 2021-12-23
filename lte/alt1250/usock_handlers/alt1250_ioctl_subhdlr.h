@@ -83,4 +83,11 @@ int usockreq_ioctl_denyinetsock(FAR struct alt1250_s *dev,
                                 FAR uint8_t *usock_xid,
                                 FAR struct usock_ackinfo_s *ackinfo);
 
+int send_m2mnotice_command(uint32_t cmdid,
+                           FAR struct alt1250_s *dev,
+                           FAR struct alt_container_s *container,
+                           FAR struct usock_s *usock,
+                           FAR struct lte_ioctl_data_s *ltecmd,
+                           FAR int32_t *ures);
+
 #endif  /* __LTE_ALT1250_USOCK_HANDLERS_ALT1250_IOCTL_SUBHDLR_H__ */

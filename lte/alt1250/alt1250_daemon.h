@@ -69,9 +69,11 @@
 #define MODEM_STATE_PON(d)       ((d)->modem_state = MODEM_POWER_ON)
 #define MODEM_STATE_B4PON(d)     ((d)->modem_state = MODEM_BEFORE_PON)
 #define MODEM_STATE_B4PON_2ND(d) ((d)->modem_state = MODEM_BEFORE_PON_STAGE2)
+#define MODEM_STATE_INTENTRST(d) ((d)->modem_state = MODEM_RST_INTENTIONAL)
 #define MODEM_STATE_RON(d)       ((d)->modem_state = MODEM_RADIO_ON)
 #define MODEM_STATE_IS_RON(d)    ((d)->modem_state == MODEM_RADIO_ON)
 #define MODEM_STATE_IS_POFF(d)   ((d)->modem_state == MODEM_POWER_OFF)
+#define MODEM_STATE_IS_PON(d)    ((d)->modem_state == MODEM_POWER_ON)
 
 #define OLD_FWVERSION "RK_02_01_01_10_41_15"
 #define IS_OLD_FWVERSION(d) (!strncmp(((d)->fw_version), OLD_FWVERSION, 20))
@@ -86,6 +88,7 @@ enum alt1250_state_e
   MODEM_BEFORE_PON,
   MODEM_BEFORE_PON_STAGE2,
   MODEM_POWER_ON,
+  MODEM_RST_INTENTIONAL,
   MODEM_RADIO_ON,
 };
 
@@ -126,6 +129,7 @@ struct alt1250_s
   struct update_info_s fwup_info;
 
   struct sms_info_s sms_info;
+  bool is_support_lwm2m;
 };
 
 #endif  /* __LTE_ALT1250_ALT1250_DAEMON_H__ */

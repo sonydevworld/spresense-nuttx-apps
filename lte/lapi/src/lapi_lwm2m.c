@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_devif.c
+ * apps/lte/lapi/src/lapi_lwm2m.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,151 +24,89 @@
 
 #include <nuttx/config.h>
 
-#include <unistd.h>
-#include <fcntl.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 #include <errno.h>
-#include <sys/ioctl.h>
-#include <nuttx/modem/alt1250.h>
 #include <nuttx/wireless/lte/lte_ioctl.h>
+#include <nuttx/wireless/lte/lte_lwm2m.h>
 
-#include "alt1250_devif.h"
-#include "alt1250_usockevent.h"
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * name: ioctl_wrapper
- ****************************************************************************/
-
-static int ioctl_wrapper(int fd, int cmd, unsigned long arg)
-{
-  int ret;
-
-  ret = ioctl(fd, cmd, arg);
-  if (ret < 0)
-    {
-      ret = -errno;
-    }
-
-  return ret;
-}
+#include "lte/lapi.h"
+#include "lte/lte_api.h"
+#include "lapi_util.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * name: init_alt1250_device
+ * Name: lte_commit_m2msetting
  ****************************************************************************/
 
-int init_alt1250_device(void)
+int lte_commit_m2msetting(void)
 {
-  return open(DEV_ALT1250, O_RDONLY);
+  return lapi_req(LTE_CMDID_LWM2M_COMMIT_SETTING, NULL, 0, NULL, 0, NULL);
 }
 
 /****************************************************************************
- * name: finalize_alt1250_device
+ * Name: lte_set_report_m2mwrite
  ****************************************************************************/
 
-void finalize_alt1250_device(int fd)
+int lte_set_report_m2mwrite(lwm2mstub_write_cb_t cb)
 {
-  close(fd);
+  return lapi_req(LTE_CMDID_LWM2M_WRITE_EVT, NULL, 0, NULL, 0, cb);
 }
 
 /****************************************************************************
- * name: altdevice_exchange_selcontainer
+ * Name: lte_set_report_m2mread
  ****************************************************************************/
 
-FAR struct alt_container_s *altdevice_exchange_selcontainer(int fd,
-    FAR struct alt_container_s *container)
+int lte_set_report_m2mread(lwm2mstub_read_cb_t cb)
 {
-  ioctl(fd, ALT1250_IOC_EXCHGCONTAINER, &container);
-  return container;
+  return lapi_req(LTE_CMDID_LWM2M_READ_EVT, NULL, 0, NULL, 0, cb);
 }
 
 /****************************************************************************
- * name: altdevice_send_command
+ * Name: lte_set_report_m2mexec
  ****************************************************************************/
 
-int altdevice_send_command(int fd, FAR struct alt_container_s *container,
-    FAR int32_t *usock_res)
+int lte_set_report_m2mexec(lwm2mstub_exec_cb_t cb)
 {
-  int ret;
-  ret = ioctl_wrapper(fd, ALT1250_IOC_SEND, (unsigned long)container);
-  if (ret < 0)
-    {
-      *usock_res = ret;
-      if (ret == -ENETRESET)
-        {
-          ret = REP_SEND_ACK_WOFREE;
-        }
-      else
-        {
-          ret = REP_SEND_ACK;
-        }
-    }
-  else
-    {
-      /* In case of send successed */
-
-      ret = container->outparam ? REP_NO_ACK_WOFREE : REP_NO_ACK;
-    }
-
-  return ret;
+  return lapi_req(LTE_CMDID_LWM2M_EXEC_EVT, NULL, 0, NULL, 0, cb);
 }
 
 /****************************************************************************
- * name: altdevice_powercontrol
+ * Name: lte_set_report_m2movstart
  ****************************************************************************/
 
-int altdevice_powercontrol(int fd, uint32_t cmd)
+int lte_set_report_m2movstart(lwm2mstub_ovstart_cb_t cb)
 {
-  struct alt_power_s req;
-
-  req.cmdid = cmd;
-  return ioctl_wrapper(fd, ALT1250_IOC_POWER, (unsigned long)&req);
+  return lapi_req(LTE_CMDID_LWM2M_OVSTART_EVT, NULL, 0, NULL, 0, cb);
 }
 
 /****************************************************************************
- * name: altdevice_seteventbuff
+ * Name: lte_set_report_m2movstop
  ****************************************************************************/
 
-int altdevice_seteventbuff(int fd, FAR struct alt_evtbuffer_s *buffer)
+int lte_set_report_m2movstop(lwm2mstub_ovstop_cb_t cb)
 {
-  return (buffer) ? ioctl_wrapper(fd, ALT1250_IOC_SETEVTBUFF,
-                                  (unsigned long)buffer) : -EINVAL;
+  return lapi_req(LTE_CMDID_LWM2M_OVSTOP_EVT, NULL, 0, NULL, 0, cb);
 }
 
 /****************************************************************************
- * name: altdevice_getevent
+ * Name: lte_set_report_m2mserverop
  ****************************************************************************/
 
-int altdevice_getevent(int fd, FAR uint64_t *evtbitmap,
-    FAR struct alt_container_s **replys)
+int lte_set_report_m2mserverop(lwm2mstub_serverop_cb_t cb)
 {
-  int ret = -EIO;
-  struct alt_readdata_s dat;
-
-  if (read(fd, &dat, sizeof(struct alt_readdata_s))
-                      == sizeof(struct alt_readdata_s))
-    {
-      ret = OK;
-      *evtbitmap = dat.evtbitmap;
-      *replys = dat.head;
-    }
-
-  return ret;
+  return lapi_req(LTE_CMDID_LWM2M_SERVEROP_EVT, NULL, 0, NULL, 0, cb);
 }
 
 /****************************************************************************
- * name: altdevice_reset
+ * Name: lte_set_report_m2mfwupdate
  ****************************************************************************/
 
-void altdevice_reset(int fd)
+int lte_set_report_m2mfwupdate(lwm2mstub_fwupstate_cb_t cb)
 {
-  altdevice_powercontrol(fd, LTE_CMDID_POWEROFF);
-  usleep(1);
-  altdevice_powercontrol(fd, LTE_CMDID_POWERON);
+  return lapi_req(LTE_CMDID_LWM2M_FWUP_EVT, NULL, 0, NULL, 0, cb);
 }

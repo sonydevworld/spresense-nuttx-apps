@@ -36,5 +36,6 @@
 
 int handle_poweron_reset(FAR struct alt1250_s *dev);
 int handle_poweron_reset_stage2(FAR struct alt1250_s *dev);
+int handle_commit_reset(FAR struct alt1250_s *dev);
 
 #endif /* __APPS_LTE_ALT1250_ALT1250_RESET_SEQ_H */

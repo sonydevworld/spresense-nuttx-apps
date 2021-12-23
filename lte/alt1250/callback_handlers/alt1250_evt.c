@@ -130,6 +130,21 @@ static uint64_t lte_set_report_cellinfo_exec_cb(FAR void *cb,
 static uint64_t tls_config_verify_exec_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable);
 
+static uint64_t lwm2m_read_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_write_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_exec_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_ovstart_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_ovstop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_serverop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_fwupdate_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+
 static void *get_cbfunc(uint32_t cmdid);
 static uint64_t alt1250_evt_search(uint32_t cmdid);
 
@@ -542,6 +557,51 @@ static void *g_smsreportargs[] =
   &g_smsmsg_index, &g_smsrecv_sz, &g_sms_maxnum, &g_sms_seqnum, &g_recvmsg
 };
 
+/* event argument for LTE_CMDID_LWM2M_READ_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2mread_inst;
+static void *g_lwm2mreadargs[] =
+  { NULL, NULL, &g_lwm2mread_inst };
+
+/* event argument for LTE_CMDID_LWM2M_WRITE_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2mwrite_inst;
+static char g_lwm2mwrite_value[LWM2MSTUB_MAX_WRITE_SIZE];
+static void *g_lwm2mwriteargs[] =
+  { NULL, NULL, &g_lwm2mwrite_inst, g_lwm2mwrite_value, NULL };
+
+/* event argument for LTE_CMDID_LWM2M_EXEC_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2mexec_inst;
+static void *g_lwm2mexecargs[] =
+  { NULL, NULL, &g_lwm2mexec_inst, NULL };
+
+/* event argument for LTE_CMDID_LWM2M_OVSTART_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2movstart_inst;
+static char g_lwm2movstart_token[LWM2MSTUB_MAX_TOKEN_SIZE];
+static struct lwm2mstub_ovcondition_s g_lwm2movstart_cond;
+static void *g_lwm2movstartargs[] =
+{
+  NULL, NULL, &g_lwm2movstart_inst, &g_lwm2movstart_token,
+  &g_lwm2movstart_cond
+};
+
+/* event argument for LTE_CMDID_LWM2M_OVSTOP_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2movstop_inst;
+static char g_lwm2movstop_token[LWM2MSTUB_MAX_TOKEN_SIZE];
+static void *g_lwm2movstopargs[] =
+  { NULL, NULL, &g_lwm2movstop_inst, &g_lwm2movstop_token };
+
+/* event argument for LTE_CMDID_LWM2M_SERVEROP_EVT */
+
+static void *g_lwm2mserveropargs[] = { NULL };
+
+/* event argument for LTE_CMDID_LWM2M_FWUP_EVT */
+
+static void *g_lwm2mfwupargs[] = { NULL };
+
 static struct alt_evtbuffer_s g_evtbuff;
 static struct alt_evtbuf_inst_s g_evtbuffers[] =
 {
@@ -585,6 +645,20 @@ static struct alt_evtbuf_inst_s g_evtbuffers[] =
   TABLE_CONTENT(TLS_CONFIG_VERIFY, TLS_CONFIG_VERIFY_CALLBACK,
     g_vrfycbargs),
   TABLE_CONTENT(SMS_REPORT_RECV, SMS_REPORT_RECV, g_smsreportargs),
+
+  /* For Unsolicited event */
+
+  {
+    .cmdid = LTE_CMDID_LWM2M_URC_DUMMY, .altcid = APICMDID_URC_EVENT,
+    .outparam = NULL, .outparamlen = 0
+  },
+  TABLE_CONTENT(LWM2M_READ_EVT, UNKNOWN, g_lwm2mreadargs),
+  TABLE_CONTENT(LWM2M_WRITE_EVT, UNKNOWN, g_lwm2mwriteargs),
+  TABLE_CONTENT(LWM2M_EXEC_EVT, UNKNOWN, g_lwm2mexecargs),
+  TABLE_CONTENT(LWM2M_OVSTART_EVT, UNKNOWN, g_lwm2movstartargs),
+  TABLE_CONTENT(LWM2M_OVSTOP_EVT, UNKNOWN, g_lwm2movstopargs),
+  TABLE_CONTENT(LWM2M_SERVEROP_EVT, UNKNOWN, g_lwm2mserveropargs),
+  TABLE_CONTENT(LWM2M_FWUP_EVT, UNKNOWN, g_lwm2mfwupargs),
 
   /* Add the command ID of LTE_CMDID_SELECT to the table so that the driver
    * can identify the bitmap of the select event.
@@ -632,6 +706,14 @@ static struct cbinfo_s g_execbtable[] =
   {LTE_CMDID_REPQUAL, lte_set_report_quality_exec_cb},
   {LTE_CMDID_REPCELL, lte_set_report_cellinfo_exec_cb},
   {LTE_CMDID_TLS_CONFIG_VERIFY, tls_config_verify_exec_cb},
+
+  {LTE_CMDID_LWM2M_READ_EVT, lwm2m_read_evt_cb},
+  {LTE_CMDID_LWM2M_WRITE_EVT, lwm2m_write_evt_cb},
+  {LTE_CMDID_LWM2M_EXEC_EVT, lwm2m_exec_evt_cb},
+  {LTE_CMDID_LWM2M_OVSTART_EVT, lwm2m_ovstart_evt_cb},
+  {LTE_CMDID_LWM2M_OVSTOP_EVT, lwm2m_ovstop_evt_cb},
+  {LTE_CMDID_LWM2M_SERVEROP_EVT, lwm2m_serverop_evt_cb},
+  {LTE_CMDID_LWM2M_FWUP_EVT, lwm2m_fwupdate_evt_cb},
 };
 
 static struct cbinfo_s g_cbtable[NCBTABLES];
@@ -1214,6 +1296,106 @@ static uint64_t tls_config_verify_exec_cb(FAR void *cb,
 
   return 0ULL;
 }
+
+static uint64_t lwm2m_read_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_read_cb_t callback = (lwm2mstub_read_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_write_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_write_cb_t callback = (lwm2mstub_write_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2],
+               (char *)cbarg[3], (int)cbarg[4]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_exec_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_exec_cb_t callback = (lwm2mstub_exec_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2],
+               (int)cbarg[3]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_ovstart_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_ovstart_cb_t callback = (lwm2mstub_ovstart_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2], (char *)cbarg[3],
+               (struct lwm2mstub_ovcondition_s *)cbarg[4]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_ovstop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_ovstop_cb_t callback = (lwm2mstub_ovstop_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2], (char *)cbarg[3]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_serverop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_serverop_cb_t callback = (lwm2mstub_serverop_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int)cbarg[0]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_fwupdate_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_fwupstate_cb_t callback = (lwm2mstub_fwupstate_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int)cbarg[0]);
+    }
+
+  return 0ULL;
+}
+
 
 /****************************************************************************
  * Name: evtbuffer_init
