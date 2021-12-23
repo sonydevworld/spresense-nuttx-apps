@@ -108,8 +108,16 @@ int usockreq_ioctl_event(FAR struct alt1250_s *dev,
 
   USOCKET_SET_REQUEST(usock, request->head.reqid, request->head.xid);
 
-  ret = send_eventnotice_command(dev, container, usock, ltecmd,
-                                usock_result);
+  if (IS_LWM2M_EVENT(cmdid))
+    {
+      ret = send_m2mnotice_command(cmdid, dev, container, usock, ltecmd,
+                                   usock_result);
+    }
+  else
+    {
+      ret = send_eventnotice_command(dev, container, usock, ltecmd,
+                                   usock_result);
+    }
 
   if (IS_NEED_CONTAINER_FREE(ret))
     {
@@ -135,5 +143,5 @@ int usockreq_ioctl_event(FAR struct alt1250_s *dev,
       alt1250_regevtcb(cmdid, NULL);
     }
 
-  return 0;
+  return ret;
 }

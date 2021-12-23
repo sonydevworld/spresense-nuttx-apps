@@ -303,10 +303,10 @@ static int alt1250_lwm2m_ponreset(FAR struct alt1250_s *dev,
     {
       /* Force Reset is needed. */
 
-      altdevice_powercontrol(dev->altfd, LTE_CMDID_POWEROFF);
-      usleep(1);
-      altdevice_powercontrol(dev->altfd, LTE_CMDID_POWERON);
+      altdevice_reset(dev->altfd);
     }
+
+  dev->is_support_lwm2m = true;
 
   return ret;
 }
