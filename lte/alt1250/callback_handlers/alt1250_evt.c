@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_evt.c
+ * apps/lte/alt1250/callback_handlers/alt1250_evt.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -26,8 +26,11 @@
 #include <semaphore.h>
 #include <nuttx/modem/alt1250.h>
 #include <nuttx/wireless/lte/lte_ioctl.h>
+#include <nuttx/net/sms.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <assert.h>
 
@@ -51,6 +54,8 @@
 
 #define IS_REPORT_API(cmdid) \
   ( LTE_ISCMDGRP_EVENT(cmdid) || cmdid == LTE_CMDID_SETRESTART )
+
+#define EVTTASK_NAME "lteevt_task"
 
 /****************************************************************************
  * Private Function Prototypes
@@ -125,6 +130,21 @@ static uint64_t lte_set_report_cellinfo_exec_cb(FAR void *cb,
 static uint64_t tls_config_verify_exec_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable);
 
+static uint64_t lwm2m_read_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_write_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_exec_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_ovstart_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_ovstop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_serverop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+static uint64_t lwm2m_fwupdate_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable);
+
 static void *get_cbfunc(uint32_t cmdid);
 static uint64_t alt1250_evt_search(uint32_t cmdid);
 
@@ -141,6 +161,10 @@ struct cbinfo_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+int g_cbpid;
+#endif
 
 /* event argument for LTE_CMDID_SETRESTART */
 
@@ -521,6 +545,63 @@ static void *g_vrfycbargs[] =
   &g_crt, &g_depth
 };
 
+/* event argument for LTE_CMDID_SMS_REPORT_RECV */
+
+static uint16_t g_smsmsg_index;
+static uint16_t g_smsrecv_sz;
+static uint8_t g_sms_maxnum;
+static uint8_t g_sms_seqnum;
+static struct sms_deliver_msg_max_s g_recvmsg;
+static void *g_smsreportargs[] =
+{
+  &g_smsmsg_index, &g_smsrecv_sz, &g_sms_maxnum, &g_sms_seqnum, &g_recvmsg
+};
+
+/* event argument for LTE_CMDID_LWM2M_READ_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2mread_inst;
+static void *g_lwm2mreadargs[] =
+  { NULL, NULL, &g_lwm2mread_inst };
+
+/* event argument for LTE_CMDID_LWM2M_WRITE_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2mwrite_inst;
+static char g_lwm2mwrite_value[LWM2MSTUB_MAX_WRITE_SIZE];
+static void *g_lwm2mwriteargs[] =
+  { NULL, NULL, &g_lwm2mwrite_inst, g_lwm2mwrite_value, NULL };
+
+/* event argument for LTE_CMDID_LWM2M_EXEC_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2mexec_inst;
+static void *g_lwm2mexecargs[] =
+  { NULL, NULL, &g_lwm2mexec_inst, NULL };
+
+/* event argument for LTE_CMDID_LWM2M_OVSTART_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2movstart_inst;
+static char g_lwm2movstart_token[LWM2MSTUB_MAX_TOKEN_SIZE];
+static struct lwm2mstub_ovcondition_s g_lwm2movstart_cond;
+static void *g_lwm2movstartargs[] =
+{
+  NULL, NULL, &g_lwm2movstart_inst, &g_lwm2movstart_token,
+  &g_lwm2movstart_cond
+};
+
+/* event argument for LTE_CMDID_LWM2M_OVSTOP_EVT */
+
+static struct lwm2mstub_instance_s g_lwm2movstop_inst;
+static char g_lwm2movstop_token[LWM2MSTUB_MAX_TOKEN_SIZE];
+static void *g_lwm2movstopargs[] =
+  { NULL, NULL, &g_lwm2movstop_inst, &g_lwm2movstop_token };
+
+/* event argument for LTE_CMDID_LWM2M_SERVEROP_EVT */
+
+static void *g_lwm2mserveropargs[] = { NULL };
+
+/* event argument for LTE_CMDID_LWM2M_FWUP_EVT */
+
+static void *g_lwm2mfwupargs[] = { NULL };
+
 static struct alt_evtbuffer_s g_evtbuff;
 static struct alt_evtbuf_inst_s g_evtbuffers[] =
 {
@@ -563,6 +644,21 @@ static struct alt_evtbuf_inst_s g_evtbuffers[] =
   TABLE_CONTENT(GETERRINFO, ERRINFO, g_geterrinfoargs),
   TABLE_CONTENT(TLS_CONFIG_VERIFY, TLS_CONFIG_VERIFY_CALLBACK,
     g_vrfycbargs),
+  TABLE_CONTENT(SMS_REPORT_RECV, SMS_REPORT_RECV, g_smsreportargs),
+
+  /* For Unsolicited event */
+
+  {
+    .cmdid = LTE_CMDID_LWM2M_URC_DUMMY, .altcid = APICMDID_URC_EVENT,
+    .outparam = NULL, .outparamlen = 0
+  },
+  TABLE_CONTENT(LWM2M_READ_EVT, UNKNOWN, g_lwm2mreadargs),
+  TABLE_CONTENT(LWM2M_WRITE_EVT, UNKNOWN, g_lwm2mwriteargs),
+  TABLE_CONTENT(LWM2M_EXEC_EVT, UNKNOWN, g_lwm2mexecargs),
+  TABLE_CONTENT(LWM2M_OVSTART_EVT, UNKNOWN, g_lwm2movstartargs),
+  TABLE_CONTENT(LWM2M_OVSTOP_EVT, UNKNOWN, g_lwm2movstopargs),
+  TABLE_CONTENT(LWM2M_SERVEROP_EVT, UNKNOWN, g_lwm2mserveropargs),
+  TABLE_CONTENT(LWM2M_FWUP_EVT, UNKNOWN, g_lwm2mfwupargs),
 
   /* Add the command ID of LTE_CMDID_SELECT to the table so that the driver
    * can identify the bitmap of the select event.
@@ -610,6 +706,14 @@ static struct cbinfo_s g_execbtable[] =
   {LTE_CMDID_REPQUAL, lte_set_report_quality_exec_cb},
   {LTE_CMDID_REPCELL, lte_set_report_cellinfo_exec_cb},
   {LTE_CMDID_TLS_CONFIG_VERIFY, tls_config_verify_exec_cb},
+
+  {LTE_CMDID_LWM2M_READ_EVT, lwm2m_read_evt_cb},
+  {LTE_CMDID_LWM2M_WRITE_EVT, lwm2m_write_evt_cb},
+  {LTE_CMDID_LWM2M_EXEC_EVT, lwm2m_exec_evt_cb},
+  {LTE_CMDID_LWM2M_OVSTART_EVT, lwm2m_ovstart_evt_cb},
+  {LTE_CMDID_LWM2M_OVSTOP_EVT, lwm2m_ovstop_evt_cb},
+  {LTE_CMDID_LWM2M_SERVEROP_EVT, lwm2m_serverop_evt_cb},
+  {LTE_CMDID_LWM2M_FWUP_EVT, lwm2m_fwupdate_evt_cb},
 };
 
 static struct cbinfo_s g_cbtable[NCBTABLES];
@@ -1193,13 +1297,112 @@ static uint64_t tls_config_verify_exec_cb(FAR void *cb,
   return 0ULL;
 }
 
+static uint64_t lwm2m_read_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_read_cb_t callback = (lwm2mstub_read_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_write_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_write_cb_t callback = (lwm2mstub_write_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2],
+               (char *)cbarg[3], (int)cbarg[4]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_exec_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_exec_cb_t callback = (lwm2mstub_exec_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2],
+               (int)cbarg[3]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_ovstart_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_ovstart_cb_t callback = (lwm2mstub_ovstart_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2], (char *)cbarg[3],
+               (struct lwm2mstub_ovcondition_s *)cbarg[4]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_ovstop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_ovstop_cb_t callback = (lwm2mstub_ovstop_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int32_t)cbarg[0], (int32_t)cbarg[1],
+               (struct lwm2mstub_instance_s *)cbarg[2], (char *)cbarg[3]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_serverop_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_serverop_cb_t callback = (lwm2mstub_serverop_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int)cbarg[0]);
+    }
+
+  return 0ULL;
+}
+
+static uint64_t lwm2m_fwupdate_evt_cb(FAR void *cb,
+  FAR void **cbarg, FAR bool *set_writable)
+{
+  lwm2mstub_fwupstate_cb_t callback = (lwm2mstub_fwupstate_cb_t)cb;
+
+  if (callback)
+    {
+      callback((int)cbarg[0]);
+    }
+
+  return 0ULL;
+}
+
+
 /****************************************************************************
  * Name: evtbuffer_init
  ****************************************************************************/
 
-static void evtbuffer_init(int fd)
+static FAR struct alt_evtbuffer_s *evtbuffer_init(void)
 {
-  int ret;
   int i;
 
   for (i = 0; i < ARRAY_SZ(g_evtbuffers); i++)
@@ -1211,8 +1414,7 @@ static void evtbuffer_init(int fd)
   g_evtbuff.ninst = ARRAY_SZ(g_evtbuffers);
   g_evtbuff.inst = g_evtbuffers;
 
-  ret = ioctl(fd, ALT1250_IOC_SETEVTBUFF, (unsigned long)&g_evtbuff);
-  ASSERT(0 == ret);
+  return &g_evtbuff;
 }
 
 /****************************************************************************
@@ -1421,7 +1623,7 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
     {
       if (evtbitmap & (1ULL << idx))
         {
-          alt1250_printf("idx=%d\n", idx);
+          dbg_alt1250("idx=%d\n", idx);
 
           set_writable = false;
 
@@ -1449,7 +1651,7 @@ static uint64_t alt1250_search_execcb(uint64_t evtbitmap)
         }
     }
 
-  alt1250_printf("evtbitmap=0x%llx\n", ret);
+  dbg_alt1250("evtbitmap=0x%llx\n", ret);
 
   return ret;
 }
@@ -1483,19 +1685,17 @@ static uint64_t alt1250_evt_search(uint32_t cmdid)
  * Name: alt1250_setevtbuff
  ****************************************************************************/
 
-int alt1250_setevtbuff(int altfd)
+FAR struct alt_evtbuffer_s *init_event_buffer(void)
 {
   sem_init(&g_cbtablelock, 0, 1);
-  evtbuffer_init(altfd);
-
-  return 0;
+  return evtbuffer_init();
 }
 
 /****************************************************************************
- * Name: alt1250_evtdestroy
+ * Name: alt1250_evtdatadestroy
  ****************************************************************************/
 
-int alt1250_evtdestroy(void)
+int alt1250_evtdatadestroy(void)
 {
   sem_destroy(&g_cbtablelock);
 
@@ -1637,7 +1837,7 @@ bool alt1250_checkcmdid(uint32_t cmdid, uint64_t evtbitmap,
     {
       if (evtbitmap & (1ULL << idx))
         {
-          alt1250_printf("idx=%d\n", idx);
+          dbg_alt1250("idx=%d\n", idx);
 
           if (g_evtbuffers[idx].cmdid == cmdid)
             {
@@ -1709,6 +1909,118 @@ int alt1250_clrevtcb(uint8_t mode)
     }
 
   sem_post(&g_cbtablelock);
+
+  return ret;
+}
+
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+static int internal_evttask(int argc, FAR char *argv[])
+{
+  int ret;
+  bool is_running = true;
+
+  ret = lapi_evtinit("/lapievt");
+  if (ret < 0)
+    {
+      dbg_alt1250("lapi_evtinit() failed: %d\n", ret);
+      goto errout;
+    }
+
+  while (is_running)
+    {
+      ret = lapi_evtyield(-1);
+      if (ret == 0)
+        {
+          dbg_alt1250("lapi_evtyield() finish normaly\n");
+          is_running = false;
+        }
+      else if (ret < 0)
+        {
+          dbg_alt1250("lapi_evtyield() failed: %d\n", ret);
+        }
+    }
+
+errout:
+  lapi_evtdestoy();
+
+  return 0;
+}
+#endif
+
+static int evt_qsend(FAR mqd_t *mqd, uint64_t evtbitmap)
+{
+  int ret = ERROR;
+
+  if (*mqd != (mqd_t)-1)
+    {
+      ret = mq_send(*mqd, (FAR const char *)&evtbitmap, sizeof(evtbitmap),
+        0);
+      if (ret < 0)
+        {
+          ret = -errno;
+          dbg_alt1250("failed to send mq: %d\n", errno);
+        }
+    }
+
+  return ret;
+}
+
+int alt1250_evttask_sendmsg(FAR struct alt1250_s *dev, uint64_t msg)
+{
+  return evt_qsend(&dev->evtq, msg);
+}
+
+int alt1250_evttask_start(void)
+{
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+  g_cbpid = task_create(EVTTASK_NAME, CONFIG_LTE_ALT1250_EVENT_TASK_PRIORITY,
+    CONFIG_LTE_ALT1250_EVENT_TASK_STACKSIZE, internal_evttask, NULL);
+  return g_cbpid;
+#else
+  return 1; /* Always success */
+#endif
+}
+
+void alt1250_evttask_stop(FAR struct alt1250_s *dev)
+{
+  if (alt1250_evttask_sendmsg(dev, 0ULL) == OK)
+    {
+#ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
+      int stat;
+
+      waitpid(g_cbpid, &stat, WEXITED);
+#endif
+    }
+
+  alt1250_evttask_msgclose(dev);
+}
+
+void alt1250_evttask_msgclose(FAR struct alt1250_s *dev)
+{
+  if (dev->evtq != (mqd_t)-1)
+    {
+      /* FIXME: In case of the event callback task is not launched yet,
+       *        this message may be dropped.
+       *        Now, above behavior is not rescued..
+       */
+
+      mq_close(dev->evtq);
+    }
+}
+
+int alt1250_evttask_msgconnect(FAR const char *qname,
+      FAR struct alt1250_s *dev)
+{
+  int ret = OK;
+
+  alt1250_evttask_msgclose(dev);
+
+  dev->evtq = mq_open(qname, O_WRONLY);
+  if (dev->evtq == (mqd_t)-1)
+    {
+      ret = -errno;
+      dbg_alt1250("failed to open mq(%s): %d\n", qname, errno);
+    }
 
   return ret;
 }

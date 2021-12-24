@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/alt1250_postproc.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,32 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __LTE_ALT1250_ALT1250_POSTPROC_H__
+#define __LTE_ALT1250_ALT1250_POSTPROC_H__
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <stdio.h>
+#include <stdint.h>
+#include <nuttx/modem/alt1250.h>
+
+#include "alt1250_daemon.h"
+#include "alt1250_usockif.h"
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Data Type
  ****************************************************************************/
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
-#endif
+typedef int (*postproc_hdlr_t)(FAR struct alt1250_s *dev,
+  FAR struct alt_container_s *reply, FAR struct usock_s *usock,
+  FAR int32_t *usock_result, uint8_t *usock_xid,
+  FAR struct usock_ackinfo_s *ackinfo, unsigned long arg);
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+struct postproc_s
+{
+  FAR postproc_hdlr_t hdlr;
+  unsigned long priv;
+};
+
+#endif	/* __LTE_ALT1250_ALT1250_POSTPROC_H__ */

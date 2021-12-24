@@ -60,7 +60,7 @@ static int lte_activate_pdn_inparam_check(lte_apn_setting_t *apn)
     }
 
   if ((apn->ip_type < LTE_IPTYPE_V4) ||
-      (apn->ip_type > LTE_IPTYPE_V4V6))
+      (apn->ip_type > LTE_IPTYPE_NON))
     {
       lapi_printf("ip type is invalid. iptype=%d\n", apn->ip_type);
       return -EINVAL;

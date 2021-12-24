@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_evt.h
+ * apps/lte/alt1250/usock_handlers/alt1250_getpeernamehdlr.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,47 +18,42 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_EVT_H
-#define __APPS_LTE_ALT1250_ALT1250_EVT_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+#include <nuttx/config.h>
+#include <nuttx/net/usrsock.h>
 
-#ifndef ARRAY_SZ
-#  define ARRAY_SZ(array) (sizeof(array)/sizeof(array[0]))
-#endif
-
-/* Represents when to clear the callback function */
-
-/* Clear callbacks at all */
-
-#define ALT1250_CLRMODE_ALL        (0)
-
-/* Clear callbacks without restart callback */
-
-#define ALT1250_CLRMODE_WO_RESTART (1)
+#include "alt1250_dbg.h"
+#include "alt1250_container.h"
+#include "alt1250_socket.h"
+#include "alt1250_usockevent.h"
+#include "alt1250_postproc.h"
 
 /****************************************************************************
- * Public Types
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Function Prototypes
+ * name: usockreq_getpeername
  ****************************************************************************/
 
-int alt1250_setevtbuff(int altfd);
-int alt1250_evtdestroy(void);
-int alt1250_regevtcb(uint32_t id, FAR void *cb);
-void alt1250_execcb(uint64_t evtbitmap);
-FAR void **alt1250_getevtarg(uint32_t cmdid);
-bool alt1250_checkcmdid(uint32_t cmdid, uint64_t evtbitmap,
-  FAR uint64_t *bit);
-void alt1250_setevtarg_writable(uint32_t cmdid);
-int alt1250_clrevtcb(uint8_t mode);
+int usockreq_getpeername(FAR struct alt1250_s *dev,
+                         FAR struct usrsock_request_buff_s *req,
+                         FAR int32_t *usock_result,
+                         FAR uint8_t *usock_xid,
+                         FAR struct usock_ackinfo_s *ackinfo)
+{
+  FAR struct usrsock_request_getpeername_s *request =
+    &req->request.pname_req;
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_EVT_H */
+  dbg_alt1250("%s start\n", __func__);
+
+  /* Not support */
+
+  *usock_result = -ENOTSUP;
+  *usock_xid = request->head.xid;
+
+  return REP_SEND_ACK_WOFREE;
+}

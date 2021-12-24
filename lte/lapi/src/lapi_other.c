@@ -69,7 +69,7 @@ int lapi_req(uint32_t cmdid, FAR void *inp, size_t ilen, FAR void *outp,
   int sock;
   struct lte_ioctl_data_s cmd;
 
-  sock = socket(AF_INET, SOCK_STREAM, 0);
+  sock = socket(PF_USRSOCK, SOCK_STREAM, 0);
   if (sock < 0)
     {
       ret = -errno;
@@ -141,12 +141,12 @@ int lte_send_atcmd_sync(const char *cmd, int cmdlen,
   int32_t ret;
   FAR void *inarg[] =
     {
-      (FAR void *)cmd, &cmdlen
+      (void *)cmd, (void *)cmdlen
     };
 
   FAR void *outarg[] =
     {
-      respbuff, &respbufflen, resplen
+      respbuff, (void *)respbufflen, resplen
     };
 
   if (!cmd
