@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/alt1250_util.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,52 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <stdio.h>
+
+#include <string.h>
+#include <nuttx/modem/alt1250.h>
+
+#include "alt1250_daemon.h"
+#include "alt1250_util.h"
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
-#endif
+/****************************************************************************
+ * Name: alt1250_saveapn
+ ****************************************************************************/
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+void alt1250_saveapn(FAR struct alt1250_s *dev, FAR lte_apn_setting_t *apn)
+{
+  memcpy(&dev->apn, apn, sizeof(lte_apn_setting_t));
+  strncpy(dev->apn_name, (FAR const char *)apn->apn, LTE_APN_LEN);
+  if ((apn->auth_type != LTE_APN_AUTHTYPE_NONE) && (apn->user_name))
+    {
+      strncpy(dev->user_name, (FAR const char *)apn->user_name,
+        LTE_APN_USER_NAME_LEN);
+    }
+
+  if ((apn->auth_type != LTE_APN_AUTHTYPE_NONE) && (apn->password))
+    {
+      strncpy(dev->pass, (FAR const char *)apn->password,
+        LTE_APN_PASSWD_LEN);
+    }
+
+  dev->apn.apn = dev->apn_name;
+  dev->apn.user_name = dev->user_name;
+  dev->apn.password = dev->pass;
+}
+
+/****************************************************************************
+ * Name: alt1250_getapn
+ ****************************************************************************/
+
+void alt1250_getapn(FAR struct alt1250_s *dev, FAR lte_apn_setting_t *apn)
+{
+  memcpy(apn, &dev->apn, sizeof(lte_apn_setting_t));
+}

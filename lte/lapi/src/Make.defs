@@ -29,7 +29,8 @@ CSRCS = lapi_evt.c      \
         lapi_power.c    \
         lapi_psave.c    \
         lapi_radio.c    \
-        lapi_sim.c
+        lapi_sim.c      \
+        lapi_lwm2m.c
 
 DEPPATH += --dep-path src
 VPATH += :src

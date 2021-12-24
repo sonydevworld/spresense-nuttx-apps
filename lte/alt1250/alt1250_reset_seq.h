@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/alt1250_reset_seq.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __APPS_LTE_ALT1250_ALT1250_RESET_SEQ_H
+#define __APPS_LTE_ALT1250_ALT1250_RESET_SEQ_H
 
 /****************************************************************************
  * Included Files
@@ -28,14 +28,14 @@
 #include <nuttx/config.h>
 #include <stdio.h>
 
+#include "alt1250_daemon.h"
+
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Function Prototypes
  ****************************************************************************/
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
-#endif
+int handle_poweron_reset(FAR struct alt1250_s *dev);
+int handle_poweron_reset_stage2(FAR struct alt1250_s *dev);
+int handle_commit_reset(FAR struct alt1250_s *dev);
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+#endif /* __APPS_LTE_ALT1250_ALT1250_RESET_SEQ_H */

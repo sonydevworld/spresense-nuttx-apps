@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/include/lte/lte_lwm2m.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,43 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __APPS_INCLUDE_LTE_LTE_LWM2M_H
+#define __APPS_INCLUDE_LTE_LTE_LWM2M_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <stdio.h>
+#include <stdint.h>
+#include <nuttx/wireless/lte/lte.h>
+#include <nuttx/wireless/lte/lte_lwm2m.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
 #else
-# define dbg_alt1250(v, ...)
+#define EXTERN extern
 #endif
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+int lte_commit_m2msetting(void);
+
+int lte_set_report_m2mwrite(lwm2mstub_write_cb_t cb);
+int lte_set_report_m2mread(lwm2mstub_read_cb_t cb);
+int lte_set_report_m2mexec(lwm2mstub_exec_cb_t cb);
+int lte_set_report_m2movstart(lwm2mstub_ovstart_cb_t cb);
+int lte_set_report_m2movstop(lwm2mstub_ovstop_cb_t cb);
+int lte_set_report_m2mserverop(lwm2mstub_serverop_cb_t cb);
+int lte_set_report_m2mfwupdate(lwm2mstub_fwupstate_cb_t cb);
+
+#undef EXTERN
+#ifdef __cplusplus
+}
+#endif
+
+#endif  /* __APPS_INCLUDE_LTE_LTE_LWM2M_H */

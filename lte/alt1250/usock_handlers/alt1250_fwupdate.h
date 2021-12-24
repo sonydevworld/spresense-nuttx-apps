@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/lte/alt1250/alt1250_dbg.h
+ * apps/lte/alt1250/usock_handlers/alt1250_fwupdate.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,24 +18,42 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_LTE_ALT1250_ALT1250_DBG_H
-#define __APPS_LTE_ALT1250_ALT1250_DBG_H
+#ifndef __LTE_ALT1250_USOCK_HANDLERS_ALT1250_FWUPDATE_H__
+#define __LTE_ALT1250_USOCK_HANDLERS_ALT1250_FWUPDATE_H__
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <stdio.h>
+#include <stdint.h>
+#include <nuttx/modem/alt1250.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
-# define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
-#else
-# define dbg_alt1250(v, ...)
-#endif
+#define LTE_IMAGE_PERT_SIZE (256)
 
-#endif /* __APPS_LTE_ALT1250_ALT1250_DBG_H */
+/****************************************************************************
+ * Public Data Type
+ ****************************************************************************/
+
+struct delta_header_s
+{
+  uint32_t chunk_code;
+  uint32_t reserved;
+  char np_package[LTE_VER_NP_PACKAGE_LEN];
+  uint32_t pert_crc;
+  uint32_t hdr_crc;
+};
+
+struct update_info_s
+{
+  int hdr_injected;
+  int act_injected;
+
+  struct delta_header_s hdr;
+  char img_pert[LTE_IMAGE_PERT_SIZE];
+};
+
+#endif  /* __LTE_ALT1250_USOCK_HANDLERS_ALT1250_FWUPDATE_H__ */
