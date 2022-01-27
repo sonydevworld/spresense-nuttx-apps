@@ -102,6 +102,10 @@ endchoice # Configure Numbering Plan Indicator
 
 endmenu # SMS configuration
 
+config LTE_ALT1250_EXTEND_IOCTL
+	bool "Enabling extended ioctl handler"
+	default n
+
 config LTE_ALT1250_LAUNCH_EVENT_TASK
 	bool "Launches an internal task to handle events"
 	default y
