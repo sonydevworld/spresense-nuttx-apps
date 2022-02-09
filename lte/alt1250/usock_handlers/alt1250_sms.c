@@ -82,6 +82,11 @@
 #  endif
 #endif /* CONFIG_LTE_ALT1250_SMS_TOA */
 
+/* RK_02_01_01_10xxx FW version that does not support SMS feature */
+
+#define IS_SMS_UNAVAIL_FWVERSION(d) (!strncmp(MODEM_FWVERSION(d), \
+                                              "RK_02_01_01_10", 14))
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -651,7 +656,7 @@ int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
 
   dbg_alt1250("%s start\n", __func__);
 
-  if (IS_OLD_FWVERSION(dev))
+  if (IS_SMS_UNAVAIL_FWVERSION(dev))
     {
       dbg_alt1250("This ALT1250 FW version does not support SMS.\n");
       *usock_result = -ENOTSUP;
