@@ -209,6 +209,10 @@ Attempts to keep the system busy by passing data through a pipe in loop back
 mode. This may be useful if you are trying run down other problems that you
 think might only occur when the system is very busy.
 
+## `cordic`
+
+A simple test of the CORDIC character driver.
+
 ## `dac` Write to DAC
 
 This is a tool for writing values to DAC device.
@@ -360,6 +364,11 @@ Dependencies:
 - `CONFIG_MTD_SMART=y` – SMART block driver support.
 - `CONFIG_BUILD_PROTECTED=n` and `CONFIG_BUILD_KERNEL=n` – This test uses
   internal OS interfaces and so is not available in the NUTTX kernel builds.
+
+## `foc` FOC motor controller
+
+A FOC motor controller based on the NuttX FOC driver and the NuttX FOC library.
+See `apps/foc/README.md` for more information.
 
 ## `flowc` Serial Hardware Flow Control
 
@@ -539,7 +548,7 @@ This is a simple test to `debug/verify` the USB host HID keyboard class driver.
   These special keys include such things as up/down arrows, home and end keys,
   etc. If this not defined, only 7-bit printable and control ASCII characters
   will be provided to the user. Requires `CONFIG_HIDKBD_ENCODED` and
-  `CONFIG_LIB_KBDCODEC`.
+  `CONFIG_LIBC_KBDCODEC`.
 
 ## `igmp` Trivial IGMP
 
@@ -920,7 +929,7 @@ are not as expected:
 CONFIG_DISABLE_MQUEUE=n
 CONFIG_DISABLE_PTHREAD=n
 CONFIG_NX_BLOCKING=y
-CONFIG_LIB_BOARDCTL=y
+CONFIG_BOARDCTL=y
 ```
 
 ## `nxterm` Display NuttShell (NSH) as NX Console
@@ -1706,6 +1715,44 @@ Example configuration:
   Default: `100`.
 - `CONFIG_EXAMPLES_TIMER_PROGNAME` – This is the name of the program that will
   be used when the NSH ELF program is installed. Default: `timer`.
+
+## `timer_gpout`
+
+This example uses the timer interrupt to periodically
+change the state of a digital output.
+The digital output may be a relay, a led or anything else.
+This example can be very useful to validate timer drivers
+by using a logic analyzer connected to the digital output.
+This example, mainly differs from the timer example because it
+waits on a sigwaitinfo() instead of using a signal handler.
+This approach ensures a deterministic wake-up time when
+the signal occurs.
+
+Dependencies:
+
+- `CONFIG_TIMER` – The timer driver must be selected.
+- `CONFIG_DEV_GPIO` – The GPIO driver must be selected.
+
+Note: You should also select one timer instance and have gpout
+proper configured in your board logic.
+
+Example configuration:
+
+- `EXAMPLES_TIMER_GPOUT_TIM_DEVNAME` – This is the name of the timer device that will be used.
+   Default: `/dev/timer0`.
+- `EXAMPLES_TIMER_GPOUT_GPOUT_DEVNAME` – This is the name of the gpout device that will be used.
+  Default: `/dev/gpout0`.
+- `EXAMPLES_TIMER_GPOUT_INTERVAL` – This is the timer interval in microseconds.
+  Default: `1000000`.
+- `EXAMPLES_TIMER_GPOUT_SIGNO` – This is the signal number that is used to notify that a timer
+		interrupt occurred.
+  Default: `17`.
+- `EXAMPLES_TIMER_GPOUT_STACKSIZE` – This is the stack size allocated when the timer task runs.
+  Default: `2048`.
+- `EXAMPLES_TIMER_GPOUT_PRIORITY` – This is the priority of the timer task.
+  Default: `255`.
+- `EXAMPLES_TIMER_GPOUT_PROGNAME` – This is the name of the program that will be used from the nsh.
+  Default: `timer_gpout`.
 
 ## `touchscreen` Touchscreen Events
 
