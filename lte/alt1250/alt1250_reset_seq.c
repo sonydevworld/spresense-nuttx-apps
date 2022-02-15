@@ -39,6 +39,7 @@
 #include "alt1250_usrsock_hdlr.h"
 #include "alt1250_reset_seq.h"
 #include "alt1250_atcmd.h"
+#include "alt1250_evt.h"
 
 /****************************************************************************
  * Private Data Type
@@ -61,13 +62,6 @@ static postproc_hdlr_t ponreset_seq[] =
   postproc_fwgetversion,
 };
 #define PONRESET_SEQ_NUM  (sizeof(ponreset_seq) / sizeof(ponreset_seq[0]))
-
-static int tmp_res;
-static lte_version_t tmp_ver;
-static void *tmp_verout[2] =
-{
-  &tmp_res, &tmp_ver
-};
 
 /****************************************************************************
  * Private Functions
@@ -114,7 +108,7 @@ static int send_getversion_onreset(FAR struct alt1250_s *dev,
 
   set_container_ids(container, -1, LTE_CMDID_GETVER);
   set_container_argument(container, NULL, 0);
-  set_container_response(container, tmp_verout, 2);
+  set_container_response(container, alt1250_getevtarg(LTE_CMDID_GETVER), 2);
   set_container_postproc(container, postproc_ponresetseq,
                          (unsigned long)&reset_arg);
 
