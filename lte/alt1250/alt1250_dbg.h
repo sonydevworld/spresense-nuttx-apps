@@ -27,6 +27,7 @@
 
 #include <nuttx/config.h>
 #include <stdio.h>
+#include <debug.h>
 
 /****************************************************************************
  * Pre-processor Definitions
