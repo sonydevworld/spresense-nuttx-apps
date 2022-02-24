@@ -27,6 +27,11 @@
  * | --------------- |
  * | lte_log_collect |
  * | lte_log_getlist |
+ * | lte_log_open    |
+ * | lte_log_close   |
+ * | lte_log_read    |
+ * | lte_log_remove  |
+ * | lte_log_lseek   |
  */
 
 /****************************************************************************
@@ -85,6 +90,94 @@ int lte_log_collect(char output_fname[], size_t len);
 
 int lte_log_getlist(size_t listsize, size_t fnamelen,
                     char list[listsize][fnamelen]);
+
+#ifdef CONFIG_LTE_LAPI_LOG_ACCESS
+
+/* Open a log file on LTE modem.
+ *
+ * [in] filename: Log file name to open.
+ *
+ * Return value : Returns the file descriptor on success.
+ *                On error, a negative value is returned. The following
+ *                values may be returned in error cases.
+ *
+ * - EINVAL
+ * - ENAMETOOLONG
+ * - ENOTSUP
+ *
+ */
+
+int lte_log_open(const char *filename);
+
+/* Close a log file descriptor.
+ *
+ * [in] fd: File descriptor.
+ *
+ * Return value : Returns the 0 on success.
+ *                On error, a negative value is returned. The following
+ *                values may be returned in error cases.
+ *
+ * - EINVAL
+ * - ENOTSUP
+ *
+ */
+
+int lte_log_close(int fd);
+
+/* Read data from log file on LTE modem.
+ *
+ * [in] fd: File descriptor.
+ * [out] buf: Buffer to read.
+ * [in] len: Read length.
+ *
+ * Return value : Returns the number of bytes read on success.
+ *                On error, a negative value is returned. The following
+ *                values may be returned in error cases.
+ *
+ * - EINVAL
+ * - ENOTSUP
+ *
+ */
+
+ssize_t lte_log_read(int fd, void *buf, size_t len);
+
+/* Remove a file on LTE modem.
+ *
+ * [in] filename: Log file name to remove.
+ *
+ * Return value : Returns the 0 on success.
+ *                On error, a negative value is returned. The following
+ *                values may be returned in error cases.
+ *
+ * - ENAMETOOLONG
+ * - ENOTSUP
+ *
+ */
+
+int lte_log_remove(const char *filename);
+
+/* Set the file read offset.
+ *
+ * [in] fd: File descriptor.
+ * [in] offset: The number of offset bytes.
+ * [in] whence: Reference point of offset.
+ *              Available @a whence are as follows.
+ *              - SEEK_SET
+ *              - SEEK_CUR
+ *              - SEEK_END
+ *
+ * Return value : Returns the offset from the beginning of the file on
+ *                success. On error, a negative value is returned.
+ *                The following values may be returned in error cases.
+ *
+ * - EINVAL
+ * - ENOTSUP
+ *
+ */
+
+int lte_log_lseek(int fd, off_t offset, int whence);
+
+#endif /* CONFIG_LTE_LAPI_LOG_ACCESS */
 
 #undef EXTERN
 #ifdef __cplusplus

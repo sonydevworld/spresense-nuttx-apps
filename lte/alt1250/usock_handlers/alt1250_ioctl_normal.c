@@ -260,6 +260,11 @@ int usockreq_ioctl_normal(FAR struct alt1250_s *dev,
 
       case LTE_CMDID_SAVE_LOG:
       case LTE_CMDID_GET_LOGLIST:
+      case LTE_CMDID_LOGOPEN:
+      case LTE_CMDID_LOGCLOSE:
+      case LTE_CMDID_LOGREAD:
+      case LTE_CMDID_LOGLSEEK:
+      case LTE_CMDID_LOGREMOVE:
         {
           if (IS_LOG_UNAVAIL_FWVERSION(dev))
             {
