@@ -45,6 +45,11 @@
 
 #define REPLY_RETCODE(rep, altrep) (((rep) == 0) ? (altrep) : (rep))
 
+/* RK_02_01_01_10xxx FW version that does not support logging feature */
+
+#define IS_LOG_UNAVAIL_FWVERSION(d) (!strncmp(MODEM_FWVERSION(d), \
+                                              "RK_02_01_01_10", 14))
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -250,6 +255,18 @@ int usockreq_ioctl_normal(FAR struct alt1250_s *dev,
           postproc_hdlr = postproc_radioon;
           priv = LTE_IS_ASYNC_CMD(ltecmd->cmdid) ?
                    RADIOON_ASYNC : RADIOON_SYNC;
+        }
+        break;
+
+      case LTE_CMDID_SAVE_LOG:
+      case LTE_CMDID_GET_LOGLIST:
+        {
+          if (IS_LOG_UNAVAIL_FWVERSION(dev))
+            {
+              container_free(container);
+              *usock_result = -ENOTSUP;
+              return REP_SEND_ACK_WOFREE;
+            }
         }
         break;
 
