@@ -27,5 +27,12 @@ config LTE_LAPI_KEEP_COMPATIBILITY
 		Furthermore, this option will be removed in the near future, and functions in
 		the old spec will be completely discarded.
 
+config LTE_LAPI_LOG_ACCESS
+	bool "Enable the log access API"
+	default n
+	---help---
+		Enable these log access APIs: lte_log_open, lte_log_close,
+		lte_log_read, lte_log_lseek, lte_log_remove.
+
 endif
 
