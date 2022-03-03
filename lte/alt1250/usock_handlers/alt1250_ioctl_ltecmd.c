@@ -35,6 +35,16 @@
 #include "alt1250_ioctl_subhdlr.h"
 
 /****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+extern int usockreq_ioctl_extend(FAR struct alt1250_s *dev,
+                                 FAR struct usrsock_request_buff_s *req,
+                                 FAR int32_t *usock_result,
+                                 FAR uint8_t *usock_xid,
+                                 FAR struct usock_ackinfo_s *ackinfo);
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -78,6 +88,12 @@ int usockreq_ioctl_ltecmd(FAR struct alt1250_s *dev,
     {
       ioctl_subhdlr = usockreq_ioctl_fwupdate;
     }
+#ifdef CONFIG_LTE_ALT1250_EXTEND_IOCTL
+  else if (LTE_ISCMDGRP_EXTEND(ltecmd->cmdid))
+    {
+      ioctl_subhdlr = usockreq_ioctl_extend;
+    }
+#endif
 
   if (ioctl_subhdlr != NULL)
     {
