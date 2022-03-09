@@ -277,7 +277,7 @@ int usockreq_ioctl_normal(FAR struct alt1250_s *dev,
 
       case LTE_CMDID_RADIOOFF:
         {
-          /* TODO: add internal postproc for changing state */
+          MODEM_STATE_PON(dev);
         }
 
       default:

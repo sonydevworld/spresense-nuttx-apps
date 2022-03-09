@@ -152,38 +152,6 @@ static int perform_getapn(FAR struct alt1250_s *dev,
 }
 
 /****************************************************************************
- * name: perform_getapn
- ****************************************************************************/
-
-static int perform_m2m_commitsetting(FAR struct alt1250_s *dev,
-                          FAR struct usrsock_request_buff_s *req,
-                          FAR int32_t *usock_result,
-                          FAR uint8_t *usock_xid,
-                          FAR struct usock_ackinfo_s *ackinfo)
-{
-  *usock_result = OK;
-
-  if (dev->is_support_lwm2m)
-    {
-      if (MODEM_STATE_IS_PON(dev))
-        {
-          MODEM_STATE_INTENTRST(dev);
-          altdevice_reset(dev->altfd);
-        }
-      else
-        {
-          *usock_result = -EACCES;
-        }
-    }
-  else
-    {
-      *usock_result = -EOPNOTSUPP;
-    }
-
-  return REP_SEND_ACK_WOFREE;
-}
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -241,10 +209,6 @@ int usockreq_ioctl_other(FAR struct alt1250_s *dev,
 
       case LTE_CMDID_GETAPN:
         func = perform_getapn;
-        break;
-
-      case LTE_CMDID_LWM2M_COMMIT_SETTING:
-        func = perform_m2m_commitsetting;
         break;
 
       default:

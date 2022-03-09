@@ -88,6 +88,10 @@ int usockreq_ioctl_ltecmd(FAR struct alt1250_s *dev,
     {
       ioctl_subhdlr = usockreq_ioctl_fwupdate;
     }
+  else if (LTE_ISCMDGRP_LWM2M(ltecmd->cmdid))
+    {
+      ioctl_subhdlr = usockreq_ioctl_lwm2m;
+    }
 #ifdef CONFIG_LTE_ALT1250_EXTEND_IOCTL
   else if (LTE_ISCMDGRP_EXTEND(ltecmd->cmdid))
     {
