@@ -85,7 +85,7 @@
 /* RK_02_01_01_10xxx FW version that does not support SMS feature */
 
 #define IS_SMS_UNAVAIL_FWVERSION(d) (!strncmp(MODEM_FWVERSION(d), \
-                                              "RK_02_01_01_10", 14))
+                                              "RK_02_01_01", 11))
 
 /****************************************************************************
  * Private Data
