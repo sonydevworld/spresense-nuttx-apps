@@ -116,7 +116,6 @@ int lapi_evtinit(FAR const char *mqname)
 void lapi_evtdestoy(void)
 {
   mq_close(g_mqd);
-  mq_unlink(g_mqname);
 }
 
 /****************************************************************************

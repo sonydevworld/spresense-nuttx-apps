@@ -56,6 +56,7 @@
   ( LTE_ISCMDGRP_EVENT(cmdid) || cmdid == LTE_CMDID_SETRESTART )
 
 #define EVTTASK_NAME "lteevt_task"
+#define LAPIEVT_QNAME "/lapievt"
 
 /****************************************************************************
  * Private Function Prototypes
@@ -1919,7 +1920,7 @@ static int internal_evttask(int argc, FAR char *argv[])
   int ret;
   bool is_running = true;
 
-  ret = lapi_evtinit("/lapievt");
+  ret = lapi_evtinit(LAPIEVT_QNAME);
   if (ret < 0)
     {
       dbg_alt1250("lapi_evtinit() failed: %d\n", ret);
@@ -2005,6 +2006,7 @@ void alt1250_evttask_msgclose(FAR struct alt1250_s *dev)
        */
 
       mq_close(dev->evtq);
+      mq_unlink(LAPIEVT_QNAME);
     }
 }
 
