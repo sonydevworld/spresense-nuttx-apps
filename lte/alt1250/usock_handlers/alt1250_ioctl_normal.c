@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/net/usrsock.h>
+#include <unistd.h>
 
 #include "alt1250_dbg.h"
 #include "alt1250_container.h"
@@ -35,6 +36,7 @@
 #include "alt1250_util.h"
 #include "alt1250_ioctl_subhdlr.h"
 #include "alt1250_usrsock_hdlr.h"
+#include "alt1250_netdev.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -55,7 +57,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * name: postproc_actpdn
+ * name: postproc_reportnet
  ****************************************************************************/
 
 static int postproc_reportnet(FAR struct alt1250_s *dev,
@@ -105,6 +107,39 @@ static int postproc_radioon(FAR struct alt1250_s *dev,
     }
 
   return ret;
+}
+
+/****************************************************************************
+ * name: postproc_actpdn
+ ****************************************************************************/
+
+static int postproc_actpdn(FAR struct alt1250_s *dev,
+                              FAR struct alt_container_s *reply,
+                              FAR struct usock_s *usock,
+                              FAR int32_t *usock_result,
+                              FAR uint8_t *usock_xid,
+                              FAR struct usock_ackinfo_s *ackinfo,
+                              unsigned long is_async)
+{
+  FAR void **resp = CONTAINER_RESPONSE(reply);
+  int altcom_result = *((int *)(resp[0]));
+  FAR lte_pdn_t *pdn = resp[1];
+
+  dbg_alt1250("%s start\n", __func__);
+
+  *usock_result = REPLY_RETCODE(CONTAINER_RESPRES(reply), altcom_result);
+
+  if (*usock_result == 0)
+    {
+      /* After connecting to the LTE network,
+       * wait for the modem to register the network interface.
+       */
+
+      usleep(ALT1250_NETIF_READY_DELAY);
+      alt1250_netdev_ifup(dev, pdn);
+    }
+
+  return (is_async) ? REP_NO_ACK: REP_SEND_ACK;
 }
 
 /****************************************************************************
@@ -225,6 +260,11 @@ int usockreq_ioctl_normal(FAR struct alt1250_s *dev,
       case LTE_CMDID_ACTPDN:
         {
           alt1250_saveapn(dev, (FAR lte_apn_setting_t *)ltecmd->inparam[0]);
+
+          /* The handler is set for post process */
+
+          postproc_hdlr = postproc_actpdn;
+          priv = LTE_IS_ASYNC_CMD(ltecmd->cmdid);
         }
         break;
 
