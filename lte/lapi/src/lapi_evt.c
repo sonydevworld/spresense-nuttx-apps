@@ -53,7 +53,6 @@
  * Private Data
  ****************************************************************************/
 
-static const char *g_mqname;
 static mqd_t g_mqd;
 static struct lte_evtctx_out_s g_evtctx;
 
@@ -94,8 +93,6 @@ int lapi_evtinit(FAR const char *mqname)
       return -errno;
     }
 
-  g_mqname = mqname;
-
   in.mqname = mqname;
   ret = lapi_req(LTE_CMDID_SETEVTCTX, (FAR void *)inarg, ARRAY_SZ(inarg),
     (FAR void *)outarg, ARRAY_SZ(outarg), NULL);
@@ -116,7 +113,6 @@ int lapi_evtinit(FAR const char *mqname)
 void lapi_evtdestoy(void)
 {
   mq_close(g_mqd);
-  mq_unlink(g_mqname);
 }
 
 /****************************************************************************
@@ -199,7 +195,7 @@ int lapi_evtsend(uint64_t evtbitmap)
   if (ret < 0)
     {
       ret = -errno;
-      lapi_printf("failed to send mq(%s): %d\n", g_mqname, errno);
+      lapi_printf("failed to send mq: %d\n", errno);
     }
 
   return ret;
