@@ -566,7 +566,7 @@ int lwm2mstub_send_bscreateobj0(FAR struct alt1250_s *dev,
 
       pos += snprintf((char *)&dev->tx_buff[pos], _TX_BUFF_SIZE - pos,
                       ",5,\"");
-      for (i = 0; i < LWM2MSTUB_MAX_SEQKEY && info->device_id[i]; i++)
+      for (i = 0; i < LWM2MSTUB_MAX_SEQKEY && info->security_key[i]; i++)
         {
           pos += snprintf((char *)&dev->tx_buff[pos], _TX_BUFF_SIZE - pos,
                   "%02x", info->security_key[i]);
