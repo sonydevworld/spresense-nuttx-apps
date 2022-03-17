@@ -164,7 +164,7 @@ struct cbinfo_s
  ****************************************************************************/
 
 #ifdef CONFIG_LTE_ALT1250_LAUNCH_EVENT_TASK
-int g_cbpid;
+static int g_cbpid;
 #endif
 
 /* event argument for LTE_CMDID_SETRESTART */
