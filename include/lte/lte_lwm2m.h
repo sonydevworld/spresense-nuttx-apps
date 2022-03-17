@@ -28,7 +28,138 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 #include <nuttx/wireless/lte/lte.h>
-#include <nuttx/wireless/lte/lte_lwm2m.h>
+
+#define LWM2MSTUB_MAX_WRITE_SIZE (1500)
+#define LWM2MSTUB_MAX_TOKEN_SIZE (9)
+
+#define LWM2MSTUB_MAX_SERVER_NAME (256)
+#define LWM2MSTUB_MAX_DEVID       (256)
+#define LWM2MSTUB_MAX_SEQKEY      (256)
+
+#define LWM2MSTUB_CONDVALID_MINPERIOD  (1<<0)
+#define LWM2MSTUB_CONDVALID_MAXPERIOD  (1<<1)
+#define LWM2MSTUB_CONDVALID_GRATERTHAN (1<<2)
+#define LWM2MSTUB_CONDVALID_LESSTHAN   (1<<3)
+#define LWM2MSTUB_CONDVALID_STEP       (1<<4)
+
+#define  LWM2MSTUB_FWUP_PEND_DL  (0)
+#define  LWM2MSTUB_FWUP_PEND_UPD (1)
+#define  LWM2MSTUB_FWUP_COMP_DL  (2)
+#define  LWM2MSTUB_FWUP_FAIL_DL  (3)
+#define  LWM2MSTUB_FWUP_CANCELED (4)
+
+#define LWM2MSTUB_CMD_REGISTER      (0)
+#define LWM2MSTUB_CMD_DEREGISTER    (1)
+#define LWM2MSTUB_CMD_UPDATERESIGER (2)
+
+#define LWM2MSTUB_STATE_NOTREGISTERD    (0)
+#define LWM2MSTUB_STATE_REGISTPENDING   (1)
+#define LWM2MSTUB_STATE_REGISTERD       (2)
+#define LWM2MSTUB_STATE_REGISTERFAILED  (3)
+#define LWM2MSTUB_STATE_UPDATEPENDING   (4)
+#define LWM2MSTUB_STATE_DEREGISTPENDING (5)
+#define LWM2MSTUB_STATE_BSHOLDOFF       (6)
+#define LWM2MSTUB_STATE_BSREQUESTED     (7)
+#define LWM2MSTUB_STATE_BSONGOING       (8)
+#define LWM2MSTUB_STATE_BSDONE          (9)
+#define LWM2MSTUB_STATE_BSFAILED        (10)
+
+#define LWM2MSTUB_RESOP_READ  (0)
+#define LWM2MSTUB_RESOP_WRITE (1)
+#define LWM2MSTUB_RESOP_RW    (2)
+#define LWM2MSTUB_RESOP_EXEC  (3)
+
+#define LWM2MSTUB_RESINST_SINGLE (0)
+#define LWM2MSTUB_RESINST_MULTI  (1)
+
+#define LWM2MSTUB_RESDATA_NONE     (0)
+#define LWM2MSTUB_RESDATA_STRING   (1)
+#define LWM2MSTUB_RESDATA_INT      (2)
+#define LWM2MSTUB_RESDATA_UNSIGNED (3)
+#define LWM2MSTUB_RESDATA_FLOAT    (4)
+#define LWM2MSTUB_RESDATA_BOOL     (5)
+#define LWM2MSTUB_RESDATA_OPAQUE   (6)
+#define LWM2MSTUB_RESDATA_TIME     (7)
+#define LWM2MSTUB_RESDATA_OBJLINK  (8)
+
+#define LWM2MSTUB_SECUREMODE_PSK     (0)
+#define LWM2MSTUB_SECUREMODE_RPK     (1)
+#define LWM2MSTUB_SECUREMODE_CERT    (2)
+#define LWM2MSTUB_SECUREMODE_NOSEC   (3)
+#define LWM2MSTUB_SECUREMODE_CERTEST (4)
+
+#define LWM2MSTUB_CONNECT_REGISTER   (0)
+#define LWM2MSTUB_CONNECT_DEREGISTER (1)
+#define LWM2MSTUB_CONNECT_REREGISTER (2)
+#define LWM2MSTUB_CONNECT_BOOTSTRAP  (3)
+
+#define LWM2MSTUB_RESP_CHANGED       (0)
+#define LWM2MSTUB_RESP_CONTENT       (1)
+#define LWM2MSTUB_RESP_BADREQ        (2)
+#define LWM2MSTUB_RESP_UNAUTH        (3)
+#define LWM2MSTUB_RESP_NOURI         (4)
+#define LWM2MSTUB_RESP_NOTALLOW      (5)
+#define LWM2MSTUB_RESP_NOTACCEPT     (6)
+#define LWM2MSTUB_RESP_UNSUPPORT     (7)
+#define LWM2MSTUB_RESP_INTERNALERROR (8)
+
+struct lwm2mstub_resource_s
+{
+  int res_id;
+  int operation;
+  int inst_type;
+  int data_type;
+};
+
+struct lwm2mstub_instance_s
+{
+  int object_id;
+  int object_inst;
+  int res_id;
+  int res_inst;
+};
+
+struct lwm2mstub_ovcondition_s
+{
+    uint8_t valid_mask;
+    unsigned int min_period;
+    unsigned int max_period;
+    double gt_cond;
+    double lt_cond;
+    double step_val;
+};
+
+struct lwm2mstub_serverinfo_s
+{
+  int object_inst;
+  int state;
+  bool bootstrap;
+  bool nonip;
+  int security_mode;
+  char server_uri[LWM2MSTUB_MAX_SERVER_NAME];
+  char device_id[LWM2MSTUB_MAX_DEVID];
+  char security_key[LWM2MSTUB_MAX_SEQKEY];
+};
+
+typedef void (*lwm2mstub_write_cb_t)(int seq_no, int srv_id,
+              struct lwm2mstub_instance_s *inst, char *value, int len);
+
+typedef void (*lwm2mstub_read_cb_t)(int seq_no, int srv_id,
+              struct lwm2mstub_instance_s *inst);
+
+typedef void (*lwm2mstub_exec_cb_t)(int seq_no, int srv_id,
+              struct lwm2mstub_instance_s *inst);
+
+typedef void (*lwm2mstub_ovstart_cb_t)(int seq_no, int srv_id,
+              struct lwm2mstub_instance_s *inst, char *token,
+              struct lwm2mstub_ovcondition_s *cond);
+
+typedef void (*lwm2mstub_ovstop_cb_t)(int seq_no, int srv_id,
+              struct lwm2mstub_instance_s *inst, char *token);
+
+typedef void (*lwm2mstub_serverop_cb_t)(int event);
+
+typedef void (*lwm2mstub_fwupstate_cb_t)(int event);
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
@@ -42,7 +173,30 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
-int lte_commit_m2msetting(void);
+/* On powe on state */
+
+int lte_setm2m_endpointname(FAR char *name);
+int lte_getm2m_endpointname(FAR char *name, int len);
+
+int lte_getm2m_servernum(void);
+int lte_setm2m_serverinfo(FAR struct lwm2mstub_serverinfo_s *info, int id);
+int lte_getm2m_serverinfo(FAR struct lwm2mstub_serverinfo_s *info, int id);
+
+int lte_getm2m_enabled_objectnum(void);
+int lte_getm2m_enabled_objects(uint16_t *objids, int objnum);
+int lte_enablem2m_objects(uint16_t *objids, int objnum);
+
+int lte_getm2m_objresourcenum(uint16_t objid);
+int lte_getm2m_objresourceinfo(uint16_t objids, int res_num,
+                                struct lwm2mstub_resource_s *reses);
+int lte_setm2m_objectdefinition(uint16_t objids, int res_num,
+                                struct lwm2mstub_resource_s *reses);
+
+int lte_apply_m2msetting(void);
+
+/* After attached */
+
+int lte_m2m_connection(int cmd);
 
 int lte_set_report_m2mwrite(lwm2mstub_write_cb_t cb);
 int lte_set_report_m2mread(lwm2mstub_read_cb_t cb);
@@ -51,6 +205,21 @@ int lte_set_report_m2movstart(lwm2mstub_ovstart_cb_t cb);
 int lte_set_report_m2movstop(lwm2mstub_ovstop_cb_t cb);
 int lte_set_report_m2mserverop(lwm2mstub_serverop_cb_t cb);
 int lte_set_report_m2mfwupdate(lwm2mstub_fwupstate_cb_t cb);
+
+int lte_m2m_readresponse(int seq_no,
+                         FAR struct lwm2mstub_instance_s *inst,
+                         int resp, char *readvalue, int len);
+int lte_m2m_writeresponse(int seq_no,
+                          FAR struct lwm2mstub_instance_s *inst,
+                          int resp);
+int lte_m2m_executeresp(int seq_no,
+                        FAR struct lwm2mstub_instance_s *inst,
+                        int resp);
+int lte_m2m_observeresp(int seq_no, int resp);
+
+int lte_m2m_observeupdate(char *token,
+                          FAR struct lwm2mstub_instance_s *inst,
+                          char *value, int len);
 
 #undef EXTERN
 #ifdef __cplusplus

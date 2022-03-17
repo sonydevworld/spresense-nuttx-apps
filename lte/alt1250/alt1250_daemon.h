@@ -129,6 +129,7 @@ struct alt1250_s
 
   struct sms_info_s sms_info;
   bool is_support_lwm2m;
+  int lwm2m_apply_xid;
 };
 
 #endif  /* __LTE_ALT1250_ALT1250_DAEMON_H__ */
