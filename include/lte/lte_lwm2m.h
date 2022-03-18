@@ -243,7 +243,7 @@ typedef void (*lwm2mstub_ovstart_cb_t)(int seq_no, int srv_id,
 typedef void (*lwm2mstub_ovstop_cb_t)(int seq_no, int srv_id,
               struct lwm2mstub_instance_s *inst, char *token);
 
-typedef void (*lwm2mstub_serverop_cb_t)(int event);
+typedef void (*lwm2mstub_operation_cb_t)(int event);
 
 typedef void (*lwm2mstub_fwupstate_cb_t)(int event);
 
@@ -289,7 +289,7 @@ int lte_set_report_m2mread(lwm2mstub_read_cb_t cb);
 int lte_set_report_m2mexec(lwm2mstub_exec_cb_t cb);
 int lte_set_report_m2movstart(lwm2mstub_ovstart_cb_t cb);
 int lte_set_report_m2movstop(lwm2mstub_ovstop_cb_t cb);
-int lte_set_report_m2mserverop(lwm2mstub_serverop_cb_t cb);
+int lte_set_report_m2moperation(lwm2mstub_operation_cb_t cb);
 int lte_set_report_m2mfwupdate(lwm2mstub_fwupstate_cb_t cb);
 
 int lte_m2m_readresponse(int seq_no,
