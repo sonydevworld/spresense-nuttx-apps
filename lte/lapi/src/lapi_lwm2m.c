@@ -421,10 +421,10 @@ int lte_set_report_m2movstop(lwm2mstub_ovstop_cb_t cb)
 }
 
 /****************************************************************************
- * Name: lte_set_report_m2mserverop
+ * Name: lte_set_report_m2moperation
  ****************************************************************************/
 
-int lte_set_report_m2mserverop(lwm2mstub_serverop_cb_t cb)
+int lte_set_report_m2moperation(lwm2mstub_operation_cb_t cb)
 {
   return lapi_req(LTE_CMDID_LWM2M_SERVEROP_EVT, NULL, 0, NULL, 0, cb);
 }

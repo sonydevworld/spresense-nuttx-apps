@@ -142,7 +142,7 @@ static uint64_t lwm2m_ovstart_evt_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable);
 static uint64_t lwm2m_ovstop_evt_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable);
-static uint64_t lwm2m_serverop_evt_cb(FAR void *cb,
+static uint64_t lwm2m_operation_evt_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable);
 static uint64_t lwm2m_fwupdate_evt_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable);
@@ -608,7 +608,7 @@ static void *g_lwm2movstopargs[] =
 
 /* event argument for LTE_CMDID_LWM2M_SERVEROP_EVT */
 
-static void *g_lwm2mserveropargs[] =
+static void *g_lwm2moperationargs[] =
 {
   NULL
 };
@@ -675,7 +675,7 @@ static struct alt_evtbuf_inst_s g_evtbuffers[] =
   TABLE_CONTENT(LWM2M_EXEC_EVT, UNKNOWN, g_lwm2mexecargs),
   TABLE_CONTENT(LWM2M_OVSTART_EVT, UNKNOWN, g_lwm2movstartargs),
   TABLE_CONTENT(LWM2M_OVSTOP_EVT, UNKNOWN, g_lwm2movstopargs),
-  TABLE_CONTENT(LWM2M_SERVEROP_EVT, UNKNOWN, g_lwm2mserveropargs),
+  TABLE_CONTENT(LWM2M_SERVEROP_EVT, UNKNOWN, g_lwm2moperationargs),
   TABLE_CONTENT(LWM2M_FWUP_EVT, UNKNOWN, g_lwm2mfwupargs),
 
   /* Add the command ID of LTE_CMDID_SELECT to the table so that the driver
@@ -729,7 +729,7 @@ static struct cbinfo_s g_execbtable[] =
   {LTE_CMDID_LWM2M_EXEC_EVT, lwm2m_exec_evt_cb},
   {LTE_CMDID_LWM2M_OVSTART_EVT, lwm2m_ovstart_evt_cb},
   {LTE_CMDID_LWM2M_OVSTOP_EVT, lwm2m_ovstop_evt_cb},
-  {LTE_CMDID_LWM2M_SERVEROP_EVT, lwm2m_serverop_evt_cb},
+  {LTE_CMDID_LWM2M_SERVEROP_EVT, lwm2m_operation_evt_cb},
   {LTE_CMDID_LWM2M_FWUP_EVT, lwm2m_fwupdate_evt_cb},
 };
 
@@ -1386,10 +1386,10 @@ static uint64_t lwm2m_ovstop_evt_cb(FAR void *cb,
   return 0ULL;
 }
 
-static uint64_t lwm2m_serverop_evt_cb(FAR void *cb,
+static uint64_t lwm2m_operation_evt_cb(FAR void *cb,
   FAR void **cbarg, FAR bool *set_writable)
 {
-  lwm2mstub_serverop_cb_t callback = (lwm2mstub_serverop_cb_t)cb;
+  lwm2mstub_operation_cb_t callback = (lwm2mstub_operation_cb_t)cb;
 
   if (callback)
     {
