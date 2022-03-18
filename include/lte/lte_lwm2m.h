@@ -42,11 +42,11 @@
 #define LWM2MSTUB_CONDVALID_LESSTHAN   (1<<3)
 #define LWM2MSTUB_CONDVALID_STEP       (1<<4)
 
-#define  LWM2MSTUB_FWUP_PEND_DL  (0)
-#define  LWM2MSTUB_FWUP_PEND_UPD (1)
-#define  LWM2MSTUB_FWUP_COMP_DL  (2)
-#define  LWM2MSTUB_FWUP_FAIL_DL  (3)
-#define  LWM2MSTUB_FWUP_CANCELED (4)
+#define LWM2MSTUB_FWUP_PEND_DL  (0)
+#define LWM2MSTUB_FWUP_PEND_UPD (1)
+#define LWM2MSTUB_FWUP_COMP_DL  (2)
+#define LWM2MSTUB_FWUP_FAIL_DL  (3)
+#define LWM2MSTUB_FWUP_CANCELED (4)
 
 #define LWM2MSTUB_CMD_REGISTER      (0)
 #define LWM2MSTUB_CMD_DEREGISTER    (1)
@@ -102,6 +102,92 @@
 #define LWM2MSTUB_RESP_NOTACCEPT     (6)
 #define LWM2MSTUB_RESP_UNSUPPORT     (7)
 #define LWM2MSTUB_RESP_INTERNALERROR (8)
+
+/* Client received "Write" operation */
+
+#define LWM2MSTUB_OP_WRITE      (0)
+
+/* Client received "Execute" operation */
+
+#define LWM2MSTUB_OP_EXEC       (1)
+
+/* Client received "Write Attributes" operation */
+
+#define LWM2MSTUB_OP_WATTR      (4)
+
+/* Client received "Discover" operation */
+
+#define LWM2MSTUB_OP_DISCOVER   (5)
+
+/* Client received "Read" operation */
+
+#define LWM2MSTUB_OP_READ       (6)
+
+/* Client received "Observe" operation */
+
+#define LWM2MSTUB_OP_OBSERVE    (7)
+
+/* Client received "Cancel observation" operation */
+
+#define LWM2MSTUB_OP_CANCELOBS  (8)
+
+/* Client is offline now. */
+
+#define LWM2MSTUB_OP_OFFLINE    (9)
+
+/* Client is online now. */
+
+#define LWM2MSTUB_OP_ONLINE     (10)
+
+/* Client sent observation notification to a server. */
+
+#define LWM2MSTUB_OP_SENDNOTICE (11)
+
+/* Client received wakeup SMS. */
+
+#define LWM2MSTUB_OP_RCVWUP     (12)
+
+/* Client received notification acknowledge. */
+
+#define LWM2MSTUB_OP_RCVOBSACK  (13)
+
+/* Client ON: LMM2M client exits Client OFF state
+ * and tries to re-connect server due to explicitly
+ * AT Command registration request.
+ */
+
+#define LWM2MSTUB_OP_CLIENTON   (14)
+
+/* Client OFF: LWM2M client has exhausted server connection retries. */
+
+#define LWM2MSTUB_OP_CLIENTOFF  (15)
+
+/* Confirmable NOTIFY failed. */
+
+#define LWM2MSTUB_OP_FAILNOTIFY  (16)
+
+/* Bootstrap finished and completed successfully. */
+
+#define LWM2MSTUB_OP_BSFINISH  (20)
+
+/* Registration finished and completed successfully.
+ * all server observation requests are cleaned,
+ * the host should clean host objects observation rules too.
+ */
+
+#define LWM2MSTUB_OP_REGSUCCESS  (21)
+
+/* Register update finished and completed successfully. */
+
+#define LWM2MSTUB_OP_REGUPDATED  (22)
+
+/* De-register finished and completed successfully. */
+
+#define LWM2MSTUB_OP_DEREGSUCCESS  (23)
+
+/* Notification was not saved and not sent to server */
+
+#define LWM2MSTUB_OP_NOSENDNOTICE  (24)
 
 struct lwm2mstub_resource_s
 {
