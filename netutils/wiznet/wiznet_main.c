@@ -1670,14 +1670,14 @@ static int ioctl_request(int fd, FAR struct wiznet_s *priv,
     {
       case SIOCGIFHWADDR:
       case SIOCGIFADDR:
-      case SIOCGIFBRDADDR:
+      case SIOCGIFDSTADDR:
       case SIOCGIFNETMASK:
         getreq = true;
         break;
 
       case SIOCSIFHWADDR:
       case SIOCSIFADDR:
-      case SIOCSIFBRDADDR:
+      case SIOCSIFDSTADDR:
       case SIOCSIFNETMASK:
 
         read(fd, &cmsg.ifr, sizeof(cmsg.ifr));
