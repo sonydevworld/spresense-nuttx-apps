@@ -623,7 +623,7 @@ static int connect_request(int fd, FAR struct wiznet_s *priv,
 
   /* Check if this socket is already connected. */
 
-  if (CONNECTED == usock->state)
+  if ((usock->type == SOCK_STREAM) && (CONNECTED == usock->state))
     {
       ret = -EISCONN;
       goto prepare;
