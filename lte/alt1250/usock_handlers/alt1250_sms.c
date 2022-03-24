@@ -610,12 +610,6 @@ static void sms_report_event(FAR struct alt1250_s *dev, uint16_t msg_index,
 
   else
     {
-      send_smsreportrecv_command(dev, &usock_result);
-      if (usock_result < 0)
-        {
-          notify_abort(dev);
-        }
-
       dev->sms_info.total_msglen += sms_msg->datalen;
 
       if (max_num == seq_num)
@@ -623,6 +617,11 @@ static void sms_report_event(FAR struct alt1250_s *dev, uint16_t msg_index,
           /* In case of last of concatenated sms */
 
           SMS_SET_STATE(&dev->sms_info, SMS_STATE_FIXSIZE);
+
+          /* Send only SMS FIN command to avoid receiving the next SMS REPORT
+           * command. If SMS REPORT response is sent before SMS FIN command
+           * is sent, unexpected SMS REPORT command may be received.
+           */
 
           send_smsfin_command(dev, &g_sms_container, 0,
                               postproc_smsfin_reopen, &usock_result);
@@ -635,6 +634,14 @@ static void sms_report_event(FAR struct alt1250_s *dev, uint16_t msg_index,
               SMS_SET_STATE(&dev->sms_info, SMS_STATE_REOPEN);
 
               dev->sms_info.is_first_msg = true;
+            }
+        }
+      else
+        {
+           send_smsreportrecv_command(dev, &usock_result);
+           if (usock_result < 0)
+            {
+              notify_abort(dev);
             }
         }
     }
@@ -831,6 +838,17 @@ int alt1250_sms_recv(FAR struct alt1250_s *dev,
         {
           dbg_alt1250("no container\n");
           return REP_NO_CONTAINER;
+        }
+
+      /* If the application has read all data,
+       * change the status to SMS_STATE_NOT_FIXSIZE.
+       */
+
+      dev->sms_info.total_msglen -= (dev->sms_info.msglen -
+                                       sizeof(struct sms_recv_msg_header_s));
+      if (dev->sms_info.total_msglen == 0)
+        {
+          SMS_SET_STATE(&dev->sms_info, SMS_STATE_NOT_FIXSIZE);
         }
 
       /* Delete the SMS in the ALT1250 because one SMS was read. */
