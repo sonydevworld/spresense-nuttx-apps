@@ -29,6 +29,10 @@
 #include <stdint.h>
 #include <nuttx/wireless/lte/lte.h>
 
+#define LWM2MSTUB_RESOURCE_HANDLENOCARE (0)
+#define LWM2MSTUB_RESOURCE_HANDLEHOST   (1)
+#define LWM2MSTUB_RESOURCE_HANDLEMODEMH (2)
+
 #define LWM2MSTUB_MAX_WRITE_SIZE (1500)
 #define LWM2MSTUB_MAX_TOKEN_SIZE (9)
 
@@ -195,6 +199,7 @@ struct lwm2mstub_resource_s
   int operation;
   int inst_type;
   int data_type;
+  int handl;
 };
 
 struct lwm2mstub_instance_s
