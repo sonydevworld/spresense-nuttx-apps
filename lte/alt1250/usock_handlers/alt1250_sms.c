@@ -656,7 +656,8 @@ static void sms_report_event(FAR struct alt1250_s *dev, uint16_t msg_index,
  ****************************************************************************/
 
 int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
-                     FAR int32_t *usock_result)
+                     FAR int32_t *usock_result,
+                     FAR struct usock_ackinfo_s *ackinfo)
 {
   int ret = REP_SEND_ACK_WOFREE;
   FAR struct alt_container_s *container;
@@ -670,28 +671,33 @@ int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
       return REP_SEND_ACK_WOFREE;
     }
 
-  container = container_alloc();
-  if (container == NULL)
+  if (SMS_STATE(&dev->sms_info) == SMS_STATE_UNINIT)
     {
-      dbg_alt1250("no container\n");
-      return REP_NO_CONTAINER;
-    }
-
-  ret = send_smsinit_command(dev, container, USOCKET_USOCKID(usock),
-                             postproc_smsinit, usock_result);
-
-  if (IS_NEED_CONTAINER_FREE(ret))
-    {
-      container_free(container);
-    }
-
-  if (*usock_result >= 0)
-    {
-      ret = REP_SEND_ACK_WOFREE;
-      if (SMS_STATE(&dev->sms_info) == SMS_STATE_UNINIT)
+      container = container_alloc();
+      if (container == NULL)
         {
+          dbg_alt1250("no container\n");
+          return REP_NO_CONTAINER;
+        }
+
+      ret = send_smsinit_command(dev, container, USOCKET_USOCKID(usock),
+                                 postproc_smsinit, usock_result);
+
+      if (IS_NEED_CONTAINER_FREE(ret))
+        {
+          container_free(container);
+        }
+
+      if (*usock_result >= 0)
+        {
+          ret = REP_SEND_ACK_WOFREE;
           SMS_SET_STATE(&dev->sms_info, SMS_STATE_NOT_FIXSIZE);
         }
+    }
+  else
+    {
+      ret = REP_SEND_ACK_TXREADY;
+      ackinfo->usockid = USOCKET_USOCKID(usock);
     }
 
   return ret;
