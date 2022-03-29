@@ -469,19 +469,23 @@ static int postproc_smsinit(FAR struct alt1250_s *dev,
                             FAR struct usock_ackinfo_s *ackinfo,
                             unsigned long arg)
 {
+  int ret = REP_SEND_ACK_TXREADY;
+
   dbg_alt1250("%s start\n", __func__);
 
   *usock_result = CONTAINER_RESPRES(reply);
-  if (*usock_result < 0 && *usock_result != -EALREADY)
+  if (*usock_result < 0)
     {
-      notify_abort(dev);
+      ret = REP_SEND_ACK;
     }
   else
     {
-      usocket_smssock_writeready(dev, usock);
+      *usock_result = USOCKET_USOCKID(usock);
+      ackinfo->usockid = USOCKET_USOCKID(usock);
+      SMS_SET_STATE(&dev->sms_info, SMS_STATE_WAITMSG);
     }
 
-  return REP_NO_ACK;
+  return ret;
 }
 
 /****************************************************************************
@@ -742,12 +746,6 @@ int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
       if (IS_NEED_CONTAINER_FREE(ret))
         {
           container_free(container);
-        }
-
-      if (*usock_result >= 0)
-        {
-          ret = REP_SEND_ACK_WOFREE;
-          SMS_SET_STATE(&dev->sms_info, SMS_STATE_WAITMSG);
         }
     }
   else
