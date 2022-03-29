@@ -73,7 +73,8 @@ struct sms_info_s
  ****************************************************************************/
 
 int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
-                     FAR int32_t *usock_result);
+                     FAR int32_t *usock_result,
+                     FAR struct usock_ackinfo_s *ackinfo);
 int alt1250_sms_fin(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
                     FAR int32_t *usock_result);
 int alt1250_sms_send(FAR struct alt1250_s *dev,

@@ -434,7 +434,7 @@ int usockreq_socket(FAR struct alt1250_s *dev,
       case SOCK_RAW:
         if ((IS_SMS_SOCKET(usock)) && (request->type == SOCK_DGRAM))
           {
-            ret = alt1250_sms_init(dev, usock, usock_result);
+            ret = alt1250_sms_init(dev, usock, usock_result, ackinfo);
             if (*usock_result < 0)
               {
                 usocket_free(usock);
