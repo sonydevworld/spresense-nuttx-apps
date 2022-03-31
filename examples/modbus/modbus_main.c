@@ -1,35 +1,20 @@
 /****************************************************************************
- * examples/modbus/main.c
+ * apps/examples/modbus/main.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************
  * Leveraged from:
@@ -71,6 +56,14 @@
 #include "modbus/mb.h"
 #include "modbus/mbport.h"
 
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+#  include <sys/types.h>
+#  include <sys/stat.h>
+#  include <fcntl.h>
+#  include <sys/ioctl.h>
+#  include <nuttx/leds/userled.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -108,6 +101,10 @@
 #  define CONFIG_EXAMPLES_MODBUS_REG_HOLDING_NREGS 130
 #endif
 
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+#  define CONFIG_USERLEDS_DEVPATH "/dev/userleds"
+#endif
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -124,6 +121,10 @@ struct modbus_state_s
   enum modbus_threadstate_e threadstate;
   uint16_t reginput[CONFIG_EXAMPLES_MODBUS_REG_INPUT_NREGS];
   uint16_t regholding[CONFIG_EXAMPLES_MODBUS_REG_HOLDING_NREGS];
+  uint16_t regcoils[CONFIG_EXAMPLES_MODBUS_REG_COILS_NREGS];
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+  int fd_leds;
+#endif
   pthread_t threadid;
   pthread_mutex_t lock;
   volatile bool quit;
@@ -260,6 +261,12 @@ static void *modbus_pollthread(void *pvarg)
 {
   eMBErrorCode mberr;
   int ret;
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+  int i;
+  userled_set_t ledbit;
+  userled_set_t ledset = 0;
+  userled_set_t supported;
+#endif
 
   /* Initialize the modbus */
 
@@ -272,6 +279,33 @@ static void *modbus_pollthread(void *pvarg)
     }
 
   srand(time(NULL));
+
+  /* Open the USERLED device */
+
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+  printf("Opening %s\n", CONFIG_USERLEDS_DEVPATH);
+  g_modbus.fd_leds = open(CONFIG_USERLEDS_DEVPATH, O_WRONLY);
+  if (g_modbus.fd_leds < 0)
+    {
+      int errcode = errno;
+      printf("ERROR: Failed to open %s: %d\n",
+             CONFIG_USERLEDS_DEVPATH, errcode);
+      goto stop_modbus_exit;
+    }
+
+  /* Get the set of LEDs supported */
+
+  ret = ioctl(g_modbus.fd_leds, ULEDIOC_SUPPORTED,
+              (unsigned long)((uintptr_t)&supported));
+  if (ret < 0)
+    {
+      int errcode = errno;
+      printf("ERROR: ioctl(ULEDIOC_SUPPORTED) failed: %d\n",
+             errcode);
+      close(g_modbus.fd_leds);
+      goto stop_modbus_exit;
+    }
+#endif
 
   /* Then loop until we are commanded to shutdown */
 
@@ -288,8 +322,34 @@ static void *modbus_pollthread(void *pvarg)
       /* Generate some random input */
 
       g_modbus.reginput[0] = (uint16_t)rand();
+
+      /* If Reg Coils controls USERLEDs, update it! */
+
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+      ledset = 0;
+
+      for (i = 0; i < CONFIG_EXAMPLES_MODBUS_REG_COILS_NREGS && i < 32; i++)
+        {
+          ledbit = g_modbus.regcoils[i] << i;
+          ledset |= ledbit & supported;
+        }
+
+      ret = ioctl(g_modbus.fd_leds, ULEDIOC_SETALL, ledset);
+      if (ret < 0)
+        {
+          int errcode = errno;
+          printf("ERROR: ioctl(ULEDIOC_SUPPORTED) failed: %d\n",
+                 errcode);
+          close(g_modbus.fd_leds);
+          goto stop_modbus_exit;
+        }
+#endif
     }
   while (g_modbus.threadstate != SHUTDOWN);
+
+#ifdef CONFIG_EXAMPLES_MODBUS_REG_COILS_USERLEDS
+stop_modbus_exit:
+#endif
 
   /* Disable */
 
@@ -458,8 +518,8 @@ eMBErrorCode eMBRegInputCB(uint8_t *buffer, uint16_t address, uint16_t nregs)
       index = (int)(address - CONFIG_EXAMPLES_MODBUS_REG_INPUT_START);
       while (nregs > 0)
         {
-          *buffer++ = (uint8_t)(g_modbus.reginput[index] >> 8);
           *buffer++ = (uint8_t)(g_modbus.reginput[index] & 0xff);
+          *buffer++ = (uint8_t)(g_modbus.reginput[index] >> 8);
           index++;
           nregs--;
         }
@@ -498,8 +558,8 @@ eMBErrorCode eMBRegHoldingCB(uint8_t *buffer, uint16_t address, uint16_t nregs,
           case MB_REG_READ:
             while (nregs > 0)
               {
-                *buffer++ = (uint8_t)(g_modbus.regholding[index] >> 8);
                 *buffer++ = (uint8_t)(g_modbus.regholding[index] & 0xff);
+                *buffer++ = (uint8_t)(g_modbus.regholding[index] >> 8);
                 index++;
                 nregs--;
               }
@@ -512,8 +572,8 @@ eMBErrorCode eMBRegHoldingCB(uint8_t *buffer, uint16_t address, uint16_t nregs,
           case MB_REG_WRITE:
             while (nregs > 0)
               {
-                g_modbus.regholding[index] = *buffer++ << 8;
-                g_modbus.regholding[index] |= *buffer++;
+                g_modbus.regholding[index] = *buffer++;
+                g_modbus.regholding[index] |= *buffer++ << 8;
                 index++;
                 nregs--;
               }
@@ -539,7 +599,50 @@ eMBErrorCode eMBRegHoldingCB(uint8_t *buffer, uint16_t address, uint16_t nregs,
 eMBErrorCode eMBRegCoilsCB(uint8_t *buffer, uint16_t address, uint16_t ncoils,
                            eMBRegisterMode mode)
 {
-  return MB_ENOREG;
+  eMBErrorCode    mberr = MB_ENOERR;
+  int             index;
+
+  if ((address >= CONFIG_EXAMPLES_MODBUS_REG_COILS_START) &&
+      (address + ncoils <=
+       CONFIG_EXAMPLES_MODBUS_REG_COILS_START +
+       CONFIG_EXAMPLES_MODBUS_REG_COILS_NREGS))
+    {
+      index = (int)(address - CONFIG_EXAMPLES_MODBUS_REG_COILS_START);
+      switch (mode)
+        {
+          /* Pass current register values to the protocol stack. */
+
+          case MB_REG_READ:
+            while (ncoils > 0)
+              {
+                *buffer++ = (uint8_t)(g_modbus.regcoils[index] & 0xff);
+                *buffer++ = (uint8_t)(g_modbus.regcoils[index] >> 8);
+                index++;
+                ncoils--;
+              }
+            break;
+
+          /* Update current register values with new values from the
+           * protocol stack.
+           */
+
+          case MB_REG_WRITE:
+            while (ncoils > 0)
+              {
+                g_modbus.regcoils[index] = *buffer++;
+                g_modbus.regcoils[index] |= *buffer++ << 8;
+                index++;
+                ncoils--;
+              }
+            break;
+        }
+    }
+  else
+    {
+      mberr = MB_ENOREG;
+    }
+
+  return mberr;
 }
 
 /****************************************************************************

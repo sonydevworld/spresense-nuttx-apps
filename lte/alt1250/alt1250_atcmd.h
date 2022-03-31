@@ -35,12 +35,15 @@
 #include "alt1250_devif.h"
 #include "alt1250_container.h"
 
+#include <lte/lte_lwm2m.h>
+
 /****************************************************************************
  * Public Data Type
  ****************************************************************************/
 
 typedef int (*atreply_parser_t)(FAR char *reply, int len, void *arg);
-typedef int (*atcmd_postproc_t)(FAR struct alt_container_s *container,
+typedef int (*atcmd_postproc_t)(FAR struct alt1250_s *dev,
+                                FAR struct alt_container_s *container,
                                 FAR char *rdata, int len, unsigned long arg,
                                 FAR int32_t *usock_result);
 
@@ -54,9 +57,10 @@ struct atreply_truefalse_s
  * Public Function Prototypes
  ****************************************************************************/
 
-int send_internal_at_command(FAR struct alt1250_s *dev,
-      FAR struct alt_container_s *container, int16_t usockid,
-      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *usock_result);
+int atcmdreply_ok_error(FAR struct alt1250_s *dev,
+                        FAR struct alt_container_s *reply,
+                        FAR char *rdata, int len, unsigned long arg,
+                        FAR int32_t *usock_result);
 
 int check_atreply_ok(FAR char *reply, int len, void *arg);
 int check_atreply_truefalse(FAR char *reply, int len, void *arg);
@@ -105,5 +109,85 @@ int lwm2mstub_send_m2mobjcmd(FAR struct alt1250_s *dev,
 int lwm2mstub_send_m2mev(FAR struct alt1250_s *dev,
       FAR struct alt_container_s *container, int16_t usockid,
       FAR int32_t *ures, bool en);
+
+int lwm2mstub_send_getepname(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures);
+
+int lwm2mstub_send_getsrvinfo(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures);
+
+int lwm2mstub_send_getresource(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures,
+      FAR char *resource);
+
+int lwm2mstub_send_getsupobjs(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures);
+
+int lwm2mstub_send_getobjdef(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures,
+      uint16_t objid);
+
+int lwm2mstub_send_setepname(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, FAR const char * epname);
+
+int lwm2mstub_send_bsstart(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures);
+
+int lwm2mstub_send_bsdelete(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures);
+
+int lwm2mstub_send_bscreateobj0(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures,
+      FAR struct lwm2mstub_serverinfo_s *info);
+
+int lwm2mstub_send_bscreateobj1(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      atcmd_postproc_t proc, unsigned long arg, FAR int32_t *ures,
+      FAR struct lwm2mstub_serverinfo_s *info);
+
+int lwm2mstub_send_bsdone(FAR struct alt1250_s *dev,
+     FAR struct alt_container_s *container, int16_t usockid,
+     FAR int32_t *ures);
+
+int lwm2mstub_send_setsupobjs(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, FAR uint16_t *objids, int objnum);
+
+int lwm2mstub_send_setobjdef(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, uint16_t objid, int resnum,
+      FAR struct lwm2mstub_resource_s *resucs);
+
+int lwm2mstub_send_registration(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, int cmd);
+
+int lwm2mstub_send_evrespwvalue(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, int seq_no, int resp,
+      FAR struct lwm2mstub_instance_s *inst, char *retval);
+
+int lwm2mstub_send_evresponse(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, int seq_no, int resp,
+      FAR struct lwm2mstub_instance_s *inst);
+
+int lwm2mstub_send_evrespwoinst(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, int seq_no, int resp);
+
+int lwm2mstub_send_objevent(FAR struct alt1250_s *dev,
+      FAR struct alt_container_s *container, int16_t usockid,
+      FAR int32_t *ures, char *token, FAR struct lwm2mstub_instance_s *inst,
+      char *retval);
 
 #endif  /* __LTE_ALT1250_ALT1250_ATCMD_H__ */

@@ -114,6 +114,23 @@ int ltefwupdate_result(void)
   return fw_generic_request(LTE_CMDID_GETUPDATERES);
 }
 
+int lte_factory_reset_sync(void)
+{
+  int ret;
+  int result;
+  FAR void *outarg[] =
+    {
+      &result
+    };
+
+  ret = lapi_req(LTE_CMDID_FACTORY_RESET,
+                 NULL, 0,
+                 (FAR void *)outarg, ARRAY_SZ(outarg),
+                 NULL);
+
+  return ret;
+}
+
 /* Asynchronous APIs */
 
 int lte_get_version(get_ver_cb_t callback)

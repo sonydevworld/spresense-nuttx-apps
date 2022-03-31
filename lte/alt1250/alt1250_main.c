@@ -254,6 +254,7 @@ int main(int argc, FAR char *argv[])
   g_daemon->is_usockrcvd = false;
   g_daemon->usock_enable = TRUE;
   g_daemon->is_support_lwm2m = false;
+  g_daemon->lwm2m_apply_xid = -1;
   MODEM_STATE_POFF(g_daemon);
 
   reset_fwupdate_info(g_daemon);

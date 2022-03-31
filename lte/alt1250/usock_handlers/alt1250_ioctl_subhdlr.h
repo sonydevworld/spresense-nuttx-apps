@@ -90,4 +90,10 @@ int send_m2mnotice_command(uint32_t cmdid,
                            FAR struct lte_ioctl_data_s *ltecmd,
                            FAR int32_t *ures);
 
+int usockreq_ioctl_lwm2m(FAR struct alt1250_s *dev,
+                         FAR struct usrsock_request_buff_s *req,
+                         FAR int32_t *usock_result,
+                         FAR uint8_t *usock_xid,
+                         FAR struct usock_ackinfo_s *ackinfo);
+
 #endif  /* __LTE_ALT1250_USOCK_HANDLERS_ALT1250_IOCTL_SUBHDLR_H__ */

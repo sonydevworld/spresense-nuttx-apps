@@ -1,5 +1,5 @@
 /****************************************************************************
- *  apps/include/netutils/netlib.h
+ * apps/include/netutils/netlib.h
  * Various non-standard APIs to support netutils.  All non-standard and
  * intended only for internal use.
  *
@@ -110,6 +110,8 @@
 #  define NETLIB_SOCK_FAMILY  AF_INET
 #elif defined(CONFIG_NET_NETLINK)
 #  define NETLIB_SOCK_FAMILY  AF_NETLINK
+#elif defined(CONFIG_NET_RPMSG)
+#  define NETLIB_SOCK_FAMILY  AF_RPMSG
 #else
 #  define NETLIB_SOCK_FAMILY  AF_UNSPEC
 #endif
@@ -162,6 +164,8 @@
 #  define NETLIB_SOCK_TYPE SOCK_RAW
 #elif NETLIB_SOCK_FAMILY == AF_NETLINK
 #  define NETLIB_SOCK_TYPE SOCK_DGRAM
+#elif NETLIB_SOCK_FAMILY == AF_RPMSG
+#  define NETLIB_SOCK_TYPE SOCK_STREAM
 #endif
 
 /****************************************************************************
@@ -221,7 +225,7 @@ struct url_s
 #endif
   FAR char *host;
   int       hostlen;
-  int       port;
+  uint16_t  port;
   FAR char *path;
   int       pathlen;
 #if 0 /* not yet */

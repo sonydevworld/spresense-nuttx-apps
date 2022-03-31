@@ -1,5 +1,5 @@
 /****************************************************************************
- * testing/sensortest.c
+ * apps/testing/sensortest/sensortest.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -142,23 +142,23 @@ static void print_gps(const char *buffer, const char *name)
 {
   struct sensor_event_gps *event = (struct sensor_event_gps *)buffer;
 
-  printf("%s: year: %d month: %d day: %d hour: %d min: %d sec: %d msec: %d",
-         name, event->year, event->month, event->day, event->hour,
-         event->min, event->sec, event->msec);
-  printf("%s: yaw: %.4f height: %.4f speed: %.4f latitude: %.4f"
-         "longitude: %.4f", name, event->yaw, event->height, event->speed,
+  printf("%s: year: %d month: %d day: %d hour: %d min: %d sec: %d "
+         "msec: %d\n", name, event->year, event->month, event->day,
+         event->hour, event->min, event->sec, event->msec);
+  printf("%s: yaw: %.4f height: %.4f speed: %.4f latitude: %.4f "
+         "longitude: %.4f\n", name, event->yaw, event->height, event->speed,
          event->latitude, event->longitude);
 }
 
 static void usage(void)
 {
   printf("sensortest [arguments...] <command>\n");
-  printf("\t[-h      ]  sensotest commands help\n");
+  printf("\t[-h      ]  sensortest commands help\n");
   printf("\t[-i <val>]  The output data period of sensor in us\n");
   printf("\t            default: 1000000\n");
   printf("\t[-b <val>]  The maximum report latency of sensor in us\n");
   printf("\t            default: 0\n");
-  printf("\t[-n <val>]  The specify number of output data\n");
+  printf("\t[-n <val>]  The number of output data\n");
   printf("\t            default: 0\n");
 
   printf(" Commands:\n");
@@ -224,8 +224,7 @@ int main(int argc, FAR char *argv[])
           case 'h':
           default:
             usage();
-            optind = 0;
-            return 0;
+            goto name_err;
         }
     }
 
@@ -245,20 +244,23 @@ int main(int argc, FAR char *argv[])
 
       if (!len)
         {
-          printf("The sensor node name:%s is invaild\n", name);
+          printf("The sensor node name:%s is invalid\n", name);
           usage();
-          return -EINVAL;
+          ret = -EINVAL;
+          goto name_err;
         }
 
       if (!buffer)
         {
-          return -ENOMEM;
+          ret = -ENOMEM;
+          goto name_err;
         }
     }
   else
     {
       usage();
-      return -EINVAL;
+      ret = -EINVAL;
+      goto name_err;
     }
 
   snprintf(devname, PATH_MAX, DEVNAME_FMT, name);
@@ -271,26 +273,14 @@ int main(int argc, FAR char *argv[])
       goto open_err;
     }
 
-  ret = ioctl(fd, SNIOC_ACTIVATE, 1);
-  if (ret < 0)
-    {
-      ret = -errno;
-      if (ret != -ENOTTY)
-        {
-          printf("Failed to enable sensor:%s, ret:%s\n",
-                 devname, strerror(errno));
-          goto ctl_err;
-        }
-    }
-
   ret = ioctl(fd, SNIOC_SET_INTERVAL, &interval);
   if (ret < 0)
     {
       ret = -errno;
-      if (ret != -ENOTTY)
+      if (ret != -ENOTSUP)
         {
           printf("Failed to set interval for sensor:%s, ret:%s\n",
-                devname, strerror(errno));
+                 devname, strerror(errno));
           goto ctl_err;
         }
     }
@@ -299,10 +289,22 @@ int main(int argc, FAR char *argv[])
   if (ret < 0)
     {
       ret = -errno;
-      if (ret != -ENOTTY)
+      if (ret != -ENOTSUP)
         {
           printf("Failed to batch for sensor:%s, ret:%s\n",
-                devname, strerror(errno));
+                 devname, strerror(errno));
+          goto ctl_err;
+        }
+    }
+
+  ret = ioctl(fd, SNIOC_ACTIVATE, 1);
+  if (ret < 0)
+    {
+      ret = -errno;
+      if (ret != -ENOTSUP)
+        {
+          printf("Failed to enable sensor:%s, ret:%s\n",
+                 devname, strerror(errno));
           goto ctl_err;
         }
     }
@@ -341,5 +343,7 @@ ctl_err:
   close(fd);
 open_err:
   free(buffer);
+name_err:
+  optind = 0;
   return ret;
 }

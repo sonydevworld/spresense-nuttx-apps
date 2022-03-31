@@ -37,7 +37,20 @@
 #define SMS_STATE(info)     ((info)->sms_state)
 #define SMS_MSG_INDEX(info) ((info)->msg_index)
 
-#define SMS_SET_STATE(info, s) ((info)->sms_state = (s))
+#define SMS_STATE_STR(ss) \
+  ((ss) == SMS_STATE_UNINIT ? "SMS_STATE_UNINIT" : \
+   (ss) == SMS_STATE_WAITMSG ? "SMS_STATE_WAITMSG" : \
+   (ss) == SMS_STATE_READ_READY ? "SMS_STATE_READ_READY" : \
+   (ss) == SMS_STATE_CALC_SIZE ? "SMS_STATE_CALC_SIZE" : \
+   (ss) == SMS_STATE_REOPEN ? "SMS_STATE_REOPEN" : \
+   (ss) == SMS_STATE_WAITMSG_CONCAT ? "SMS_STATE_WAITMSG_CONCAT" : \
+   "ERROR UNKOWN STATE")
+
+#define SMS_SET_STATE(info, s) { \
+  dbg_alt1250("[SMS stat] state: %s -> %s\n", \
+              SMS_STATE_STR((info)->sms_state), SMS_STATE_STR(s)); \
+ (info)->sms_state = (s); \
+}
 #define SMS_SET_MSG_INDEX(info, x) ((info)->msg_index = (x))
 
 /****************************************************************************
@@ -47,9 +60,11 @@
 enum sms_state_e
 {
   SMS_STATE_UNINIT = 0,
-  SMS_STATE_NOT_FIXSIZE,
-  SMS_STATE_FIXSIZE,
-  SMS_STATE_REOPEN
+  SMS_STATE_WAITMSG,
+  SMS_STATE_READ_READY,
+  SMS_STATE_CALC_SIZE,
+  SMS_STATE_REOPEN,
+  SMS_STATE_WAITMSG_CONCAT
 };
 
 struct sms_info_s
@@ -73,7 +88,8 @@ struct sms_info_s
  ****************************************************************************/
 
 int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
-                     FAR int32_t *usock_result);
+                     FAR int32_t *usock_result,
+                     FAR struct usock_ackinfo_s *ackinfo);
 int alt1250_sms_fin(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
                     FAR int32_t *usock_result);
 int alt1250_sms_send(FAR struct alt1250_s *dev,
