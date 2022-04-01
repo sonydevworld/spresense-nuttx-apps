@@ -47,6 +47,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <debug.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -622,7 +623,7 @@ static int connect_request(int fd, FAR struct wiznet_s *priv,
 
   /* Check if this socket is already connected. */
 
-  if (CONNECTED == usock->state)
+  if ((usock->type == SOCK_STREAM) && (CONNECTED == usock->state))
     {
       ret = -EISCONN;
       goto prepare;
@@ -1669,14 +1670,14 @@ static int ioctl_request(int fd, FAR struct wiznet_s *priv,
     {
       case SIOCGIFHWADDR:
       case SIOCGIFADDR:
-      case SIOCGIFBRDADDR:
+      case SIOCGIFDSTADDR:
       case SIOCGIFNETMASK:
         getreq = true;
         break;
 
       case SIOCSIFHWADDR:
       case SIOCSIFADDR:
-      case SIOCSIFBRDADDR:
+      case SIOCSIFDSTADDR:
       case SIOCSIFNETMASK:
 
         read(fd, &cmsg.ifr, sizeof(cmsg.ifr));

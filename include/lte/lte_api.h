@@ -175,6 +175,7 @@
  * | lte_acquire_wakelock         |                            |
  * | lte_release_wakelock         |                            |
  * | lte_send_atcmd_sync          |                            |
+ * | lte_factory_reset_sync       |                            |
  */
 
 /****************************************************************************
@@ -1337,7 +1338,7 @@ int lte_get_ratinfo_sync(lte_ratinfo_t *info);
  * Before calling lte_finalize(), must release all wakelocks
  * acquired by this API.
  *
- * On success, 0 is returned. On failure,
+ * On success, return the count of the current modem wakelock. On failure,
  * negative value is returned according to <errno.h>.
  */
 
@@ -1348,7 +1349,7 @@ int lte_acquire_wakelock(void);
  * Please call this API after calling lte_initialize().
  * Otherwise this API will result in an error.
  *
- * On success, 0 is returned. On failure,
+ * On success, return the count of the current modem wakelock. On failure,
  * negative value is returned according to <errno.h>.
  */
 
@@ -1371,6 +1372,14 @@ int lte_release_wakelock(void);
 
 int lte_send_atcmd_sync(const char *cmd, int cmdlen,
   char *respbuff, int respbufflen, int *resplen);
+
+/* Run factory reset on the modem.
+ *
+ * On success, 0 is returned. On failure,
+ * negative value is returned according to <errno.h>.
+ */
+
+int lte_factory_reset_sync(void);
 
 #undef EXTERN
 #ifdef __cplusplus

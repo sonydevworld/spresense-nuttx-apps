@@ -75,8 +75,7 @@
 #define MODEM_STATE_IS_POFF(d)   ((d)->modem_state == MODEM_POWER_OFF)
 #define MODEM_STATE_IS_PON(d)    ((d)->modem_state == MODEM_POWER_ON)
 
-#define OLD_FWVERSION "RK_02_01_01_10_41_15"
-#define IS_OLD_FWVERSION(d) (!strncmp(((d)->fw_version), OLD_FWVERSION, 20))
+#define MODEM_FWVERSION(d)       ((d)->fw_version)
 
 /****************************************************************************
  * Public Data Types
@@ -130,6 +129,7 @@ struct alt1250_s
 
   struct sms_info_s sms_info;
   bool is_support_lwm2m;
+  int lwm2m_apply_xid;
 };
 
 #endif  /* __LTE_ALT1250_ALT1250_DAEMON_H__ */

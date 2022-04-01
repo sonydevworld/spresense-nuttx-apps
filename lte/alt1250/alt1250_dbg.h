@@ -27,14 +27,17 @@
 
 #include <nuttx/config.h>
 #include <stdio.h>
+#include <debug.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 #ifdef CONFIG_LTE_ALT1250_DEBUG_MSG
+# define err_alt1250(v, ...) _err(v, ##__VA_ARGS__)
 # define dbg_alt1250(v, ...) ninfo(v, ##__VA_ARGS__)
 #else
+# define err_alt1250(v, ...)
 # define dbg_alt1250(v, ...)
 #endif
 

@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/net/usrsock.h>
+#include <unistd.h>
 
 #include "alt1250_dbg.h"
 #include "alt1250_container.h"
@@ -176,6 +177,11 @@ static int postproc_actpdn(FAR struct alt1250_s *dev,
 
   if (*usock_result == 0)
     {
+      /* After connecting to the LTE network,
+       * wait for the modem to register the network interface.
+       */
+
+      usleep(ALT1250_NETIF_READY_DELAY);
       alt1250_netdev_ifup(dev, pdn);
     }
 

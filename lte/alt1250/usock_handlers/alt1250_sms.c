@@ -82,6 +82,11 @@
 #  endif
 #endif /* CONFIG_LTE_ALT1250_SMS_TOA */
 
+/* RK_02_01_01_10xxx FW version that does not support SMS feature */
+
+#define IS_SMS_UNAVAIL_FWVERSION(d) (!strncmp(MODEM_FWVERSION(d), \
+                                              "RK_02_01_01", 11))
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -374,6 +379,85 @@ static void notify_abort(FAR struct alt1250_s *dev)
 }
 
 /****************************************************************************
+ * name: update_concat_size
+ ****************************************************************************/
+
+static void update_concat_size(FAR struct alt1250_s *dev, uint16_t msg_index,
+                               uint16_t msg_len, uint8_t max_num,
+                               uint8_t seq_num,
+                               FAR struct sms_recv_msg_header_s *sms_msg)
+{
+  int32_t usock_result = OK;
+
+  dev->sms_info.total_msglen += sms_msg->datalen;
+
+  if (max_num == seq_num)
+    {
+      /* In case of last of concatenated sms */
+
+      /* Send only SMS FIN command to avoid receiving the next SMS REPORT
+       * command. If SMS REPORT response is sent before SMS FIN command
+       * is sent, unexpected SMS REPORT command may be received.
+       */
+
+      send_smsfin_command(dev, &g_sms_container, 0,
+                          postproc_smsfin_reopen, &usock_result);
+      if (usock_result < 0)
+        {
+          notify_abort(dev);
+        }
+      else
+        {
+          SMS_SET_STATE(&dev->sms_info, SMS_STATE_REOPEN);
+
+          dev->sms_info.is_first_msg = true;
+        }
+    }
+  else
+    {
+      send_smsreportrecv_command(dev, &usock_result);
+      if (usock_result < 0)
+        {
+          notify_abort(dev);
+        }
+    }
+}
+
+/****************************************************************************
+ * name: handle_recvmsg
+ ****************************************************************************/
+
+static void handle_recvmsg(FAR struct alt1250_s *dev, uint16_t msg_index,
+                           uint16_t msg_len, uint8_t max_num,
+                           uint8_t seq_num,
+                           FAR struct sms_recv_msg_header_s *sms_msg)
+{
+  if (max_num == 0)
+    {
+      /* In case of not concatenated sms */
+
+      dev->sms_info.total_msglen = sms_msg->datalen;
+      dev->sms_info.is_first_msg = true;
+
+      SMS_SET_STATE(&dev->sms_info, SMS_STATE_READ_READY);
+
+      /* Notify usrsock of the read ready event. */
+
+      notify_read_ready(dev, msg_index, msg_len);
+    }
+  else
+    {
+      /* In case of concatenated sms */
+
+      SMS_SET_STATE(&dev->sms_info, SMS_STATE_CALC_SIZE);
+
+      dev->sms_info.msg_index = msg_index;
+
+      update_concat_size(dev, msg_index, msg_len, max_num, seq_num, sms_msg);
+    }
+}
+
+/****************************************************************************
  * name: postproc_smsinit
  ****************************************************************************/
 
@@ -385,19 +469,23 @@ static int postproc_smsinit(FAR struct alt1250_s *dev,
                             FAR struct usock_ackinfo_s *ackinfo,
                             unsigned long arg)
 {
+  int ret = REP_SEND_ACK_TXREADY;
+
   dbg_alt1250("%s start\n", __func__);
 
   *usock_result = CONTAINER_RESPRES(reply);
-  if (*usock_result < 0 && *usock_result != -EALREADY)
+  if (*usock_result < 0)
     {
-      notify_abort(dev);
+      ret = REP_SEND_ACK;
     }
   else
     {
-      usocket_smssock_writeready(dev, usock);
+      *usock_result = USOCKET_USOCKID(usock);
+      ackinfo->usockid = USOCKET_USOCKID(usock);
+      SMS_SET_STATE(&dev->sms_info, SMS_STATE_WAITMSG);
     }
 
-  return REP_NO_ACK;
+  return ret;
 }
 
 /****************************************************************************
@@ -417,7 +505,7 @@ static int postproc_smsinit_reopen(FAR struct alt1250_s *dev,
   *usock_result = CONTAINER_RESPRES(reply);
   if (*usock_result >= 0)
     {
-      SMS_SET_STATE(&dev->sms_info, SMS_STATE_FIXSIZE);
+      SMS_SET_STATE(&dev->sms_info, SMS_STATE_WAITMSG_CONCAT);
     }
   else
     {
@@ -558,80 +646,64 @@ static void sms_report_event(FAR struct alt1250_s *dev, uint16_t msg_index,
                              uint8_t seq_num,
                              FAR struct sms_recv_msg_header_s *sms_msg)
 {
-  int32_t usock_result = OK;
-
   dbg_alt1250("%s start\n", __func__);
-
-  if (SMS_STATE(&dev->sms_info) == SMS_STATE_UNINIT)
-    {
-      dbg_alt1250("All sms sockets are closed\n");
-
-      return;
-    }
-  else if (SMS_STATE(&dev->sms_info) == SMS_STATE_REOPEN)
-    {
-      dbg_alt1250("Receive report msg in REOPEN state\n");
-
-      return;
-    }
 
   assert(msg_len >= sizeof(struct sms_recv_msg_header_s));
 
-  if (dev->sms_info.is_first_msg)
+  switch (SMS_STATE(&dev->sms_info))
     {
-      sms_msg->datalen = dev->sms_info.total_msglen;
-    }
+      case SMS_STATE_UNINIT:
+        dbg_alt1250("All sms sockets are closed\n");
+        break;
 
-  if (max_num == 0)
-    {
-      /* In case of not concatenated sms */
+      case SMS_STATE_REOPEN:
+        dbg_alt1250("Receive report msg in REOPEN state\n");
+        break;
 
-      dev->sms_info.total_msglen = sms_msg->datalen;
-      dev->sms_info.is_first_msg = true;
+      case SMS_STATE_READ_READY:
 
-      SMS_SET_STATE(&dev->sms_info, SMS_STATE_FIXSIZE);
-    }
+        /* Notify usrsock of the read ready event. */
 
-  if (SMS_STATE(&dev->sms_info) == SMS_STATE_FIXSIZE)
-    {
-      /* Notify usrsock of the read ready event. */
+        notify_read_ready(dev, msg_index, msg_len);
+        break;
 
-      notify_read_ready(dev, msg_index, msg_len);
-    }
+      case SMS_STATE_WAITMSG:
+        handle_recvmsg(dev, msg_index, msg_len, max_num, seq_num, sms_msg);
+        break;
 
-  /* State in which to calculate the total message
-   * size of concatenated sms.
-   */
+      case SMS_STATE_WAITMSG_CONCAT:
+        if (dev->sms_info.msg_index != msg_index)
+          {
+            /* In case of unexpected SMS received.
+             * Therefore, start over from the beginning.
+             */
 
-  else
-    {
-      send_smsreportrecv_command(dev, &usock_result);
-      if (usock_result < 0)
-        {
-          notify_abort(dev);
-        }
+            handle_recvmsg(dev, msg_index, msg_len, max_num, seq_num,
+                           sms_msg);
+          }
+        else
+          {
+            /* In case of expected concatenated SMS received. */
 
-      dev->sms_info.total_msglen += sms_msg->datalen;
+            sms_msg->datalen = dev->sms_info.total_msglen;
 
-      if (max_num == seq_num)
-        {
-          /* In case of last of concatenated sms */
+            SMS_SET_STATE(&dev->sms_info, SMS_STATE_READ_READY);
 
-          SMS_SET_STATE(&dev->sms_info, SMS_STATE_FIXSIZE);
+            /* Notify usrsock of the read ready event. */
 
-          send_smsfin_command(dev, &g_sms_container, 0,
-                              postproc_smsfin_reopen, &usock_result);
-          if (usock_result < 0)
-            {
-              notify_abort(dev);
-            }
-          else
-            {
-              SMS_SET_STATE(&dev->sms_info, SMS_STATE_REOPEN);
+            notify_read_ready(dev, msg_index, msg_len);
+          }
+        break;
 
-              dev->sms_info.is_first_msg = true;
-            }
-        }
+      case SMS_STATE_CALC_SIZE:
+        update_concat_size(dev, msg_index, msg_len, max_num, seq_num,
+                           sms_msg);
+        break;
+
+      default:
+        dbg_alt1250("Receive report msg in unexpected state: %d\n",
+                    SMS_STATE(&dev->sms_info));
+        break;
     }
 }
 
@@ -644,42 +716,42 @@ static void sms_report_event(FAR struct alt1250_s *dev, uint16_t msg_index,
  ****************************************************************************/
 
 int alt1250_sms_init(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
-                     FAR int32_t *usock_result)
+                     FAR int32_t *usock_result,
+                     FAR struct usock_ackinfo_s *ackinfo)
 {
   int ret = REP_SEND_ACK_WOFREE;
   FAR struct alt_container_s *container;
 
   dbg_alt1250("%s start\n", __func__);
 
-  if (IS_OLD_FWVERSION(dev))
+  if (IS_SMS_UNAVAIL_FWVERSION(dev))
     {
       dbg_alt1250("This ALT1250 FW version does not support SMS.\n");
       *usock_result = -ENOTSUP;
       return REP_SEND_ACK_WOFREE;
     }
 
-  container = container_alloc();
-  if (container == NULL)
+  if (SMS_STATE(&dev->sms_info) == SMS_STATE_UNINIT)
     {
-      dbg_alt1250("no container\n");
-      return REP_NO_CONTAINER;
-    }
-
-  ret = send_smsinit_command(dev, container, USOCKET_USOCKID(usock),
-                             postproc_smsinit, usock_result);
-
-  if (IS_NEED_CONTAINER_FREE(ret))
-    {
-      container_free(container);
-    }
-
-  if (*usock_result >= 0)
-    {
-      ret = REP_SEND_ACK_WOFREE;
-      if (SMS_STATE(&dev->sms_info) == SMS_STATE_UNINIT)
+      container = container_alloc();
+      if (container == NULL)
         {
-          SMS_SET_STATE(&dev->sms_info, SMS_STATE_NOT_FIXSIZE);
+          dbg_alt1250("no container\n");
+          return REP_NO_CONTAINER;
         }
+
+      ret = send_smsinit_command(dev, container, USOCKET_USOCKID(usock),
+                                 postproc_smsinit, usock_result);
+
+      if (IS_NEED_CONTAINER_FREE(ret))
+        {
+          container_free(container);
+        }
+    }
+  else
+    {
+      ret = REP_SEND_ACK_TXREADY;
+      ackinfo->usockid = USOCKET_USOCKID(usock);
     }
 
   return ret;
@@ -701,6 +773,11 @@ int alt1250_sms_fin(FAR struct alt1250_s *dev, FAR struct usock_s *usock,
 
   if (usocket_smssock_num(dev) == 1)
     {
+      if (SMS_STATE(&dev->sms_info) == SMS_STATE_REOPEN)
+        {
+          return REP_NO_CONTAINER;
+        }
+
       container = container_alloc();
       if (container == NULL)
         {
@@ -817,6 +894,11 @@ int alt1250_sms_recv(FAR struct alt1250_s *dev,
 
   dbg_alt1250("%s start\n", __func__);
 
+  if (SMS_STATE(&dev->sms_info) == SMS_STATE_REOPEN)
+    {
+      return REP_NO_CONTAINER;
+    }
+
   if (fill_recv_ackinfo(dev, usock, usock_result, ackinfo))
     {
       /* In case of buffer is empty */
@@ -826,6 +908,17 @@ int alt1250_sms_recv(FAR struct alt1250_s *dev,
         {
           dbg_alt1250("no container\n");
           return REP_NO_CONTAINER;
+        }
+
+      /* If the application has read all data,
+       * change the status to SMS_STATE_WAITMSG.
+       */
+
+      dev->sms_info.total_msglen -= (dev->sms_info.msglen -
+                                       sizeof(struct sms_recv_msg_header_s));
+      if (dev->sms_info.total_msglen == 0)
+        {
+          SMS_SET_STATE(&dev->sms_info, SMS_STATE_WAITMSG);
         }
 
       /* Delete the SMS in the ALT1250 because one SMS was read. */

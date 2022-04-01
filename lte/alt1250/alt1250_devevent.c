@@ -110,6 +110,7 @@ static int handle_normal_reset(FAR struct alt1250_s *dev)
   alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
 
   dev->recvfrom_processing = false;
+  dev->lwm2m_apply_xid = -1;
 
   alt1250_netdev_ifdown(dev);
 
@@ -128,6 +129,12 @@ static int handle_normal_reset(FAR struct alt1250_s *dev)
 
 static int handle_intentional_reset(FAR struct alt1250_s *dev)
 {
+  if (dev->lwm2m_apply_xid >= 0)
+    {
+      usockif_sendack(dev->usockfd, 0, (uint8_t)dev->lwm2m_apply_xid, false);
+      dev->lwm2m_apply_xid = -1;
+    }
+
   alt1250_clrevtcb(ALT1250_CLRMODE_WO_RESTART);
   dev->recvfrom_processing = false;
   alt1250_netdev_ifdown(dev);
