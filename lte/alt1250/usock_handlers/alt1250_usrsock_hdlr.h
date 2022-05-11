@@ -38,7 +38,7 @@
 
 #define COMBINE_ERRCODE(res, ecode) (((res) < 0) ? -(ecode) : (res))
 
-#define ALT1250_NETIF_READY_DELAY (500 * 1000)
+#define ALT1250_NETIF_READY_DELAY (150 * 1000)
 
 /****************************************************************************
  * Public Function Prototypes
