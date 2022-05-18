@@ -48,15 +48,9 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if defined(CONFIG_NET_USRSOCK_CONNS)
-#  if (CONFIG_NET_USRSOCK_CONNS > ALTCOM_NSOCKET)
-#    define SOCKET_COUNT ALTCOM_NSOCKET
-#  else
-#    define SOCKET_COUNT CONFIG_NET_USRSOCK_CONNS
-#  endif
-#else
-#  define SOCKET_COUNT ALTCOM_NSOCKET
-#endif
+/* The maximum number of sockets that the ALT1250 modem can open. */
+
+#define SOCKET_COUNT 5
 
 #define _TX_BUFF_SIZE  (1500)
 #define _RX_BUFF_SIZE  (1500)
