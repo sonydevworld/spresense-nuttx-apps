@@ -38,6 +38,62 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * name: postproc_accepterr
+ ****************************************************************************/
+
+static int postproc_accepterr(FAR struct alt1250_s *dev,
+                              FAR struct alt_container_s *reply,
+                              FAR struct usock_s *usock,
+                              FAR int32_t *usock_result,
+                              FAR uint8_t *usock_xid,
+                              FAR struct usock_ackinfo_s *ackinfo,
+                              unsigned long arg)
+{
+  int ret = REP_SEND_ACK;
+
+  dbg_alt1250("%s start\n", __func__);
+
+  /* resp[0]: ret code
+   * resp[1]: error code
+   */
+
+  *usock_xid = USOCKET_XID(usock);
+  *usock_result = -EBUSY;
+
+  return ret;
+}
+
+/****************************************************************************
+ * name: send_close_command
+ ****************************************************************************/
+
+static int send_close_command(FAR struct alt1250_s *dev,
+                              FAR struct alt_container_s *container,
+                              FAR struct usock_s *usock,
+                              int altsock,
+                              FAR int32_t *usock_result)
+{
+  int idx = 0;
+  FAR void *inparam[1];
+
+  /* This member is referenced only when sending a command and
+   * not when receiving a response, so local variable is used.
+   */
+
+  inparam[0] = &altsock;
+
+  USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_RESULT(usock));
+  USOCKET_SET_RESPONSE(usock, idx++, USOCKET_REP_ERRCODE(usock));
+
+  set_container_ids(container, USOCKET_USOCKID(usock), LTE_CMDID_CLOSE);
+  set_container_argument(container, inparam, ARRAY_SZ(inparam));
+  set_container_response(container, USOCKET_REP_RESPONSE(usock), idx);
+  set_container_postproc(container, postproc_accepterr, 0);
+
+  return altdevice_send_command(dev->altfd, container, usock_result);
+}
+
+/****************************************************************************
  * name: postproc_accept
  ****************************************************************************/
 
@@ -70,7 +126,8 @@ static int postproc_accept(FAR struct alt1250_s *dev,
       accept_sock = usocket_alloc(dev);
       if (!accept_sock)
         {
-          *usock_result = -EBUSY;
+          ret = send_close_command(dev, reply, usock, altsock_res,
+                                   usock_result);
           *usock_xid = USOCKET_XID(usock);
         }
       else
