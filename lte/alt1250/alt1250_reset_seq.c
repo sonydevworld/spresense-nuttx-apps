@@ -55,7 +55,7 @@ struct reset_arg_s
  * Private Data
  ****************************************************************************/
 
-struct reset_arg_s reset_arg;
+static struct reset_arg_s reset_arg;
 
 static postproc_hdlr_t ponreset_seq[] =
 {
