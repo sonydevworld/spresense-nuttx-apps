@@ -304,19 +304,12 @@ int lte_enablem2m_objects(uint16_t *objids, int objnum)
     objids, (void *)objnum
   };
 
-  if (!objids || objnum < 2)
+  if (!objids || objnum <= 0)
     {
       return -EINVAL;
     }
 
   insert_sort(objids, objnum);
-
-  if (objids[0] != 0 || objids[1] != 1)
-    {
-      /* Object 0 and 1 are mandatory. */
-
-      return -EINVAL;
-    }
 
   return lapi_req(LTE_CMDID_LWM2M_SETACTIVEOBJ, &inarg, 2, NULL, 0, NULL);
 }
