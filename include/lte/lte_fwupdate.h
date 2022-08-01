@@ -112,6 +112,10 @@ int ltefwupdate_injected_datasize(void);
  * attention When this function is executed, the modem is automatically
  * rebooted multiple times. The progress of the update can be checked by
  * the callback set by lte_set_report_restart().
+ * Before executing this function, the modem must be woken up using
+ * lte_acquire_wakelock() to safely update the modem. Then
+ * lte_release_wakelock() is executed when the callback set by
+ * lte_set_report_restart() is called.
  *
  * On success, 0 is returned. On failure,
  * negative value is returned as below values.
