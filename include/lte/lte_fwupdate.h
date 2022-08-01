@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/include/lte/lte_fw_api.h
+ * apps/include/lte/lte_fwupdate.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -59,15 +59,15 @@ extern "C"
  ****************************************************************************/
 
 /* Initialze injection delta image to LTE modem.
- * 
+ *
  * Initialize LTE modem delta image injection with some data of top of delta
  * image.
  *
  * [in] initial_data: Pointer to top data of update image.
  * [in] len: Size of initial_data.
  *
- * Return value : Positive value is the injected length. Negative falue is any
- *                error. In error case, the value can be below values.
+ * Return value : Positive value is the injected length. Negative value is
+ *                any error. In error case, the value can be below values.
  *
  * - LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE
  * - LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR
@@ -80,15 +80,15 @@ extern "C"
 int ltefwupdate_initialize(const char *initial_data, int len);
 
 /* Inject rest delta image to LTE modem.
- * 
+ *
  * Inject the rest of the delta image following the data injected
  * by the ltefwupdate_initialize() and ltefwupdate_injectrest() functions.
  *
  * [in] rest_data: Pointer to top data of update image.
  * [in] len: Size of initial_data.
  *
- * Return value : Positive value is the injected length. Negative falue is any
- *                error. In error case, the value can be below values.
+ * Return value : Positive value is the injected length. Negative value is
+ *                any error. In error case, the value can be below values.
  *
  * - LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE
  * - LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR
@@ -119,7 +119,7 @@ int ltefwupdate_injected_datasize(void);
  *
  * On success, 0 is returned. On failure,
  * negative value is returned as below values.
- * 
+ *
  * - LTEFW_RESULT_PRECHK_SET_DELTAIMAGE_FAILED
  * - LTEFW_RESULT_PRECHK_DELTAIMAGE_MISSING
  * - LTEFW_RESULT_PRECHK_OOM
