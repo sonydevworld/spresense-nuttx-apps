@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/include/lte/lte_fw_api.h
+ * apps/include/lte/lte_fwupdate.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -68,15 +68,15 @@ extern "C"
 
 /**
  * Initialze injection delta image to LTE modem.
- * 
+ *
  * Initialize LTE modem delta image injection with some data of top of delta
  * image.
  *
  * @param [in] initial_data: Pointer to top data of update image.
  * @param [in] len: Size of initial_data.
  *
- * @return Positive value is the injected length. Negative falue is any
- *                error. In error case, the value can be below values.
+ * @return Positive value is the injected length. Negative value is
+ *         any error. In error case, the value can be below values.
  * - @ref LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE
  * - @ref LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR
  * - @ref LTEFW_RESULT_DELTAIMAGE_HDR_UNSUPPORTED
@@ -89,15 +89,15 @@ int ltefwupdate_initialize(const char *initial_data, int len);
 
 /**
  * Inject rest delta image to LTE modem.
- * 
+ *
  * Inject the rest of the delta image following the data injected
  * by the ltefwupdate_initialize() and ltefwupdate_injectrest() functions.
  *
  * @param [in] rest_data: Pointer to rest data of update image.
  * @param [in] len: Size of rest_data.
  *
- * @return Positive value is the injected length. Negative falue is any
- *                error. In error case, the value can be below values.
+ * @return Positive value is the injected length. Negative value is
+ *         any error. In error case, the value can be below values.
  * - @ref LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE
  * - @ref LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR
  * - @ref LTEFW_RESULT_DELTAIMAGE_HDR_UNSUPPORTED
@@ -122,6 +122,10 @@ int ltefwupdate_injected_datasize(void);
  * @attention When this function is executed, the modem is automatically
  * rebooted multiple times. The progress of the update can be checked by
  * the callback set by lte_set_report_restart().
+ * Before executing this function, the modem must be woken up using
+ * lte_acquire_wakelock() to safely update the modem. Then
+ * lte_release_wakelock() is executed when the callback set by
+ * lte_set_report_restart() is called.
  *
  * @return On success, 0 is returned. On failure,
  * negative value is returned as below values.
