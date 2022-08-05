@@ -280,9 +280,10 @@ static int send_smsdelete_command(FAR struct alt1250_s *dev,
 static int send_smsreportrecv_command(FAR struct alt1250_s *dev,
                                       FAR int32_t *usock_result)
 {
-  struct alt_container_s container;
+  struct alt_container_s container = {
+    0
+  };
 
-  clear_container(&container);
   set_container_ids(&container, 0, LTE_CMDID_SMS_REPORT_RECV);
 
   return altdevice_send_command(dev->altfd, &container, usock_result);

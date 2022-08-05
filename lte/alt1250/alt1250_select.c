@@ -88,8 +88,10 @@ static int send_select_command(FAR struct alt1250_s *dev,
 {
   FAR void *in[7];
   uint16_t used_setbit = 0;
-  struct alt_container_s container;
   int32_t usock_result;
+  struct alt_container_s container = {
+    0
+  };
 
   if (readset)
     {
@@ -113,7 +115,6 @@ static int send_select_command(FAR struct alt1250_s *dev,
   in[5] = writeset;
   in[6] = exceptset;
 
-  clear_container(&container);
   set_container_ids(&container, 0, LTE_CMDID_SELECT);
   set_container_argument(&container, in, ARRAY_SZ(in));
 
